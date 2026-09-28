@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { CachedImage } from '../components/CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
@@ -80,8 +81,9 @@ export const CartScreen: React.FC = () => {
                   <Text style={styles.storeBadgeText}>متجر مستقل</Text>
                 </View>
                 <View style={styles.storeTitleWrap}>
-                  <Text style={styles.storeTitle}>{subOrder.storeName}</Text>
-                  <Text style={styles.storeSub}>{subOrder.items.length} أصناف</Text>
+                      <Text style={styles.storeTitle}>{subOrder.storeName}</Text>
+                      <Text style={styles.storeSub}>{subOrder.items.length} أصناف</Text>
+                      <Text style={styles.storeSub}>التوصيل من هذا المتجر: {subOrder.deliveryFee.toLocaleString()} ر.ي</Text>
                 </View>
               </View>
 
@@ -90,7 +92,7 @@ export const CartScreen: React.FC = () => {
                   item.product.discountPrice ?? item.product.sellingPrice;
                 return (
                   <View key={item.product.id} style={styles.itemRow}>
-                    <Image
+                    <CachedImage
                       source={{ uri: item.product.imageUrl }}
                       style={styles.itemImage}
                     />
@@ -174,10 +176,12 @@ export const CartScreen: React.FC = () => {
               <Text style={styles.summaryValue}>
                 {cartDeliveryFee.toLocaleString()} ر.ي
               </Text>
-              <Text style={styles.summaryLabel}>
-                رسوم التوصيل الموحدة ({cartSubOrders.length} متاجر)
-              </Text>
+              <Text style={styles.summaryLabel}>إجمالي رسوم التوصيل</Text>
             </View>
+            {cartSubOrders.map((subOrder) => <View key={`fee-${subOrder.storeId}`} style={styles.summaryRow}>
+              <Text style={styles.summaryValue}>{subOrder.deliveryFee.toLocaleString()} ر.ي</Text>
+              <Text style={styles.summaryLabel}>{subOrder.storeName}</Text>
+            </View>)}
             {cartDiscount > 0 && (
               <View style={styles.summaryRow}>
                 <Text style={styles.discountValue}>

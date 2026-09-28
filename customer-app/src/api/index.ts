@@ -233,7 +233,7 @@ export const addressApi = {
 export const ordersApi = {
   validateCouponCode: (code: string) => api.post<{ code: string; discountKind: 'DELIVERY_DISCOUNT' | 'PRODUCT_DISCOUNT'; discountPercent: number }>('/deals/validate-code', { code }),
   getDeliveryQuote: (addressId: string, storeIds: string[]) =>
-    api.post<{ deliveryFee: number; farthestDistanceKm: number }>('/checkout/delivery-quote', { addressId, storeIds }),
+    api.post<{ deliveryFee: number; farthestDistanceKm: number; storeFees?: { storeId: string; deliveryFee: number }[] }>('/checkout/delivery-quote', { addressId, storeIds }),
   validateCheckout: (items: { productId: string; quantity: number }[], addressId?: string, paymentMethod = 0) =>
     api.post<any>('/checkout/validate', { items, addressId, paymentMethod }),
 

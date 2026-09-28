@@ -261,6 +261,10 @@ export const CheckoutScreen: React.FC = () => {
             <Text style={styles.summaryVal}>{cartDeliveryFee.toLocaleString()} ر.ي</Text>
             <Text style={styles.summaryLbl}>رسوم التوصيل</Text>
           </View>
+          {cartSubOrders.map((subOrder) => <View key={`store-delivery-${subOrder.storeId}`} style={styles.summaryRow}>
+            <Text style={styles.summaryVal}>{subOrder.deliveryFee.toLocaleString()} ر.ي</Text>
+            <Text style={styles.summaryLbl}>توصيل {subOrder.storeName}</Text>
+          </View>)}
           {cartSubOrders.length > 1 && cartFarthestStoreDistanceKm > 0 && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryVal}>{cartFarthestStoreDistanceKm.toFixed(1)} كم</Text>

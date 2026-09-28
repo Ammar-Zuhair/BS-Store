@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { CachedImage } from './CachedImage';
 import { Product } from '../types';
 import { borderRadius, spacing, ThemeColors, typography } from '../theme';
 import { useApp } from '../context/AppContext';
@@ -24,10 +25,10 @@ export const ProductDetailsModal: React.FC<Props> = ({ product, onClose }) => {
             <Text style={styles.headerTitle}>تفاصيل المنتج</Text>
           </View>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
-            <Image source={{ uri: images[imageIndex] || product.imageUrl }} style={styles.hero} resizeMode="contain" />
+            <CachedImage source={{ uri: images[imageIndex] || product.imageUrl }} style={styles.hero} resizeMode="contain" />
             {images.length > 1 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbnails}>
               {images.map((uri, index) => <TouchableOpacity key={`${uri}-${index}`} onPress={() => setImageIndex(index)} style={[styles.thumbWrap, index === imageIndex && styles.thumbSelected]}>
-                <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />
+                <CachedImage source={{ uri }} style={styles.thumb} resizeMode="cover" />
               </TouchableOpacity>)}
             </ScrollView>}
             <Text style={styles.name}>{product.name}</Text>

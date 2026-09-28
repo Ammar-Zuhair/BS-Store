@@ -18,8 +18,6 @@ const ICON_MAP: Record<string, string> = {
   'folder-outline': '📁',
 };
 
-const DEFAULT_STORE_IMG = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80';
-const DEFAULT_PROD_IMG = 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=400&q=80';
 
 interface AppContextType {
   currentScreen: ScreenName;
@@ -102,7 +100,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isFreeDeliveryPromo, setIsFreeDeliveryPromo] = useState<boolean>(false);
   const [deliveryDiscountPercent, setDeliveryDiscountPercent] = useState(0);
   const [deliveryPromoDealId, setDeliveryPromoDealId] = useState<string | null>(null);
-  const [deliveryQuote, setDeliveryQuote] = useState<{ fee: number; farthestDistanceKm: number } | null>(null);
+  const [deliveryQuote, setDeliveryQuote] = useState<{ fee: number; farthestDistanceKm: number; storeFees: Record<string, number> } | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -126,7 +124,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const mappedCats: Category[] = catsRes.map((c) => ({
         id: c.id,
         name: c.name,
-        icon: ICON_MAP[c.iconName] || '🛍️',
+        icon: ICON_MAP[c.iconName] || c.iconName || '🛍️',
         itemCount: c.productsCount || 0,
       }));
 
@@ -146,7 +144,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           name: p.name,
           description: cleanDesc,
           sellingPrice: p.sellingPrice,
-          imageUrl: p.images?.[0] || DEFAULT_PROD_IMG,
+          imageUrl: p.images?.[0] || '',
           images: Array.isArray(p.images) ? p.images.filter(Boolean) : [],
           sourceType: (p.sourceType === 'ExternalStore' ? 'EXTERNAL_STORE' : 'IN_STOCK'),
           inStock: true,
@@ -183,7 +181,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           subcategories: storeSubcats.length > 0 ? storeSubcats : ['عام'],
           phone: s.phone,
           address: s.address,
-          imageUrl: s.imageUrl || DEFAULT_STORE_IMG,
+          imageUrl: s.imageUrl || '',
           rating: 4.8,
           reviewsCount: 24,
           deliveryTime: '25-35 دقيقة',
@@ -205,7 +203,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isFreeDelivery: d.isFreeDelivery, dealType: d.discountKind || d.dealType || d.dealKind,
         discountKind: d.discountKind,
         deliveryDiscountPercent: Number(d.deliveryDiscountPercent ?? d.discountPercent ?? 0) || 0,
-        expiresAt: d.expiresAt, isPublic: d.isActive !== false && d.isPublic !== false,
+        expiresAt: d.expiresAt, isPublic: d.isActive !== false && d.isPublic !== false, visibility: d.visibility,
         products: (Array.isArray(d.products) ? d.products : (Array.isArray(d.bundleItems) ? d.bundleItems : [])).map((p: any, pidx: number) => ({
           id: String(p.id ?? `piece-${pidx}`), name: String(p.name ?? 'منتج'), price: Number(p.price ?? 0) || 0,
           description: p.description || '', imageUrl: p.imageUrl,
@@ -321,7 +319,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               name: i.productName,
               description: '',
               sellingPrice: i.unitPrice,
-              imageUrl: DEFAULT_PROD_IMG,
+              imageUrl: '',
               sourceType: 'IN_STOCK' as const,
               inStock: true,
             },
@@ -373,7 +371,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addToCart = async (product: Product, quantity = 1) => {
     try {
-      if (isAuthenticated) {
+      if (isAuthenticated && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(product.id)) {
         await cartApi.addItem(product.id, quantity);
       }
     } catch (err: any) {
@@ -459,7 +457,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const price = item.selectedPiece ? item.selectedPiece.price : (item.product.discountPrice ?? item.product.sellingPrice);
       return sum + price * item.quantity;
     }, 0);
-    const deliveryFee = 500;
+    const deliveryFee = Number(stores.find((store) => store.id === storeId)?.deliveryFee) || 500;
     return {
       storeId,
       storeName: items[0]?.product?.storeName || 'متجر',
@@ -481,12 +479,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let cancelled = false;
     setDeliveryQuote(null);
     ordersApi.getDeliveryQuote(addressId, deliveryStoreIds).then((quote) => {
-      if (!cancelled) setDeliveryQuote({ fee: Number(quote.deliveryFee) || 0, farthestDistanceKm: Number(quote.farthestDistanceKm) || 0 });
+      if (!cancelled) setDeliveryQuote({
+        fee: Number(quote.deliveryFee) || 0,
+        farthestDistanceKm: Number(quote.farthestDistanceKm) || 0,
+        storeFees: Object.fromEntries((quote.storeFees || []).map((entry) => [entry.storeId, Number(entry.deliveryFee) || 0])),
+      });
     }).catch(() => { if (!cancelled) setDeliveryQuote(null); });
     return () => { cancelled = true; };
   }, [isAuthenticated, selectedAddress?.id, selectedAddress?.latitude, selectedAddress?.longitude, deliveryStoreIdsKey]);
-  const baseDeliveryFee = cartSubOrders.length === 0 ? 0 : deliveryQuote?.fee ?? 500;
+  const fallbackDeliveryTotal = cartSubOrders.reduce((sum, group) => sum + group.deliveryFee, 0);
+  const baseDeliveryFee = cartSubOrders.length === 0 ? 0 : deliveryQuote?.fee ?? fallbackDeliveryTotal;
   const cartDeliveryFee = isFreeDeliveryPromo ? 0 : Math.max(0, Math.round(baseDeliveryFee * (1 - deliveryDiscountPercent / 100)));
+  const quotedWeightTotal = cartSubOrders.reduce((sum, group) => sum + (deliveryQuote?.storeFees[group.storeId] ?? group.deliveryFee), 0);
+  let allocatedDeliveryFee = 0;
+  const cartSubOrdersWithFees = cartSubOrders.map((group, index) => {
+    const weight = deliveryQuote?.storeFees[group.storeId] ?? group.deliveryFee;
+    const fee = index === cartSubOrders.length - 1
+      ? cartDeliveryFee - allocatedDeliveryFee
+      : quotedWeightTotal > 0 ? Math.floor(cartDeliveryFee * weight / quotedWeightTotal) : 0;
+    allocatedDeliveryFee += fee;
+    return { ...group, deliveryFee: fee };
+  });
   const cartFarthestStoreDistanceKm = deliveryQuote?.farthestDistanceKm ?? 0;
   const cartDiscount = Math.round(cartSubtotal * (discountPercent / 100));
   const cartTotal = Math.max(0, cartSubtotal + cartDeliveryFee - cartDiscount);
@@ -734,7 +747,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         removeFromCart,
         updateQuantity,
         clearCart,
-        cartSubOrders,
+        cartSubOrders: cartSubOrdersWithFees,
         cartSubtotal,
         cartDeliveryFee,
         cartFarthestStoreDistanceKm,

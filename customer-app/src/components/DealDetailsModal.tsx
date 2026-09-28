@@ -6,8 +6,8 @@ import {
   Modal,
   ScrollView,
   TouchableOpacity,
-  Image,
 } from 'react-native';
+import { CachedImage } from './CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { Product, BundlePiece } from '../types';
@@ -41,6 +41,7 @@ export interface DealItem {
   expiresAt?: string;
   couponCode?: string;
   isPublic?: boolean;
+  visibility?: string;
 }
 
 interface DealDetailsModalProps {
@@ -126,7 +127,7 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
             {/* Cover Image & Badge */}
             <View style={styles.imageWrap}>
-              <Image source={{ uri: deal.imageUrl }} style={styles.image} />
+              <CachedImage source={{ uri: deal.imageUrl }} style={styles.image} />
               <View style={styles.badgeWrap}>
                 <Text style={styles.badgeText}>{deal.badge}</Text>
               </View>

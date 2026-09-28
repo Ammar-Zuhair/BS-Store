@@ -11,7 +11,6 @@ export const mockDriverProfile: DriverProfile = {
   id: '',
   name: '',
   phone: '',
-  avatarUrl: '',
   rating: 5.0,
   reviewsCount: 0,
   vehicleType: '',

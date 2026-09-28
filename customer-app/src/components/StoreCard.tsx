@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { CachedImage } from './CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Store } from '../types';
 import { useApp } from '../context/AppContext';
@@ -19,13 +20,9 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
       activeOpacity={0.88}
     >
       <View style={styles.imageContainer}>
-        <Image source={{ uri: store.imageUrl }} style={styles.image} />
+        <CachedImage source={{ uri: store.imageUrl }} style={styles.image} />
         <View style={styles.statusBadge}>
           <Text style={styles.statusText}>{store.isOpen ? 'مفتوح' : 'مغلق'}</Text>
-        </View>
-        <View style={styles.etaBadge}>
-          <Text style={styles.etaIcon}>⏱</Text>
-          <Text style={styles.etaText}>{store.deliveryTime}</Text>
         </View>
       </View>
 
@@ -43,11 +40,6 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
         </Text>
 
         <View style={styles.footerRow}>
-          <View style={styles.feeWrap}>
-            <Text style={styles.feeLabel}>رسوم التوصيل:</Text>
-            <Text style={styles.feeValue}>{store.deliveryFee} ر.ي</Text>
-          </View>
-
           <View style={styles.tagsWrap}>
             {store.tags.slice(0, 2).map((tag, idx) => (
               <View key={idx} style={styles.tag}>
@@ -64,6 +56,8 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
   card: {
+    flexDirection: 'row-reverse',
+    minHeight: 124,
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
     overflow: 'hidden',
@@ -73,8 +67,9 @@ const createStyles = (colors: ThemeColors) =>
     ...shadows.card,
   },
   imageContainer: {
-    height: 140,
-    width: '100%',
+    height: 124,
+    width: 118,
+    flexShrink: 0,
     position: 'relative',
   },
   image: {
@@ -118,6 +113,8 @@ const createStyles = (colors: ThemeColors) =>
   },
   content: {
     padding: spacing.baseSm,
+    flex: 1,
+    justifyContent: 'center',
   },
   headerRow: {
     flexDirection: 'row-reverse',
@@ -161,20 +158,6 @@ const createStyles = (colors: ThemeColors) =>
     paddingTop: spacing.baseXs,
     borderTopWidth: 1,
     borderTopColor: colors.surfaceContainerLow,
-  },
-  feeWrap: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 4,
-  },
-  feeLabel: {
-    fontSize: typography.fontSize.xs,
-    color: colors.onSurfaceVariant,
-  },
-  feeValue: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
   },
   tagsWrap: {
     flexDirection: 'row-reverse',

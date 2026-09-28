@@ -17,88 +17,33 @@ import { useDriver } from '../context/DriverContext';
 import { OrderInvoice } from '../types';
 
 export const InvoicesScreen: React.FC = () => {
-  const { invoices, activeTask, uploadOrderInvoice, navigateTo } = useDriver();
+  const { invoices, activeTask, navigateTo } = useDriver();
 
   // Upload Modal State
   const [modalVisible, setModalVisible] = useState(false);
-  const [orderNumInput, setOrderNumInput] = useState(activeTask ? activeTask.orderNumber : '10042');
+  const [orderNumInput, setOrderNumInput] = useState(activeTask?.orderNumber || '');
   const [storeNameInput, setStoreNameInput] = useState(
-    activeTask && activeTask.stops[0] ? activeTask.stops[0].name : 'مطعم الشيباني الحديث'
+    activeTask?.stops[0]?.name || ''
   );
   const [invoiceNumInput, setInvoiceNumInput] = useState('');
   const [amountInput, setAmountInput] = useState('');
   const [notesInput, setNotesInput] = useState('');
-  const [selectedReceiptImage, setSelectedReceiptImage] = useState(
-    'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
-  );
 
   // Fullscreen Image Preview Modal
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>('');
 
-  const sampleReceipts = [
-    {
-      label: 'فاتورة مطعم رسمية',
-      url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80',
-    },
-    {
-      label: 'سند استلام هايبرماركت',
-      url: 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?auto=format&fit=crop&w=800&q=80',
-    },
-    {
-      label: 'إيصال دفع صيدلية',
-      url: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80',
-    },
-  ];
-
-  const handleOpenUpload = (store?: string) => {
-    if (store) {
-      setStoreNameInput(store);
+  const handleOpenUpload = (_store?: string) => {
+    if (!activeTask) {
+      Alert.alert('لا توجد مهمة نشطة', 'لا يمكن تسجيل مشتريات دون طلب موصل به.');
+      return;
     }
-    if (activeTask) {
-      setOrderNumInput(activeTask.orderNumber);
-    }
-    setModalVisible(true);
+    navigateTo('purchase_receipt');
   };
 
   const handleSaveInvoice = () => {
-    if (!orderNumInput.trim()) {
-      Alert.alert('تنبيه', 'يرجى إدخال أو تحديد رقم الطلب المرتبط بالفاتورة');
-      return;
-    }
-    if (!storeNameInput.trim()) {
-      Alert.alert('تنبيه', 'يرجى إدخال اسم المتجر أو المحل التجاري');
-      return;
-    }
-    if (!invoiceNumInput.trim()) {
-      Alert.alert('تنبيه', 'يرجى إدخال رقم الفاتورة أو السند الورقي');
-      return;
-    }
-    const amt = parseFloat(amountInput);
-    if (isNaN(amt) || amt <= 0) {
-      Alert.alert('تنبيه', 'يرجى إدخال المبلغ الفعلي المدفوع بشكل صحيح');
-      return;
-    }
-
-    uploadOrderInvoice({
-      orderNumber: orderNumInput.trim(),
-      storeName: storeNameInput.trim(),
-      invoiceNumber: invoiceNumInput.trim(),
-      amount: amt,
-      receiptImageUrl: selectedReceiptImage,
-      notes: notesInput.trim() || undefined,
-      itemsCount: 1,
-    });
-
     setModalVisible(false);
-    setInvoiceNumInput('');
-    setAmountInput('');
-    setNotesInput('');
-
-    Alert.alert(
-      'تم إرسال الفاتورة بنجاح ✓',
-      `تم ربط الفاتورة #${invoiceNumInput.trim()} بالطلب #${orderNumInput.trim()} بمبلغ ${amt.toLocaleString()} ر.ي وإرسالها للإدارة للاعتماد والخصم من العهدة.`
-    );
+    handleOpenUpload();
   };
 
   return (
@@ -205,7 +150,7 @@ export const InvoicesScreen: React.FC = () => {
                     }}
                     activeOpacity={0.85}
                   >
-                    <Image source={{ uri: inv.receiptImageUrl }} style={styles.receiptImage} />
+                    {Boolean(inv.receiptImageUrl) && <Image source={{ uri: inv.receiptImageUrl }} style={styles.receiptImage} />}
                     <View style={styles.zoomOverlay}>
                       <Text style={styles.zoomText}>🔍 تكبير</Text>
                     </View>
@@ -305,42 +250,8 @@ export const InvoicesScreen: React.FC = () => {
                 />
               </View>
 
-              {/* Attach Receipt Image */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>صورة الفاتورة أو السند الورقي *</Text>
-                <View style={styles.imageSelectorRow}>
-                  {sampleReceipts.map((rc, idx) => {
-                    const isSelected = selectedReceiptImage === rc.url;
-                    return (
-                      <TouchableOpacity
-                        key={idx}
-                        style={[styles.sampleBtn, isSelected && styles.sampleBtnActive]}
-                        onPress={() => setSelectedReceiptImage(rc.url)}
-                        activeOpacity={0.8}
-                      >
-                        <Image source={{ uri: rc.url }} style={styles.sampleThumb} />
-                        <Text style={[styles.sampleText, isSelected && styles.sampleTextActive]}>
-                          {rc.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* Selected Image Preview with Zoom */}
-                <TouchableOpacity
-                  style={styles.selectedPreviewWrap}
-                  onPress={() => {
-                    setPreviewImage(selectedReceiptImage);
-                    setPreviewTitle('معاينة الفاتورة قبل الإرسال');
-                  }}
-                  activeOpacity={0.9}
-                >
-                  <Image source={{ uri: selectedReceiptImage }} style={styles.selectedPreviewImg} />
-                  <View style={styles.previewHint}>
-                    <Text style={styles.previewHintText}>🔍 اضغط للمعاينة بملء الشاشة والتأكد من وضوح الأرقام</Text>
-                  </View>
-                </TouchableOpacity>
+                <Text style={styles.inputLabel}>لتسجيل عملية شراء، استخدم توثيق المشتريات المرتبط بطلبك النشط.</Text>
               </View>
 
               {/* Notes */}

@@ -27,26 +27,25 @@ interface DriverContextType {
   completeDeliveryAndCollect: () => Promise<void>;
   wallet: DriverWalletSummary;
   transactions: DriverTransaction[];
-  requestSettlement: (amount: number) => void;
+  requestSettlement: (amount: number) => Promise<void>;
   invoices: OrderInvoice[];
-  uploadOrderInvoice: (
-    invoice: Omit<OrderInvoice, 'id' | 'status' | 'uploadedAt'>
-  ) => void;
   refreshData: () => Promise<void>;
   acceptCurrentOrder: () => Promise<void>;
+  authenticated: boolean;
+  signIn: (phone: string, password: string) => Promise<void>;
+  signUp: (name: string, phone: string, password: string) => Promise<void>;
 }
 
 const DEFAULT_PROFILE: DriverProfile = {
-  id: 'driver-1',
-  name: 'الكابتن أحمد الصالحي',
-  phone: '777000222',
-  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-  rating: 4.9,
-  reviewsCount: 142,
-  vehicleType: 'دراجة نارية TVS HLX',
-  vehiclePlate: 'صنعاء 1/45892',
-  shiftStatus: 'ONLINE',
-  shiftDuration: '04:15:30',
+  id: '',
+  name: '',
+  phone: '',
+  rating: 0,
+  reviewsCount: 0,
+  vehicleType: '',
+  vehiclePlate: '',
+  shiftStatus: 'OFFLINE',
+  shiftDuration: '0',
 };
 
 const DEFAULT_WALLET: DriverWalletSummary = {
@@ -65,6 +64,16 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [wallet, setWallet] = useState<DriverWalletSummary>(DEFAULT_WALLET);
   const [transactions, setTransactions] = useState<DriverTransaction[]>([]);
   const [invoices, setInvoices] = useState<OrderInvoice[]>([]);
+  const [authenticated, setAuthenticated] = useState(false);
+
+  const signIn = async (phone: string, password: string) => {
+    await authApi.login(phone, password);
+    setAuthenticated(true);
+  };
+
+  const signUp = async (name: string, phone: string, password: string): Promise<void> => {
+    await authApi.register(name, phone, password);
+  };
 
   const navigateTo = (screen: CourierScreenName) => {
     setCurrentScreen(screen);
@@ -79,12 +88,12 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         id: `stop-store-${so.id}`,
         type: 'PICKUP_STORE',
         name: so.storeName,
-        address: 'صنعاء، المركز التجاري',
-        latitude: 15.35,
-        longitude: 44.20,
+        address: so.storeAddress || so.storeName || '',
+        latitude: Number(so.storeLatitude) || 0,
+        longitude: Number(so.storeLongitude) || 0,
         status: so.actualPurchaseCost ? 'COMPLETED' : 'PENDING',
         isExternalPurchase: true,
-        storePhone: '777000000',
+        storePhone: so.storePhone || '',
         notes: `استلام طلب متجر ${so.storeName}`,
       });
     });
@@ -93,9 +102,9 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       id: `stop-customer-${order.id}`,
       type: 'DELIVERY_CUSTOMER',
       name: order.customerName || 'العميل',
-      address: order.addressSummary || 'صنعاء، اليمن',
-      latitude: 15.36,
-      longitude: 44.21,
+      address: order.deliveryAddress || '',
+      latitude: Number(order.customerLatitude) || 0,
+      longitude: Number(order.customerLongitude) || 0,
       status: 'PENDING',
       isExternalPurchase: false,
       notes: order.notes,
@@ -106,9 +115,9 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         id: i.id,
         name: i.productNameSnapshot,
         quantity: i.quantity,
-        expectedPrice: Math.round((i.sellingPriceSnapshot || 0) * 0.8),
+        expectedPrice: Number(i.expectedPurchasePrice) || 0,
         actualPrice: i.actualPurchasePrice,
-        imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=300&q=80',
+        imageUrl: i.imageUrl || '',
         storeId: so.storeId,
         storeName: so.storeName,
       }))
@@ -119,9 +128,9 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return {
       id: order.id,
       orderNumber: order.orderNumber,
-      customerName: order.customerName || 'عميل المنصة',
-      customerPhone: order.customerPhone || '777000111',
-      customerAddress: order.addressSummary || 'صنعاء، اليمن',
+      customerName: order.customerName || '',
+      customerPhone: order.customerPhone || '',
+      customerAddress: order.deliveryAddress || '',
       stops,
       currentStopIndex: Math.min(completedStops, stops.length - 1),
       itemsToPurchase,
@@ -203,7 +212,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           storeName: o.subOrders?.[0]?.storeName || 'متاجر متعددة',
           invoiceNumber: `INV-${o.orderNumber}`,
           amount: o.totalAmount,
-          receiptImageUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=400&q=80',
+          receiptImageUrl: o.receiptImageUrl || '',
           status: 'APPROVED',
           uploadedAt: new Date(o.createdAt || Date.now()).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
           itemsCount: o.subOrders?.reduce((acc: number, so: any) => acc + (so.items?.length || 0), 0) || 1,
@@ -218,14 +227,8 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   useEffect(() => {
-    // Authenticate as driver on mount to wire with live database
-    authApi
-      .login('777000222', 'DriverPassword123!')
-      .then(() => refreshData())
-      .catch((e) => {
-        console.warn('Driver initial login warning:', e);
-      });
-  }, []);
+    if (authenticated) void refreshData();
+  }, [authenticated]);
 
   const toggleShiftStatus = async () => {
     const nextStatus = driver.shiftStatus === 'ONLINE' ? 0 : 1;
@@ -274,7 +277,10 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     try {
       const subOrderId = activeTask.stops[0]?.id.replace('stop-store-', '') || '';
-      const totalSpent = items.reduce((acc, it) => acc + it.actualPrice, 0);
+      const totalSpent = items.reduce((acc, it) => {
+        const taskItem = activeTask.itemsToPurchase.find((item) => item.id === it.id);
+        return acc + it.actualPrice * (taskItem?.quantity || 1);
+      }, 0);
 
       await driverApi.recordPurchase(activeTask.id, {
         subOrderId,
@@ -307,56 +313,18 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const requestSettlement = (amount: number) => {
-    const settleTx: DriverTransaction = {
-      id: `tx-${Date.now()}`,
-      type: 'COMPANY_SETTLEMENT',
-      amount,
-      direction: 'CREDIT',
-      referenceNumber: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
-      description: 'طلب توريد وتصفية عهدة نقدية للإدارة',
-      date: 'الآن',
-    };
-    setTransactions((prev) => [settleTx, ...prev]);
-    setWallet((prev) => ({
-      ...prev,
-      currentCashCustody: Math.max(0, prev.currentCashCustody - amount),
-    }));
-  };
-
-  const uploadOrderInvoice = (
-    invoiceData: Omit<OrderInvoice, 'id' | 'status' | 'uploadedAt'>
-  ) => {
-    const newInvoice: OrderInvoice = {
-      ...invoiceData,
-      id: `inv-${Date.now()}`,
-      status: 'PENDING_APPROVAL',
-      uploadedAt: 'الآن',
-    };
-
-    setInvoices((prev) => [newInvoice, ...prev]);
-
-    const newTx: DriverTransaction = {
-      id: `tx-${Date.now()}`,
-      type: 'STORE_PURCHASE',
-      amount: invoiceData.amount,
-      direction: 'CREDIT',
-      referenceNumber: `#${invoiceData.orderNumber}`,
-      description: `فاتورة شراء متجر ${invoiceData.storeName} (سند ${invoiceData.invoiceNumber})`,
-      date: 'الآن',
-    };
-
-    setTransactions((prev) => [newTx, ...prev]);
-    setWallet((prev) => ({
-      ...prev,
-      currentCashCustody: Math.max(0, prev.currentCashCustody - invoiceData.amount),
-    }));
+  const requestSettlement = async (amount: number) => {
+    await driverApi.requestSettlement(amount, 'طلب توريد وتصفية العهدة النقدية');
+    await refreshData();
   };
 
   return (
     <DriverContext.Provider
       value={{
-        currentScreen,
+      currentScreen,
+      authenticated,
+      signIn,
+      signUp,
         navigateTo,
         driver,
         toggleShiftStatus,
@@ -368,7 +336,6 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         transactions,
         requestSettlement,
         invoices,
-        uploadOrderInvoice,
         refreshData,
         acceptCurrentOrder,
       }}

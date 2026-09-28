@@ -7,20 +7,21 @@ import { useDriver } from '../context/DriverContext';
 export const DriverWalletScreen: React.FC = () => {
   const { wallet, transactions, requestSettlement, navigateTo } = useDriver();
   const [settleModalVisible, setSettleModalVisible] = useState(false);
-  const [settleAmount, setSettleAmount] = useState(wallet.currentCashCustody.toString());
+  const [settleAmount, setSettleAmount] = useState(String(wallet.currentCashCustody ?? 0));
 
-  const handleRequestSettlement = () => {
+  const handleRequestSettlement = async () => {
     const amount = parseFloat(settleAmount);
     if (isNaN(amount) || amount <= 0) {
       Alert.alert('خطأ', 'يرجى إدخال مبلغ صحيح للتصفية');
       return;
     }
-    requestSettlement(amount);
-    setSettleModalVisible(false);
-    Alert.alert(
-      'تم إرسال طلب التوريد',
-      `تم إرسال طلب تصفية مبلغ ${amount.toLocaleString()} ر.ي إلى إدارة المالية.`
-    );
+    try {
+      await requestSettlement(amount);
+      setSettleModalVisible(false);
+      Alert.alert('تم إرسال طلب التوريد', `تم إرسال طلب تصفية مبلغ ${amount.toLocaleString()} ر.ي إلى إدارة المالية.`);
+    } catch (error: any) {
+      Alert.alert('تعذر إرسال الطلب', error?.message || 'تحقق من الاتصال بالسيرفر.');
+    }
   };
 
   return (
@@ -52,7 +53,7 @@ export const DriverWalletScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.settleRequestBtn}
             onPress={() => {
-              setSettleAmount(wallet.currentCashCustody.toString());
+              setSettleAmount(String(wallet.currentCashCustody ?? 0));
               setSettleModalVisible(true);
             }}
             activeOpacity={0.85}

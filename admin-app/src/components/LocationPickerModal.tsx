@@ -12,6 +12,7 @@ import {
   TextInput,
   PanResponder,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 
 export interface LocationResult {
@@ -79,29 +80,23 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     }
   }, [visible, initialLat, initialLng, initialDistrict]);
 
-  const handleDetectGPS = () => {
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      setIsLocating(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setCurrentLat(lat);
-          setCurrentLng(lng);
-          setCurrentDistrict('موقع المتجر الحالي');
-          setIsLocating(false);
-        },
-        (error) => {
-          setIsLocating(false);
-          Alert.alert(
-            'تنبيه الموقع',
-            'تعذر الحصول على إشارة GPS تلقائياً. يمكنك اختيار المنطقة أو الشارع التجاري من القائمة أدناه.'
-          );
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
-    } else {
-      Alert.alert('تنبيه', 'خاصية تحديد الموقع الجغرافي غير مدعومة على هذا الجهاز');
+  const handleDetectGPS = async () => {
+    setIsLocating(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') throw new Error('اسمح للتطبيق بالوصول إلى الموقع من إعدادات الجهاز.');
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const { latitude, longitude } = position.coords;
+      setCurrentLat(latitude);
+      setCurrentLng(longitude);
+      setCurrentDistrict('موقع المتجر الحالي');
+      panOrigin.current = { latitude, longitude };
+      const address = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (address[0]) setCurrentDistrict([address[0].district, address[0].street, address[0].city].filter(Boolean).join('، ') || 'موقع المتجر الحالي');
+    } catch (error: any) {
+      Alert.alert('تعذر تحديد الموقع', error?.message || 'تحقق من صلاحيات الموقع وحاول مرة أخرى.');
+    } finally {
+      setIsLocating(false);
     }
   };
 
@@ -121,7 +116,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       setCurrentLng(selected.longitude);
       setCurrentDistrict('الموقع المحدد على الخريطة');
     },
-  }), []);
+  }), [currentLat, currentLng]);
 
   const searchAddress = async () => {
     if (searchQuery.trim().length < 3) return;
@@ -195,7 +190,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           {/* Map Viewer Container */}
           <View style={styles.mapFrame} onLayout={(event) => setMapSize({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height })}>
             <View style={StyleSheet.absoluteFill} {...mapPanResponder.panHandlers}>
-              {mapTiles.map((tile) => <Image key={tile.key} source={{ uri: tile.uri, headers: { 'User-Agent': 'BSStore-Admin/1.0 (store location picker)' } }} style={{ position: 'absolute', left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE }} resizeMode="cover" />)}
+              {mapTiles.map((tile) => <Image key={tile.key} source={{ uri: tile.uri, cache: 'force-cache', headers: { 'User-Agent': 'BSStore-Admin/1.0 (store location picker)' } }} style={{ position: 'absolute', left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE }} resizeMode="cover" />)}
             </View>
             <View style={styles.mapAttribution} pointerEvents="none"><Text style={styles.mapAttributionText}>© OpenStreetMap contributors</Text></View>
 

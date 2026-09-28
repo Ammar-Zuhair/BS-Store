@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { ScrollView, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { typography, spacing, borderRadius, ThemeColors } from '../theme';
-import { mockCategories } from '../mock';
 import { useApp } from '../context/AppContext';
 
 export const CategoryPills: React.FC = () => {
@@ -10,7 +9,7 @@ export const CategoryPills: React.FC = () => {
 
   const displayCategories = categories.length > 0
     ? (categories.some((c) => c.id === 'cat-all') ? categories : [{ id: 'cat-all', name: 'الكل', icon: 'apps', itemCount: 0 }, ...categories])
-    : mockCategories;
+    : [];
 
   return (
     <View style={styles.container}>

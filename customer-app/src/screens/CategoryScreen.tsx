@@ -1,21 +1,23 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { typography, spacing, borderRadius, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { CategoryPills } from '../components/CategoryPills';
 import { ProductCard } from '../components/ProductCard';
 import { ProductDetailsModal } from '../components/ProductDetailsModal';
-import { mockProducts, mockStores } from '../mock';
 import { useApp } from '../context/AppContext';
+import { Product } from '../types';
 
 export const CategoryScreen: React.FC = () => {
   const { selectedCategory, navigateTo, products, stores, colors: themeColors } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<string>('all');
-  const [selectedProduct, setSelectedProduct] = useState<(typeof mockProducts)[number] | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [visibleProductCount, setVisibleProductCount] = useState(12);
+  useEffect(() => setVisibleProductCount(12), [selectedCategory, selectedStoreFilter]);
 
-  const allProducts = products.length > 0 ? products : mockProducts;
-  const allStores = stores.length > 0 ? stores : mockStores;
+  const allProducts = products;
+  const allStores = stores;
 
   // Filter products by category and store
   const filteredProducts = allProducts.filter((product) => {
@@ -96,9 +98,10 @@ export const CategoryScreen: React.FC = () => {
 
         {/* Product Cards List */}
         <View style={styles.productsList}>
-          {filteredProducts.map((prod) => (
+          {filteredProducts.slice(0, visibleProductCount).map((prod) => (
             <ProductCard key={prod.id} product={prod} onPress={() => setSelectedProduct(prod)} />
           ))}
+          {filteredProducts.length > visibleProductCount && <TouchableOpacity style={styles.loadMoreButton} onPress={() => setVisibleProductCount((count) => count + 12)}><Text style={styles.loadMoreText}>عرض المزيد</Text></TouchableOpacity>}
 
           {filteredProducts.length === 0 && (
             <View style={styles.emptyWrap}>
@@ -186,6 +189,8 @@ const createStyles = (colors: ThemeColors) =>
     productsList: {
       paddingHorizontal: spacing.screenGutter,
     },
+    loadMoreButton: { alignSelf: 'center', marginVertical: spacing.baseMd, paddingHorizontal: spacing.baseLg, paddingVertical: spacing.baseSm, borderRadius: borderRadius.full, backgroundColor: colors.surfaceContainerLow },
+    loadMoreText: { color: colors.primary, fontWeight: typography.fontWeight.bold },
     emptyWrap: {
       alignItems: 'center',
       justifyContent: 'center',

@@ -85,6 +85,10 @@ export const adminApi = {
   getDrivers: () =>
     api.get<any[]>('/admin/drivers'),
 
+  getPendingDrivers: () => api.get<any[]>('/admin/drivers/pending'),
+  approveDriver: (driverId: string) => api.post<any>(`/admin/drivers/${driverId}/approve`),
+  rejectDriver: (driverId: string) => api.delete<any>(`/admin/drivers/${driverId}/application`),
+
   createSettlement: (driverId: string, amount: number, note?: string) =>
     api.post<any>(`/admin/drivers/${driverId}/settlement`, { amount, note }),
 

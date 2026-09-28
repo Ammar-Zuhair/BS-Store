@@ -5,12 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Modal,
 } from 'react-native';
+import { CachedImage } from '../components/CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
-import { mockStores, mockProducts } from '../mock';
 import { useApp } from '../context/AppContext';
 import { Product, BundlePiece } from '../types';
 import { ProductDetailsModal } from '../components/ProductDetailsModal';
@@ -32,31 +31,31 @@ export const StoreDetailScreen: React.FC = () => {
 
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
-  const allStores = stores.length > 0 ? stores : mockStores;
-  const allProducts = products.length > 0 ? products : mockProducts;
+  const allStores = stores;
+  const allProducts = products;
 
   // Fallback to first store if none selected
-  const store = selectedStore || allStores[0];
+  const store = selectedStore || allStores[0] || null;
 
   // Filter products STRICTLY for this store (by id or matching store name)
   const storeProducts = allProducts.filter(
-    (p) => p.storeId === store.id || (store.name && p.storeName === store.name)
+    (p) => Boolean(store && (p.storeId === store.id || (store.name && p.storeName === store.name)))
   );
 
   const storeDeals = (deals || []).filter((deal) => {
-    const sameStore = String(deal.storeId || '').toLowerCase() === String(store.id).toLowerCase() ||
-      Boolean(store.name && deal.storeName?.trim().toLocaleLowerCase() === store.name.trim().toLocaleLowerCase());
+    const sameStore = Boolean(store && (String(deal.storeId || '').toLowerCase() === String(store.id).toLowerCase() ||
+      (store.name && deal.storeName?.trim().toLocaleLowerCase() === store.name.trim().toLocaleLowerCase())));
     const validExpiry = !deal.expiresAt || new Date(deal.expiresAt).getTime() > Date.now();
-    return sameStore && validExpiry && deal.isPublic !== false && deal.products?.length > 0 &&
+    return sameStore && validExpiry && deal.isPublic !== false && (!deal.visibility || deal.visibility === 'store' || deal.visibility === 'all') && deal.products?.length > 0 &&
       deal.dealType !== 'DELIVERY_DISCOUNT';
   });
 
   // Include composite bundles and deals belonging to this store
   const storeDealsAsBundles: Product[] = storeDeals.map((d) => ({
       id: d.id,
-      storeId: store.id,
-      storeName: store.name,
-      categoryId: d.categoryId || store.categoryId,
+      storeId: store?.id || '',
+      storeName: store?.name || '',
+      categoryId: d.categoryId || store?.categoryId || '',
       subcategoryId: 'العروض',
       name: d.title,
       description: d.description,
@@ -86,7 +85,7 @@ export const StoreDetailScreen: React.FC = () => {
     )
   );
   const regularSubcategories = [
-    ...(store.subcategories || []).filter((name) => name !== 'العروض' && name !== 'أطقم وعروض'),
+    ...(store?.subcategories || []).filter((name) => name !== 'العروض' && name !== 'أطقم وعروض'),
     ...dynamicSubcats.filter((name) => name !== 'العروض' && name !== 'أطقم وعروض'),
   ];
   const subcategories = [
@@ -96,7 +95,9 @@ export const StoreDetailScreen: React.FC = () => {
   ];
 
   const [selectedSubcat, setSelectedSubcat] = useState<string>('الكل');
-  useEffect(() => setSelectedSubcat('الكل'), [store.id]);
+  const [visibleProductsCount, setVisibleProductsCount] = useState(12);
+  useEffect(() => setSelectedSubcat('الكل'), [store?.id]);
+  useEffect(() => setVisibleProductsCount(12), [selectedSubcat, store?.id]);
 
   // Selected composite product for Modal popup
   const [selectedBundleProduct, setSelectedBundleProduct] = useState<Product | null>(null);
@@ -110,6 +111,10 @@ export const StoreDetailScreen: React.FC = () => {
       (p.name && p.name.includes(selectedSubcat))
     );
   });
+
+  if (!store) {
+    return <View style={styles.container}><Header title="المتجر" showBack onBack={() => navigateTo('category_stores')} /><View style={styles.emptyContainer}><Text style={styles.emptyText}>بيانات المتجر غير متاحة حالياً من الخادم.</Text></View></View>;
+  }
 
   return (
     <View style={styles.container}>
@@ -125,7 +130,7 @@ export const StoreDetailScreen: React.FC = () => {
       >
         {/* Store Profile Card */}
         <View style={styles.storeCard}>
-          <Image source={{ uri: store.imageUrl }} style={styles.storeCover} resizeMode="contain" />
+          <CachedImage source={{ uri: store.imageUrl }} style={styles.storeCover} resizeMode="contain" />
           <View style={styles.storeCardContent}>
             <View style={styles.storeTitleRow}>
               <View style={styles.statusBadge}>
@@ -139,16 +144,6 @@ export const StoreDetailScreen: React.FC = () => {
             <Text style={styles.storeAddress}>📍 {store.address}</Text>
 
             <View style={styles.storeMetaRow}>
-              <View style={styles.metaItem}>
-                <Text style={styles.metaLabel}>رسوم التوصيل</Text>
-                <Text style={styles.metaValue}>{store.deliveryFee} ر.ي</Text>
-              </View>
-              <View style={styles.metaDivider} />
-              <View style={styles.metaItem}>
-                <Text style={styles.metaLabel}>وقت التوصيل</Text>
-                <Text style={styles.metaValue}>{store.deliveryTime}</Text>
-              </View>
-              <View style={styles.metaDivider} />
               <View style={styles.metaItem}>
                 <Text style={styles.metaLabel}>التقييم العام</Text>
                 <Text style={styles.metaValue}>⭐ {store.rating.toFixed(1)}</Text>
@@ -205,7 +200,7 @@ export const StoreDetailScreen: React.FC = () => {
               </Text>
             </View>
           ) : (
-            filteredProducts.map((product) => {
+            filteredProducts.slice(0, visibleProductsCount).map((product) => {
               const isBundle = Boolean(product.isBundle && product.bundleItems && product.bundleItems.length > 0);
               const price = product.discountPrice ?? product.sellingPrice;
 
@@ -231,7 +226,7 @@ export const StoreDetailScreen: React.FC = () => {
                   {/* Product Main Content */}
                   <View style={styles.productTopRow}>
                     <View style={styles.productImageWrap}>
-                      <Image
+                      <CachedImage
                         source={{ uri: product.imageUrl }}
                         style={styles.productImage}
                         resizeMode="cover"
@@ -314,6 +309,9 @@ export const StoreDetailScreen: React.FC = () => {
               );
             })
           )}
+          {filteredProducts.length > visibleProductsCount && <TouchableOpacity style={styles.showMoreProducts} onPress={() => setVisibleProductsCount((count) => count + 12)}>
+            <Text style={styles.showMoreProductsText}>عرض المزيد من المنتجات</Text>
+          </TouchableOpacity>}
         </View>
       </ScrollView>
 
@@ -350,7 +348,7 @@ export const StoreDetailScreen: React.FC = () => {
                 contentContainerStyle={styles.modalScrollBody}
               >
                 {/* Bundle Cover & Title */}
-                <Image
+                <CachedImage
                   source={{ uri: selectedBundleProduct.imageUrl }}
                   style={styles.modalCoverImage}
                 />
@@ -451,7 +449,7 @@ export const StoreDetailScreen: React.FC = () => {
 
                       return (
                         <View key={piece.id} style={styles.pieceCard}>
-                          {!!piece.imageUrl && <Image source={{ uri: piece.imageUrl }} style={styles.pieceImage} resizeMode="cover" />}
+                          {!!piece.imageUrl && <CachedImage source={{ uri: piece.imageUrl }} style={styles.pieceImage} resizeMode="cover" />}
                           <View style={styles.pieceContent}>
                             <Text style={styles.pieceTitle}>{piece.name}</Text>
                             {piece.description && (
@@ -525,6 +523,10 @@ export const StoreDetailScreen: React.FC = () => {
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.screenGutter },
+  emptyText: { color: colors.onSurfaceVariant, textAlign: 'center' },
+  showMoreProducts: { marginVertical: spacing.baseMd, alignSelf: 'center', paddingHorizontal: spacing.baseLg, paddingVertical: spacing.baseSm, borderRadius: borderRadius.full, backgroundColor: colors.surfaceContainerLow },
+  showMoreProductsText: { color: colors.primary, fontWeight: typography.fontWeight.bold },
   container: {
     flex: 1,
     backgroundColor: colors.background,

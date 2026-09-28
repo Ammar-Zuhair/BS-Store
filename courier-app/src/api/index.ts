@@ -4,11 +4,15 @@ export { api };
 
 // ─── Auth API ────────────────────────────────────────────────────────────────
 export const authApi = {
+  register: (fullName: string, phone: string, password: string) =>
+    api.post<{ message: string }>('/driver-applications', { fullName, phone, password }),
+
   login: async (phone: string, password = 'DriverPassword123!') => {
     const res = await api.post<{ accessToken: string; user: { id: string; name: string; phone: string; role: string } }>(
       '/auth/login',
       { phone, password }
     );
+    if (res.user?.role !== 'Driver') throw new Error('هذا الحساب غير مسجل كموصل.');
     api.setToken(res.accessToken);
     return res;
   },
@@ -69,4 +73,7 @@ export const driverApi = {
 
   getFinancialTransactions: () =>
     api.get<any[]>('/driver/financial/transactions'),
+
+  requestSettlement: (amount: number, note?: string) =>
+    api.post<any>('/driver/financial/settlements', { amount, note }),
 };

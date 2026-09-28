@@ -6,14 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Image,
 } from 'react-native';
+import { CachedImage } from '../components/CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { StoreCard } from '../components/StoreCard';
-import { mockCategories, mockStores, mockProducts } from '../mock';
 import { useApp } from '../context/AppContext';
-import { Product, Store } from '../types';
+import { Store } from '../types';
 import { DealDetailsModal, DealItem } from '../components/DealDetailsModal';
 import { CategoryStoresSkeleton } from '../components/Shimmer';
 
@@ -37,9 +36,8 @@ export const CategoryStoresScreen: React.FC = () => {
 
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
-  const allCategories = categories.length > 0 ? categories : mockCategories;
-  const allStores = stores.length > 0 ? stores : mockStores;
-  const allProducts = products.length > 0 ? products : mockProducts;
+  const allCategories = categories;
+  const allStores = stores;
 
   const [activeCat, setActiveCat] = useState<string>(
     selectedCategory && selectedCategory !== 'cat-all'
@@ -48,6 +46,7 @@ export const CategoryStoresScreen: React.FC = () => {
   );
 
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [visibleStoresCount, setVisibleStoresCount] = useState(6);
   const [selectedDeal, setSelectedDeal] = useState<DealItem | null>(null);
   const [dealModalVisible, setDealModalVisible] = useState(false);
 
@@ -58,6 +57,8 @@ export const CategoryStoresScreen: React.FC = () => {
   const categoryDeals = useMemo(() => {
     return (deals || []).filter((d) => {
       if (d.isPublic === false) return false;
+      if (d.visibility && d.visibility !== 'category' && d.visibility !== 'all') return false;
+      if (d.visibility === 'all') return true;
       if (activeCat === 'cat-all') return true;
       if (d.categoryId === activeCat) return true;
       // If deal belongs to a store that is in this category
@@ -140,6 +141,7 @@ export const CategoryStoresScreen: React.FC = () => {
                 onPress={() => {
                   setActiveCat(cat.id);
                   setSelectedCategory(cat.id);
+                  setVisibleStoresCount(6);
                 }}
                 activeOpacity={0.8}
               >
@@ -211,7 +213,7 @@ export const CategoryStoresScreen: React.FC = () => {
                     onPress={() => handleOpenDealModal(deal)}
                   >
                     <View style={styles.offerImageWrap}>
-                      <Image source={{ uri: deal.imageUrl }} style={styles.offerImage} />
+                      <CachedImage source={{ uri: deal.imageUrl }} style={styles.offerImage} />
                       <View style={styles.bundleBadge}>
                         <Text style={styles.bundleBadgeText}>{deal.badge || 'عرض خاص'}</Text>
                       </View>
@@ -348,7 +350,7 @@ export const CategoryStoresScreen: React.FC = () => {
               ) : null}
             </View>
           ) : (
-            filteredCategoryStores.map((store) => (
+            filteredCategoryStores.slice(0, visibleStoresCount).map((store) => (
               <StoreCard
                 key={store.id}
                 store={store}
@@ -356,6 +358,9 @@ export const CategoryStoresScreen: React.FC = () => {
               />
             ))
           )}
+          {filteredCategoryStores.length > visibleStoresCount && <TouchableOpacity style={styles.resetSearchBtn} onPress={() => setVisibleStoresCount((count) => count + 6)}>
+            <Text style={styles.resetSearchText}>عرض المزيد من المتاجر</Text>
+          </TouchableOpacity>}
         </View>
       </ScrollView>
       )}

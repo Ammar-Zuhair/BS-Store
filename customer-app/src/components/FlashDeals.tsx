@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { CachedImage } from './CachedImage';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
-import { mockFlashDeals } from '../mock';
 import { useApp } from '../context/AppContext';
 import { FlashDeal } from '../types';
 
@@ -30,7 +30,7 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ onSelectDeal }) => {
     product: p,
   }));
 
-  const displayDeals = dynamicDeals.length > 0 ? dynamicDeals : mockFlashDeals;
+  const displayDeals = dynamicDeals;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -46,6 +46,8 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ onSelectDeal }) => {
     const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
     return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
   };
+
+  if (displayDeals.length === 0) return null;
 
   return (
     <View style={styles.container}>
@@ -84,7 +86,7 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ onSelectDeal }) => {
               <Text style={styles.cardDiscountText}>وفر {deal.discountPercent}%</Text>
             </View>
 
-            <Image source={{ uri: deal.imageUrl }} style={styles.dealImage} />
+            <CachedImage source={{ uri: deal.imageUrl }} style={styles.dealImage} />
 
             <View style={styles.dealDetails}>
               <View style={styles.storeRow}>

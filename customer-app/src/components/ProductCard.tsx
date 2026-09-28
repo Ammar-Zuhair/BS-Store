@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { CachedImage } from './CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Product } from '../types';
 import { useApp } from '../context/AppContext';
@@ -26,7 +27,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
       activeOpacity={0.85}
     >
       <View style={styles.imageWrap}>
-              <Image source={{ uri: product.imageUrl }} style={styles.image} />
+              <CachedImage source={{ uri: product.imageUrl }} style={styles.image} />
         {isDiscounted && (
           <View style={styles.discountBadge}>
             <Text style={styles.discountText}>خصم</Text>

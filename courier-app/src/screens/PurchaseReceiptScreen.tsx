@@ -7,9 +7,7 @@ import { useDriver } from '../context/DriverContext';
 export const PurchaseReceiptScreen: React.FC = () => {
   const { activeTask, savePurchaseDocumentation, navigateTo } = useDriver();
 
-  const [priceItem1, setPriceItem1] = useState('3800');
-  const [priceItem2, setPriceItem2] = useState('1000');
-  const [receiptPhotoAttached, setReceiptPhotoAttached] = useState(true);
+  const [actualPrices, setActualPrices] = useState<Record<string, string>>({});
 
   if (!activeTask) {
     return (
@@ -22,30 +20,23 @@ export const PurchaseReceiptScreen: React.FC = () => {
     );
   }
 
-  const p1 = parseFloat(priceItem1) || 0;
-  const p2 = parseFloat(priceItem2) || 0;
-  const totalActual = p1 + p2;
-  const expectedTotal = 4800; // 3800 + 1000
+  const currentStoreStop = activeTask.stops.find((stop) => stop.type === 'PICKUP_STORE') || activeTask.stops[activeTask.currentStopIndex];
+
+  const totalActual = activeTask.itemsToPurchase.reduce((sum, item) => sum + (Number(actualPrices[item.id]) || 0) * item.quantity, 0);
+  const expectedTotal = activeTask.itemsToPurchase.reduce((sum, item) => sum + (Number(item.expectedPrice) || 0) * item.quantity, 0);
   const diff = totalActual - expectedTotal;
 
-  const handleConfirmPurchase = () => {
-    if (!receiptPhotoAttached) {
-      Alert.alert('تنبيه', 'تصوير الفاتورة الورقية إلزامي لمطابقة وتصفية العهدة');
+  const handleConfirmPurchase = async () => {
+    if (!activeTask.itemsToPurchase.length || activeTask.itemsToPurchase.some((item) => !(Number(actualPrices[item.id]) > 0))) {
+      Alert.alert('بيانات ناقصة', 'أدخل سعر الشراء الفعلي لكل صنف في الطلب.');
       return;
     }
-
-    savePurchaseDocumentation(
-      [
-        { id: 'item-1', actualPrice: p1 },
-        { id: 'item-2', actualPrice: p2 },
-      ],
-      'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=400&q=80'
-    );
-
-    Alert.alert(
-      'تم توثيق المشتريات بنجاح',
-      `تم قيد سند صرف بقيمة ${totalActual.toLocaleString()} ر.ي وخصمها من العهدة النقدية بحوزتك.`
-    );
+    try {
+      await savePurchaseDocumentation(activeTask.itemsToPurchase.map((item) => ({ id: item.id, actualPrice: Number(actualPrices[item.id]) })), '');
+      Alert.alert('تم توثيق المشتريات', `تم تسجيل مشتريات بقيمة ${totalActual.toLocaleString()} ر.ي.`);
+    } catch (error: any) {
+      Alert.alert('تعذر حفظ المشتريات', error?.message || 'تحقق من اتصال الشبكة وحاول مجدداً.');
+    }
   };
 
   return (
@@ -80,8 +71,8 @@ export const PurchaseReceiptScreen: React.FC = () => {
               <Text style={styles.storeIcon}>🍽️</Text>
             </View>
             <View style={styles.storeInfo}>
-              <Text style={styles.storeName}>مطعم الشيباني الحديث</Text>
-              <Text style={styles.storeAddr}>📍 شارع حدة - بالقرب من جولة الرويشان</Text>
+              <Text style={styles.storeName}>{currentStoreStop?.name || 'المتجر المحدد في الطلب'}</Text>
+              <Text style={styles.storeAddr}>📍 {currentStoreStop?.address || 'العنوان غير متوفر في بيانات الطلب'}</Text>
             </View>
           </View>
         </View>
@@ -102,124 +93,39 @@ export const PurchaseReceiptScreen: React.FC = () => {
         {/* Purchased Items Form */}
         <Text style={styles.formSectionTitle}>قائمة الأصناف المطلوب شراؤها من الكاشير</Text>
 
-        {/* Item 1 */}
-        <View style={styles.itemCard}>
-          <View style={styles.itemTop}>
-            <Image
-              source={{
-                uri: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=200&q=80',
-              }}
-              style={styles.itemThumb}
-            />
-            <View style={styles.itemDetails}>
-              <View style={styles.itemTitleRow}>
-                <View style={styles.qtyBadge}>
-                  <Text style={styles.qtyBadgeText}>كمية: ١</Text>
+        {activeTask.itemsToPurchase.map((item) => {
+          const expectedUnit = Number(item.expectedPrice) || 0;
+          const entered = Number(actualPrices[item.id]) || 0;
+          return (
+            <View key={item.id} style={styles.itemCard}>
+              <View style={styles.itemTop}>
+                {!!item.imageUrl && <Image source={{ uri: item.imageUrl }} style={styles.itemThumb} />}
+                <View style={styles.itemDetails}>
+                  <View style={styles.itemTitleRow}>
+                    <View style={styles.qtyBadge}><Text style={styles.qtyBadgeText}>الكمية: {item.quantity}</Text></View>
+                    <Text style={styles.itemName}>{item.name}</Text>
+                  </View>
+                  <Text style={styles.expectedPriceText}>السعر المتوقع للوحدة: <Text style={styles.boldText}>{expectedUnit.toLocaleString()} ر.ي</Text></Text>
                 </View>
-                <Text style={styles.itemName}>وجبة نصف دجاج مندي مع الأرز</Text>
               </View>
-              <Text style={styles.expectedPriceText}>
-                السعر المقدر بالنظام: <Text style={styles.boldText}>3,800 ر.ي</Text>
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.inputBox}>
-            <View style={styles.labelRow}>
-              <Text style={p1 === 3800 ? styles.diffMatch : styles.diffMismatch}>
-                {p1 === 3800 ? '✓ مطابق للمتوقع' : p1 > 3800 ? '⚠️ زيادة في السعر' : '✓ أقل من المتوقع'}
-              </Text>
-              <Text style={styles.inputLabel}>سعر الشراء الفعلي من الكاشير (ر.ي):</Text>
-            </View>
-            <TextInput
-              style={styles.priceInput}
-              value={priceItem1}
-              onChangeText={setPriceItem1}
-              keyboardType="numeric"
-              textAlign="left"
-            />
-          </View>
-        </View>
-
-        {/* Item 2 */}
-        <View style={styles.itemCard}>
-          <View style={styles.itemTop}>
-            <Image
-              source={{
-                uri: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=200&q=80',
-              }}
-              style={styles.itemThumb}
-            />
-            <View style={styles.itemDetails}>
-              <View style={styles.itemTitleRow}>
-                <View style={styles.qtyBadge}>
-                  <Text style={styles.qtyBadgeText}>كمية: ٢</Text>
+              <View style={styles.inputBox}>
+                <View style={styles.labelRow}>
+                  <Text style={entered > 0 ? (entered === expectedUnit ? styles.diffMatch : styles.diffMismatch) : styles.diffMismatch}>
+                    {entered > 0 ? (entered === expectedUnit ? 'مطابق للمتوقع' : `الإجمالي: ${(entered * item.quantity).toLocaleString()} ر.ي`) : 'أدخل السعر'}
+                  </Text>
+                  <Text style={styles.inputLabel}>سعر الوحدة الفعلي (ر.ي):</Text>
                 </View>
-                <Text style={styles.itemName}>علبة كولا باردة 330 مل</Text>
-              </View>
-              <Text style={styles.expectedPriceText}>
-                السعر بالنظام: <Text style={styles.boldText}>500 ر.ي للقطعة</Text> (الإجمالي 1,000 ر.ي)
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.inputBox}>
-            <View style={styles.labelRow}>
-              <Text style={p2 === 1000 ? styles.diffMatch : styles.diffMismatch}>
-                {p2 === 1000 ? '✓ مطابق للمتوقع' : '⚠️ فارق'}
-              </Text>
-              <Text style={styles.inputLabel}>إجمالي سعر الشراء الفعلي (ر.ي):</Text>
-            </View>
-            <TextInput
-              style={styles.priceInput}
-              value={priceItem2}
-              onChangeText={setPriceItem2}
-              keyboardType="numeric"
-              textAlign="left"
-            />
-          </View>
-        </View>
-
-        {/* Receipt Documentation & Camera Proof */}
-        <View style={styles.receiptProofCard}>
-          <View style={styles.proofHeader}>
-            <View style={styles.proofTag}>
-              <Text style={styles.proofTagText}>إلزامي للمطابقة</Text>
-            </View>
-            <View style={styles.proofTitleRow}>
-              <Text style={styles.proofTitle}>تصوير الفاتورة الورقية</Text>
-              <Text style={styles.proofIcon}>🧾</Text>
-            </View>
-          </View>
-
-          <View style={styles.receiptActionGrid}>
-            <TouchableOpacity
-              style={styles.uploadBox}
-              onPress={() => {
-                setReceiptPhotoAttached(true);
-                Alert.alert('الكاميرا', 'تم التقاط صورة الفاتورة الورقية بنجاح');
-              }}
-              activeOpacity={0.8}
-            >
-              <View style={styles.cameraIconWrap}>
-                <Text style={styles.cameraIcon}>📷</Text>
-              </View>
-              <Text style={styles.uploadText}>إعادة التقاط صورة</Text>
-            </TouchableOpacity>
-
-            <View style={styles.receiptPreviewBox}>
-              <Image
-                source={{
-                  uri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=300&q=80',
-                }}
-                style={styles.receiptPreviewImg}
-              />
-              <View style={styles.checkTag}>
-                <Text style={styles.checkTagText}>✓ مرفقة</Text>
+                <TextInput
+                  style={styles.priceInput}
+                  value={actualPrices[item.id] || ''}
+                  onChangeText={(value) => setActualPrices((prev) => ({ ...prev, [item.id]: value }))}
+                  keyboardType="numeric"
+                  textAlign="left"
+                />
               </View>
             </View>
-          </View>
-        </View>
+          );
+        })}
 
         {/* Total Cost Summary */}
         <View style={styles.totalCard}>

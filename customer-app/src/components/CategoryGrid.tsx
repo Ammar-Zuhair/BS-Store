@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
-import { mockCategories } from '../mock';
 import { Category } from '../types';
 
 interface CategoryGridProps {
@@ -10,10 +9,10 @@ interface CategoryGridProps {
 }
 
 export const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryPress }) => {
-  const { categories, setSelectedCategory, navigateTo, isLoadingCatalog, colors: themeColors } = useApp();
+  const { categories, setSelectedCategory, navigateTo, colors: themeColors } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
-  const allCategories = categories.length > 0 ? categories : (isLoadingCatalog ? [] : mockCategories);
+  const allCategories = categories;
   // Exclude 'cat-all' from the grid so grid shows real categories in pairs
   const displayCats = allCategories.filter((c) => c.id !== 'cat-all');
 

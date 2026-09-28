@@ -84,7 +84,6 @@ export const DriverDashboardScreen: React.FC = () => {
               </View>
             </View>
 
-            <Image source={{ uri: driver.avatarUrl }} style={styles.avatar} />
           </View>
 
           {/* Online/Offline Status Switcher Pill */}
@@ -484,13 +483,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing.baseSm,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: borderRadius.full,
-    borderWidth: 2,
-    borderColor: colors.primaryFixed,
   },
   driverInfo: {
     flex: 1,

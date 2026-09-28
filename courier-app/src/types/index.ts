@@ -9,7 +9,6 @@ export interface DriverProfile {
   id: string;
   name: string;
   phone: string;
-  avatarUrl: string;
   rating: number;
   reviewsCount: number;
   vehicleType: string;
@@ -95,4 +94,3 @@ export interface DriverWalletSummary {
   completedTripsToday: number; // عدد المشاوير المكتملة
   totalDistanceTodayKm: number;
 }
-

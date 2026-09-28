@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { AdminHeader } from '../components/AdminHeader';
 import { useAdmin } from '../context/AdminContext';
+import { adminApi } from '../api';
 
 export const DashboardScreen: React.FC = () => {
   const { kpi, timeframe, setTimeframe, navigateTo, auditLogs } = useAdmin();
@@ -11,6 +12,23 @@ export const DashboardScreen: React.FC = () => {
     dateStr: '',
     timeStr: '',
   });
+  const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
+
+  const loadPendingDrivers = async () => {
+    try { setPendingDrivers(await adminApi.getPendingDrivers()); } catch (error) { console.warn('تعذر تحميل طلبات الموصلين', error); }
+  };
+
+  useEffect(() => { void loadPendingDrivers(); }, []);
+
+  const reviewDriver = async (id: string, approve: boolean) => {
+    try {
+      if (approve) await adminApi.approveDriver(id);
+      else await adminApi.rejectDriver(id);
+      await loadPendingDrivers();
+    } catch (error: any) {
+      Alert.alert('تعذر تنفيذ الإجراء', error?.message || 'حاول مرة أخرى.');
+    }
+  };
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -89,6 +107,21 @@ export const DashboardScreen: React.FC = () => {
         </View>
 
         {/* Critical Operational Alert Banners */}
+        <View style={styles.driverApplicationsCard}>
+          <View style={styles.driverApplicationsHeader}>
+            <Text style={styles.feedTitle}>طلبات انضمام الموصلين ({pendingDrivers.length})</Text>
+            <Text>🛵</Text>
+          </View>
+          {pendingDrivers.map((driver) => <View key={driver.id} style={styles.driverApplicationRow}>
+            <View style={styles.driverApplicationActions}>
+              <TouchableOpacity onPress={() => reviewDriver(driver.id, true)} style={styles.approveDriverButton}><Text style={styles.approveDriverText}>موافقة</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => reviewDriver(driver.id, false)} style={styles.rejectDriverButton}><Text style={styles.rejectDriverText}>رفض</Text></TouchableOpacity>
+            </View>
+            <View style={styles.driverApplicationInfo}><Text style={styles.driverApplicationName}>{driver.fullName}</Text><Text style={styles.driverApplicationPhone}>{driver.phone}</Text></View>
+          </View>)}
+          {pendingDrivers.length === 0 && <Text style={styles.noDriverApplications}>لا توجد طلبات معلقة</Text>}
+        </View>
+
         <View style={styles.alertCard}>
           <View style={styles.alertHeader}>
             <View style={styles.alertCountBadge}>
@@ -330,6 +363,18 @@ export const DashboardScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  driverApplicationsCard: { backgroundColor: colors.surfaceContainerLowest, borderRadius: borderRadius.xl, padding: spacing.baseMd, marginBottom: spacing.baseMd, borderWidth: 1, borderColor: colors.outlineVariant + '40' },
+  driverApplicationsHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
+  driverApplicationRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.baseSm, borderTopWidth: 1, borderTopColor: colors.surfaceContainerLow },
+  driverApplicationActions: { flexDirection: 'row-reverse', gap: 6 },
+  approveDriverButton: { backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 6, borderRadius: borderRadius.md },
+  approveDriverText: { color: colors.onPrimary, fontSize: 11, fontWeight: '700' },
+  rejectDriverButton: { backgroundColor: colors.errorContainer, paddingHorizontal: 10, paddingVertical: 6, borderRadius: borderRadius.md },
+  rejectDriverText: { color: colors.error, fontSize: 11, fontWeight: '700' },
+  driverApplicationInfo: { alignItems: 'flex-end' },
+  driverApplicationName: { color: colors.onSurface, fontWeight: '700' },
+  driverApplicationPhone: { color: colors.onSurfaceVariant, fontSize: 12 },
+  noDriverApplications: { color: colors.onSurfaceVariant, textAlign: 'right', paddingTop: spacing.baseSm },
   container: {
     flex: 1,
     backgroundColor: colors.background,

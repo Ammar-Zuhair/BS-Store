@@ -6,13 +6,16 @@ import { ActiveTaskRouteScreen } from './src/screens/ActiveTaskRouteScreen';
 import { PurchaseReceiptScreen } from './src/screens/PurchaseReceiptScreen';
 import { InvoicesScreen } from './src/screens/InvoicesScreen';
 import { DriverWalletScreen } from './src/screens/DriverWalletScreen';
+import { CourierAuthScreen } from './src/screens/CourierAuthScreen';
 import { DriverBottomNav } from './src/components/DriverBottomNav';
 import { colors } from './src/theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0;
 
 const DriverNavigator: React.FC = () => {
-  const { currentScreen } = useDriver();
+  const { currentScreen, authenticated } = useDriver();
+
+  if (!authenticated) return <CourierAuthScreen />;
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -66,4 +69,3 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 });
-
