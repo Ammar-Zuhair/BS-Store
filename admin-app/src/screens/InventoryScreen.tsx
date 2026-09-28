@@ -9,7 +9,7 @@
  * - تحسين نموذج إضافة المنتج
  * - أنواع متعددة من العروض
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -199,6 +199,8 @@ const MultiSelectModal: React.FC<MultiSelectModalProps> = ({
 // ── MAIN SCREEN ──────────────────────────────────────────────────────────────
 export const InventoryScreen: React.FC = () => {
   const {
+    inventoryTabRequest,
+    setInventoryTabRequest,
     categories,
     addCategory,
     updateCategory,
@@ -219,7 +221,13 @@ export const InventoryScreen: React.FC = () => {
     navigateTo,
   } = useAdmin();
 
-  const [activeTab, setActiveTab] = useState<TabId>('categories');
+  const [activeTab, setActiveTab] = useState<TabId>(inventoryTabRequest || 'categories');
+  useEffect(() => {
+    if (inventoryTabRequest) {
+      setActiveTab(inventoryTabRequest);
+      setInventoryTabRequest(null);
+    }
+  }, [inventoryTabRequest, setInventoryTabRequest]);
 
   // ── Category form ─────────────────────────────────────────────────────────
   const [showCatForm, setShowCatForm] = useState(false);

@@ -27,6 +27,8 @@ export type AdminScreenName =
   | 'financials'
   | 'auth';
 
+export type AdminInventoryTab = 'categories' | 'stores' | 'products' | 'deals';
+
 export interface CaptainInvoice {
   id: string;
   orderNumber: string;
@@ -64,6 +66,8 @@ const DEFAULT_KPI: AdminKPI = {
 
 interface AdminContextType {
   currentScreen: AdminScreenName;
+  inventoryTabRequest: AdminInventoryTab | null;
+  setInventoryTabRequest: (tab: AdminInventoryTab | null) => void;
   navigateTo: (screen: AdminScreenName) => void;
   authMode: 'login' | 'register';
   setAuthMode: (mode: 'login' | 'register') => void;
@@ -132,6 +136,7 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentScreen, setCurrentScreen] = useState<AdminScreenName>('auth');
+  const [inventoryTabRequest, setInventoryTabRequest] = useState<AdminInventoryTab | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [registeredUser, setRegisteredUser] = useState<RegisteredUser | null>(null);
   const [currentUser, setCurrentUser] = useState<RegisteredUser | null>(null);
@@ -993,6 +998,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <AdminContext.Provider
       value={{
         currentScreen,
+        inventoryTabRequest,
+        setInventoryTabRequest,
         navigateTo,
         authMode,
         setAuthMode,

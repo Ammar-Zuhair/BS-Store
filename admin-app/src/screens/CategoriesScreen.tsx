@@ -21,6 +21,7 @@ import { LocationPickerModal, LocationResult } from '../components/LocationPicke
 export const CategoriesScreen: React.FC = () => {
   const {
     navigateTo,
+    setInventoryTabRequest,
     categories,
     addCategory,
     updateCategory,
@@ -1276,7 +1277,7 @@ export const CategoriesScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.newCatBtn}
             activeOpacity={0.8}
-            onPress={() => navigateTo('inventory')}
+            onPress={() => { setInventoryTabRequest('deals'); navigateTo('inventory'); }}
           >
             <Text style={styles.newCatBtnIcon}>⚡</Text>
             <Text style={styles.newCatBtnText}>إدارة الباقات والتوصيل</Text>
