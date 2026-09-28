@@ -11,8 +11,16 @@ The system runs Linux with dual user contexts:
 ## 2. Backend Service & Build Lifecycle
 Whenever any modification, bugfix, or feature change is made to the backend code (`/workspace/backend/` or `backend/src/`):
 
-### Standard Method (One-Command Script):
-Run the provided script which automatically builds, publishes, and restarts the service (supporting both root and non-root/sudo):
+### Why `systemctl` fails inside container sandboxes:
+When running inside an agent container sandbox (such as Codex), `systemctl` will fail with:
+`Failed to connect to bus: Operation not permitted`
+This happens because the container runtime isolates the systemd D-Bus socket.
+**DO NOT rely on `systemctl` inside container sandboxes.**
+
+Instead, the system has an **Automated Host-Level Systemd Path Watcher** (`bsstore-backend-watcher.path`) and an HTTP restart endpoint. The watcher monitors `/workspace/backend/.restart-trigger` and `/workspace/backend/publish/BSStore.API.dll`. The moment files are published or touched, host systemd restarts the backend automatically!
+
+### Standard Method (One-Command Script - Works in ALL environments):
+Run the provided script which automatically publishes, triggers restart (via watcher/curl/systemctl), and verifies health via HTTP:
 ```bash
 /workspace/scripts/restart-backend.sh
 ```
@@ -22,19 +30,19 @@ Run the provided script which automatically builds, publishes, and restarts the 
    ```bash
    dotnet publish /workspace/backend/src/BSStore.API/BSStore.API.csproj -c Release -o /workspace/backend/publish /p:UseAppHost=false
    ```
-2. **Restart the systemd service:**
+2. **Trigger restart without systemctl (choose any):**
    ```bash
-   # If root:
-   systemctl restart bsstore-backend.service
-   # If non-root (e.g. Codex):
-   sudo systemctl restart bsstore-backend.service
+   # Method A: Touch the trigger file (host systemd watcher restarts immediately):
+   touch /workspace/backend/.restart-trigger
+   # Method B: Send HTTP restart request:
+   curl -s -X POST http://localhost:5295/api/system/restart
+   # Method C: If systemctl is permitted in your context:
+   systemctl restart bsstore-backend.service || sudo systemctl restart bsstore-backend.service
    ```
-3. **Verify service status is active (running):**
+3. **Verify service status and health (No systemctl needed):**
    ```bash
-   # If root:
-   systemctl status bsstore-backend.service --no-pager
-   # If non-root:
-   sudo systemctl status bsstore-backend.service --no-pager
+   curl -s http://localhost:5295/health
+   # Returns: {"status":"healthy","service":"BS Store API","timestamp":"..."}
    ```
 
 ---
