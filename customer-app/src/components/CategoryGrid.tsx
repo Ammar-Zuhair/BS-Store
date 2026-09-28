@@ -10,9 +10,9 @@ interface CategoryGridProps {
 }
 
 export const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryPress }) => {
-  const { categories, setSelectedCategory, navigateTo } = useApp();
+  const { categories, setSelectedCategory, navigateTo, isLoadingCatalog } = useApp();
 
-  const allCategories = categories.length > 0 ? categories : mockCategories;
+  const allCategories = categories.length > 0 ? categories : (isLoadingCatalog ? [] : mockCategories);
   // Exclude 'cat-all' from the grid so grid shows real categories in pairs
   const displayCats = allCategories.filter((c) => c.id !== 'cat-all');
 

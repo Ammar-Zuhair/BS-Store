@@ -15,9 +15,11 @@ import { mockCategories, mockStores, mockProducts } from '../mock';
 import { useApp } from '../context/AppContext';
 import { Product, Store } from '../types';
 import { DealDetailsModal, DealItem } from '../components/DealDetailsModal';
+import { CategoryStoresSkeleton } from '../components/Shimmer';
 
 export const CategoryStoresScreen: React.FC = () => {
   const {
+    isLoadingCatalog,
     selectedCategory,
     setSelectedCategory,
     setSelectedStore,
@@ -112,11 +114,14 @@ export const CategoryStoresScreen: React.FC = () => {
         onBack={() => navigateTo('home')}
       />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      {isLoadingCatalog && stores.length === 0 ? (
+        <CategoryStoresSkeleton />
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Category Switcher Tabs */}
         <ScrollView
           horizontal
@@ -350,6 +355,7 @@ export const CategoryStoresScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
+      )}
 
       {/* Bundle / Deal Breakdown Modal */}
       <DealDetailsModal

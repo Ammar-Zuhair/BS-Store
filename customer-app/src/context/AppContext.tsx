@@ -224,6 +224,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const parsed = JSON.parse(storedUser);
           setUser(parsed);
           setIsAuthenticated(true);
+          setCurrentScreen('home');
+        } else {
+          setIsAuthenticated(false);
+          setCurrentScreen('auth');
         }
         const storedAddrs = await AsyncStorage.getItem('@bs_customer_addresses');
         if (storedAddrs) {
@@ -612,7 +616,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     initialAddress?: Omit<Address, 'id'>
   ) => {
     try {
-      const res = await authApi.register(name, phone, password);
+      const res = await authApi.register(name, phone, password, initialAddress);
       const userData = { name: res.user?.name || name, phone: res.user?.phone || phone, email };
       setUser(userData);
       await AsyncStorage.setItem('@bs_customer_user', JSON.stringify(userData));

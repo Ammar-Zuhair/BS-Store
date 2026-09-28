@@ -44,6 +44,7 @@ class ApiClient {
 
     const headers: Record<string, string> = {
       'Accept': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
       ...(options.headers as Record<string, string> || {}),
     };
 

@@ -40,14 +40,14 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
 
   const handlePickFromGallery = async () => {
     try {
-      const localUri = await pickImageFromGallery();
-      if (!localUri) return;
+      const picked = await pickImageFromGallery();
+      if (!picked) return;
 
       setIsUploading(true);
       setUploadStatus('جاري رفع الصورة إلى Supabase...');
 
       try {
-        const publicUrl = await uploadImageToSupabase(localUri, folder);
+        const publicUrl = await uploadImageToSupabase(picked, folder);
         setIsUploading(false);
         setUploadStatus('');
         onImageSelected(publicUrl);
@@ -65,7 +65,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
             {
               text: 'استخدام الصورة',
               onPress: () => {
-                onImageSelected(localUri);
+                onImageSelected(picked.uri);
                 onClose();
               },
             },

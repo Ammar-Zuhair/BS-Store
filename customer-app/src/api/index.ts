@@ -5,6 +5,15 @@ export { api };
 
 // ─── Auth API ────────────────────────────────────────────────────────────────
 export const authApi = {
+  checkPhone: async (phone: string): Promise<boolean> => {
+    try {
+      const res = await api.get<boolean>(`/auth/check-phone?phone=${encodeURIComponent(phone.trim())}`);
+      return Boolean(res);
+    } catch {
+      return false;
+    }
+  },
+
   login: async (phone: string, password = 'Password123!') => {
     const res = await api.post<{ accessToken: string; user: { id: string; name: string; phone: string; role: string } }>(
       '/auth/login',
@@ -14,10 +23,46 @@ export const authApi = {
     return res;
   },
 
-  register: async (fullName: string, phone: string, password = 'Password123!') => {
+  register: async (
+    fullName: string,
+    phone: string,
+    password = 'Password123!',
+    initialAddress?: {
+      city: string;
+      district: string;
+      street: string;
+      building?: string;
+      description?: string;
+      latitude: number;
+      longitude: number;
+    }
+  ) => {
     const res = await api.post<{ accessToken: string; user: { id: string; name: string; phone: string; role: string } }>(
       '/auth/register',
-      { phone, password, fullName }
+      {
+        fullName,
+        phone,
+        password,
+        initialAddress: initialAddress
+          ? {
+              city: initialAddress.city || 'صنعاء',
+              district: initialAddress.district || 'حي حدة',
+              street: initialAddress.street || 'الشارع الرئيسي',
+              building: initialAddress.building,
+              description: initialAddress.description,
+              latitude: initialAddress.latitude || 15.35,
+              longitude: initialAddress.longitude || 44.20,
+              label: 0,
+            }
+          : {
+              city: 'صنعاء',
+              district: 'حي حدة',
+              street: 'الشارع الرئيسي',
+              latitude: 15.35,
+              longitude: 44.20,
+              label: 0,
+            },
+      }
     );
     api.setToken(res.accessToken);
     return res;

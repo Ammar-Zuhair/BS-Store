@@ -1,28 +1,36 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { colors, typography, spacing } from '../theme';
 import { Header } from '../components/Header';
 import { OffersDealsSection } from '../components/OffersDealsSection';
 import { CategoryGrid } from '../components/CategoryGrid';
+import { HomeSkeleton } from '../components/Shimmer';
 import { useApp } from '../context/AppContext';
 
 export const HomeScreen: React.FC = () => {
-  const { navigateTo } = useApp();
+  const { isLoadingCatalog, categories } = useApp();
+
+  // Show YouTube-style Shimmer skeleton when catalog is loading initially
+  const showSkeleton = isLoadingCatalog && categories.length === 0;
 
   return (
     <View style={styles.container}>
       <Header />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* 1. Offers & Deals Section (بداية بالعروض مثل عروض المتاجر أو التوصيل المجاني) */}
-        <OffersDealsSection />
+      {showSkeleton ? (
+        <HomeSkeleton />
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* 1. Offers & Deals Section (بداية بالعروض مثل عروض المتاجر أو التوصيل المجاني) */}
+          <OffersDealsSection />
 
-        {/* 2. Categories 2-Column GridView (الفئات مرتبة 2 في كل سطر) */}
-        <CategoryGrid />
-      </ScrollView>
+          {/* 2. Categories 2-Column GridView (الفئات مرتبة 2 في كل سطر) */}
+          <CategoryGrid />
+        </ScrollView>
+      )}
     </View>
   );
 };

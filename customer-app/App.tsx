@@ -102,17 +102,25 @@ const MainNavigator: React.FC = () => {
   const showNav = currentScreen !== 'auth' && currentScreen !== 'checkout';
 
   return (
-    <View style={styles.appContainer}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="transparent"
-        translucent={true}
-        hidden={false}
-      />
-      {renderScreen()}
-      <FloatingCartBar />
-      {showNav && <BottomNav />}
-    </View>
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        currentScreen === 'auth' && { backgroundColor: '#0A0B0D' },
+      ]}
+      edges={['top', 'left', 'right']}
+    >
+      <View style={[styles.appContainer, currentScreen === 'auth' && { backgroundColor: '#0A0B0D' }]}>
+        <StatusBar
+          barStyle={currentScreen === 'auth' ? 'light-content' : 'dark-content'}
+          backgroundColor="transparent"
+          translucent={true}
+          hidden={false}
+        />
+        {renderScreen()}
+        {currentScreen !== 'auth' && <FloatingCartBar />}
+        {showNav && <BottomNav />}
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -135,11 +143,9 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <AppProvider>
-          <MainNavigator />
-        </AppProvider>
-      </SafeAreaView>
+      <AppProvider>
+        <MainNavigator />
+      </AppProvider>
     </SafeAreaProvider>
   );
 }

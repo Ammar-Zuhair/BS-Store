@@ -26,3 +26,9 @@ yarn-error.*
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Agent directories
+.agents/
+.claude/
+.codex/
+.minimax/

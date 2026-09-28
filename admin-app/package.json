@@ -4,15 +4,17 @@
   "description": "BS Store Admin App - تطبيق المدير والعمليات لمتجر BS Store",
   "main": "expo/AppEntry.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
+    "start": "expo start --port 8085",
+    "tunnel": "expo start --port 8085 --tunnel",
+    "android": "expo start --port 8085 --android",
+    "ios": "expo start --port 8085 --ios",
+    "web": "expo start --port 8085 --web",
     "ts:check": "tsc --noEmit"
   },
   "dependencies": {
     "@expo-google-fonts/tajawal": "^0.4.1",
     "@expo/metro-runtime": "57.0.15",
+    "@expo/ngrok": "^4.1.3",
     "expo": "^57.0.22",
     "expo-asset": "~57.0.17",
     "expo-blob": "^57.0.2",
