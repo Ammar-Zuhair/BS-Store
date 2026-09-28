@@ -1,0 +1,367 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { DriverHeader } from '../components/DriverHeader';
+import { useDriver } from '../context/DriverContext';
+
+export const DriverWalletScreen: React.FC = () => {
+  const { wallet, transactions, requestSettlement, navigateTo } = useDriver();
+  const [settleModalVisible, setSettleModalVisible] = useState(false);
+  const [settleAmount, setSettleAmount] = useState(wallet.currentCashCustody.toString());
+
+  const handleRequestSettlement = () => {
+    const amount = parseFloat(settleAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('خطأ', 'يرجى إدخال مبلغ صحيح للتصفية');
+      return;
+    }
+    requestSettlement(amount);
+    setSettleModalVisible(false);
+    Alert.alert(
+      'تم إرسال طلب التوريد',
+      `تم إرسال طلب تصفية مبلغ ${amount.toLocaleString()} ر.ي إلى إدارة المالية.`
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <DriverHeader title="المحفظة والعهدة النقدية" showBack onBack={() => navigateTo('dashboard')} />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Main Custody Balance Card */}
+        <View style={styles.custodyCard}>
+          <View style={styles.custodyHeader}>
+            <View style={styles.iconCircle}>
+              <Text style={styles.icon}>💼</Text>
+            </View>
+            <View style={styles.custodyInfo}>
+              <Text style={styles.custodyLabel}>العهدة النقدية الحالية بحوزتك</Text>
+              <Text style={styles.custodyValue}>
+                {wallet.currentCashCustody.toLocaleString()} <Text style={styles.curr}>ر.ي</Text>
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.custodyFormula}>
+            العهدة = التحصيلات النقدية من العملاء - مشتريات المتاجر الموثقة - ما تم تسليمه للإدارة
+          </Text>
+
+          <TouchableOpacity
+            style={styles.settleRequestBtn}
+            onPress={() => {
+              setSettleAmount(wallet.currentCashCustody.toString());
+              setSettleModalVisible(true);
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.settleRequestBtnText}>طلب تصفية وتسليم عهدة للإدارة ➔</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Earnings Card */}
+        <View style={styles.earningsCard}>
+          <View style={styles.earningsRow}>
+            <Text style={styles.earningsValue}>{wallet.todayEarnings.toLocaleString()} ر.ي</Text>
+            <View style={styles.earningsTitleRow}>
+              <Text style={styles.earningsTitle}>مستحقات أرباحك اليومية</Text>
+              <Text style={styles.earningsIcon}>⭐</Text>
+            </View>
+          </View>
+          <Text style={styles.earningsDesc}>
+            أتعاب {wallet.completedTripsToday} مشاوير تم تنفيذها بنجاح اليوم
+          </Text>
+        </View>
+
+        {/* Ledger Transactions Feed */}
+        <Text style={styles.sectionTitle}>سجل القيود والعمليات المحاسبية للعهدة</Text>
+
+        {transactions.map((tx) => {
+          const isCollection = tx.type === 'CUSTOMER_COLLECTION';
+          const isPurchase = tx.type === 'STORE_PURCHASE';
+
+          return (
+            <View key={tx.id} style={styles.txCard}>
+              <View style={styles.txTop}>
+                <Text
+                  style={[
+                    styles.txAmount,
+                    isCollection ? styles.amountGreen : styles.amountOrange,
+                  ]}
+                >
+                  {isCollection ? '+' : '-'}
+                  {tx.amount.toLocaleString()} ر.ي
+                </Text>
+                <View style={styles.txTypeWrap}>
+                  <Text style={styles.txDesc}>{tx.description}</Text>
+                  <Text style={styles.txRef}>{tx.referenceNumber}</Text>
+                </View>
+              </View>
+              <Text style={styles.txDate}>{tx.date}</Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+
+      {/* Settle Modal */}
+      <Modal visible={settleModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>طلب تصفية العهدة النقدية</Text>
+            <Text style={styles.modalSubtitle}>
+              حدد المبلغ النقدي الذي ترغب بتوريده وتسليمه لمحاسب الشركة:
+            </Text>
+
+            <TextInput
+              style={styles.amountInput}
+              value={settleAmount}
+              onChangeText={setSettleAmount}
+              keyboardType="numeric"
+              textAlign="center"
+            />
+
+            <View style={styles.btnGroup}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setSettleModalVisible(false)}
+              >
+                <Text style={styles.cancelBtnText}>إلغاء</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmBtn}
+                onPress={handleRequestSettlement}
+              >
+                <Text style={styles.confirmBtnText}>إرسال طلب التصفية</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.screenGutter,
+    paddingVertical: spacing.baseSm,
+    paddingBottom: 110,
+  },
+  custodyCard: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.xl,
+    padding: spacing.baseMd,
+    marginBottom: spacing.baseSm,
+    ...shadows.card,
+  },
+  custodyHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.baseSm,
+  },
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  icon: {
+    fontSize: 22,
+  },
+  custodyInfo: {
+    alignItems: 'flex-end',
+    flex: 1,
+  },
+  custodyLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.onPrimary + 'CC',
+  },
+  custodyValue: {
+    fontSize: typography.fontSize.hero,
+    fontWeight: typography.fontWeight.extraBold,
+    color: colors.onPrimary,
+  },
+  curr: {
+    fontSize: typography.fontSize.sm,
+  },
+  custodyFormula: {
+    fontSize: 10,
+    color: colors.onPrimary + 'B0',
+    textAlign: 'right',
+    marginTop: spacing.baseXs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    paddingTop: 6,
+  },
+  settleRequestBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: borderRadius.lg,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: spacing.baseSm,
+  },
+  settleRequestBtnText: {
+    color: colors.onPrimary,
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.bold,
+  },
+  earningsCard: {
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.xl,
+    padding: spacing.baseSm,
+    marginBottom: spacing.baseSm,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant + '30',
+    ...shadows.card,
+  },
+  earningsRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  earningsTitleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+  },
+  earningsIcon: {
+    fontSize: 14,
+  },
+  earningsTitle: {
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.onSurface,
+  },
+  earningsValue: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.primary,
+  },
+  earningsDesc: {
+    fontSize: 10,
+    color: colors.onSurfaceVariant,
+    textAlign: 'right',
+    marginTop: 2,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.onSurfaceVariant,
+    textAlign: 'right',
+    marginBottom: spacing.baseXs,
+  },
+  txCard: {
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.lg,
+    padding: spacing.baseSm,
+    marginBottom: spacing.baseXs,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant + '30',
+  },
+  txTop: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  txTypeWrap: {
+    alignItems: 'flex-end',
+    flex: 1,
+    marginRight: spacing.baseSm,
+  },
+  txDesc: {
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.onSurface,
+    textAlign: 'right',
+  },
+  txRef: {
+    fontSize: 10,
+    color: colors.outline,
+    marginTop: 1,
+  },
+  txAmount: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.bold,
+  },
+  amountGreen: {
+    color: colors.primary,
+  },
+  amountOrange: {
+    color: colors.secondary,
+  },
+  txDate: {
+    fontSize: 9,
+    color: colors.outline,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(19, 27, 46, 0.65)',
+    justifyContent: 'center',
+    padding: spacing.screenGutter,
+  },
+  modalCard: {
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.xl,
+    padding: spacing.baseMd,
+  },
+  modalTitle: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.onSurface,
+    textAlign: 'right',
+  },
+  modalSubtitle: {
+    fontSize: 11,
+    color: colors.onSurfaceVariant,
+    textAlign: 'right',
+    marginTop: 4,
+    marginBottom: spacing.baseSm,
+  },
+  amountInput: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.md,
+    height: 46,
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.primary,
+    marginBottom: spacing.baseMd,
+  },
+  btnGroup: {
+    flexDirection: 'row-reverse',
+    gap: spacing.baseSm,
+  },
+  cancelBtn: {
+    flex: 1,
+    backgroundColor: colors.surfaceContainerHigh,
+    paddingVertical: 10,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    color: colors.onSurface,
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.bold,
+  },
+  confirmBtn: {
+    flex: 2,
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  confirmBtnText: {
+    color: colors.onPrimary,
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.bold,
+  },
+});

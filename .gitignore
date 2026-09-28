@@ -1,0 +1,28 @@
+# Environment files (NEVER COMMIT SENSITIVE KEYS)
+.env
+.env.local
+.env.*.local
+*.env
+
+# .NET / C#
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+logs/
+*.log
+
+# Node / React Native / Expo
+node_modules/
+.expo/
+dist/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.metro/
+
+# OS Files
+.DS_Store
+Thumbs.db
