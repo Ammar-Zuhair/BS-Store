@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Alert, Platform } from 'react-native';
 
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://ckrnqdagmxgxibjyenrk.supabase.co';
@@ -124,7 +124,29 @@ export const uploadImageToSupabase = async (
     const bucketEncoded = encodeURIComponent(SUPABASE_BUCKET);
     const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${bucketEncoded}/${filePath}`;
 
-    // 1. On Native (iOS & Android): try high-speed binary streaming upload from filesystem
+    // 1. If base64 data is already available in memory (from ImagePicker), upload directly
+    if (base64Data) {
+      const uint8 = decodeBase64ToUint8Array(base64Data);
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': contentType,
+          'x-upsert': 'true',
+        },
+        body: uint8.buffer as ArrayBuffer,
+      });
+
+      if (uploadResponse.ok) {
+        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucketEncoded}/${filePath}`;
+        return publicUrl;
+      }
+      const errJson = await uploadResponse.json().catch(() => null);
+      throw new Error(errJson?.message || errJson?.error || `Upload failed with status ${uploadResponse.status}`);
+    }
+
+    // 2. On Native (iOS & Android): try high-speed binary streaming upload from filesystem
     if (Platform.OS !== 'web' && localUri.startsWith('file://')) {
       try {
         const uploadResult = await (FileSystem as any).uploadAsync(uploadUrl, localUri, {
@@ -170,28 +192,6 @@ export const uploadImageToSupabase = async (
       } catch (readErr) {
         console.warn('FileSystem.readAsStringAsync error:', readErr);
       }
-    }
-
-    // 2. Base64 provided directly from ImagePicker
-    if (base64Data) {
-      const uint8 = decodeBase64ToUint8Array(base64Data);
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': contentType,
-          'x-upsert': 'true',
-        },
-        body: uint8.buffer as ArrayBuffer,
-      });
-
-      if (uploadResponse.ok) {
-        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucketEncoded}/${filePath}`;
-        return publicUrl;
-      }
-      const errJson = await uploadResponse.json().catch(() => null);
-      throw new Error(errJson?.message || errJson?.error || `Upload failed with status ${uploadResponse.status}`);
     }
 
     // 3. Web or Blob fallback
