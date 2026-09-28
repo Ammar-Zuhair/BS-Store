@@ -18,7 +18,8 @@ export interface DealItem {
   storeName: string;
   storeId?: string;
   categoryId?: string;
-  dealType?: 'BUNDLE' | 'DELIVERY_DISCOUNT';
+  dealType?: 'BUNDLE' | 'DELIVERY_DISCOUNT' | 'PRODUCT_DISCOUNT';
+  discountKind?: 'DELIVERY_DISCOUNT' | 'PRODUCT_DISCOUNT';
   deliveryDiscountPercent?: number;
   showInHome?: boolean;
   showInCategory?: boolean;

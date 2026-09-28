@@ -4,6 +4,7 @@ import { typography, spacing, borderRadius, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { CategoryPills } from '../components/CategoryPills';
 import { ProductCard } from '../components/ProductCard';
+import { ProductDetailsModal } from '../components/ProductDetailsModal';
 import { mockProducts, mockStores } from '../mock';
 import { useApp } from '../context/AppContext';
 
@@ -11,6 +12,7 @@ export const CategoryScreen: React.FC = () => {
   const { selectedCategory, navigateTo, products, stores, colors: themeColors } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<string>('all');
+  const [selectedProduct, setSelectedProduct] = useState<(typeof mockProducts)[number] | null>(null);
 
   const allProducts = products.length > 0 ? products : mockProducts;
   const allStores = stores.length > 0 ? stores : mockStores;
@@ -95,7 +97,7 @@ export const CategoryScreen: React.FC = () => {
         {/* Product Cards List */}
         <View style={styles.productsList}>
           {filteredProducts.map((prod) => (
-            <ProductCard key={prod.id} product={prod} />
+            <ProductCard key={prod.id} product={prod} onPress={() => setSelectedProduct(prod)} />
           ))}
 
           {filteredProducts.length === 0 && (
@@ -109,6 +111,7 @@ export const CategoryScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
+      <ProductDetailsModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
     </View>
   );
 };

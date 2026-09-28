@@ -147,13 +147,17 @@ export const OffersDealsSection: React.FC = () => {
   };
 
   const handleOpenDeal = (deal: DealItem) => {
+    if (deal.couponCode) {
+      void applyPromoCode(deal.couponCode);
+      return;
+    }
     if (deal.dealType === 'DELIVERY_DISCOUNT') {
       activateDeliveryDeal(deal.id, deal.deliveryDiscountPercent ?? deal.discountPercent);
       return;
     }
     if (deal.isFreeDelivery || deal.couponCode) {
       const code = deal.couponCode || 'BS_FREE';
-      applyPromoCode(code);
+      void applyPromoCode(code);
       return;
     }
     setSelectedDeal(deal);
@@ -163,7 +167,7 @@ export const OffersDealsSection: React.FC = () => {
   const handleQuickAdd = (deal: DealItem) => {
     if (deal.isFreeDelivery || deal.couponCode) {
       const code = deal.couponCode || 'BS_FREE';
-      applyPromoCode(code);
+      void applyPromoCode(code);
       return;
     }
     addToCart(

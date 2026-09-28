@@ -158,6 +158,7 @@ export interface AdminFlashDeal {
   visibility?: string;
   bundleItems?: { name: string; price: number; imageUrl?: string }[];
   dealKind?: string;
+  discountKind?: 'DELIVERY_DISCOUNT' | 'PRODUCT_DISCOUNT';
   deliveryDiscountPercent?: number;
   description?: string;
   badge?: string;

@@ -1,17 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { useApp } from '../context/AppContext';
 
 export const Banner: React.FC = () => {
-  const { applyPromoCode } = useApp();
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    applyPromoCode('BS_2026');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
+  const { navigateTo } = useApp();
+  const handleCopy = () => navigateTo('cart');
 
   return (
     <View style={styles.container}>
@@ -26,18 +20,18 @@ export const Banner: React.FC = () => {
         </View>
 
         <Text style={styles.headline}>
-          توصيل مجاني لطلباتك الأولى من عدة متاجر في سلة واحدة!
+          لديك كود خصم؟ أدخله في سلة الشراء لتطبيقه على المنتجات أو رسوم التوصيل.
         </Text>
 
         <View style={styles.bottomRow}>
           <TouchableOpacity style={styles.copyBtn} onPress={handleCopy} activeOpacity={0.8}>
-            <Text style={styles.copyBtnText}>{copied ? 'تم التطبيق!' : 'تطبيق الكود'}</Text>
+            <Text style={styles.copyBtnText}>أدخل كود الخصم</Text>
           </TouchableOpacity>
 
           <View style={styles.codeWrap}>
-            <Text style={styles.codeLabel}>الكود:</Text>
+              <Text style={styles.codeLabel}>كوبونات متاحة:</Text>
             <View style={styles.codeBadge}>
-              <Text style={styles.codeText}>BS_2026</Text>
+              <Text style={styles.codeText}>خصم بكود</Text>
             </View>
           </View>
         </View>

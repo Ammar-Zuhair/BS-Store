@@ -118,6 +118,7 @@ interface AdminContextType {
   updateDeliverySettings: (settings: Partial<DeliverySettings>) => Promise<void>;
   flashDeals: AdminFlashDeal[];
   addFlashDeal: (deal: Omit<AdminFlashDeal, 'id'>) => void;
+  updateFlashDeal: (dealId: string, deal: Omit<AdminFlashDeal, 'id'>) => Promise<void>;
   toggleFlashDealStatus: (dealId: string) => void;
   deleteFlashDeal: (dealId: string) => void;
   toggleProductTopPick: (productId: string) => void;
@@ -503,6 +504,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isActive: d.isActive !== false,
           dealType: d.dealType || (d.dealKind === 'DELIVERY_DISCOUNT' ? 'DELIVERY_DISCOUNT' : 'BUNDLE'),
           dealKind: d.dealKind,
+          discountKind: d.discountKind,
           storeId: d.storeId,
           categoryId: d.categoryId,
           visibility: d.visibility,
@@ -920,6 +922,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const updateFlashDeal = async (dealId: string, dealData: Omit<AdminFlashDeal, 'id'>) => {
+    const previous = flashDeals;
+    const updated = flashDeals.map((deal) => deal.id === dealId ? { ...dealData, id: dealId } : deal);
+    setFlashDeals(updated);
+    try {
+      await adminApi.saveDeals(updated);
+    } catch (e) {
+      console.warn('Failed to update deal:', e);
+      setFlashDeals(previous);
+      throw e;
+    }
+  };
+
   const toggleFlashDealStatus = async (dealId: string) => {
     const updated = flashDeals.map((d) => (d.id === dealId ? { ...d, isActive: !d.isActive } : d));
     setFlashDeals(updated);
@@ -1055,6 +1070,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateDeliverySettings,
         flashDeals,
         addFlashDeal,
+        updateFlashDeal,
         toggleFlashDealStatus,
         deleteFlashDeal,
         toggleProductTopPick,

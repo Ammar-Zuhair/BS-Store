@@ -26,13 +26,13 @@ export const CartScreen: React.FC = () => {
   const [inputCode, setInputCode] = useState(promoCode);
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
 
-  const handleApplyPromo = () => {
+  const handleApplyPromo = async () => {
     if (!inputCode.trim()) return;
-    const success = applyPromoCode(inputCode);
+    const success = await applyPromoCode(inputCode);
     if (success) {
-      setPromoMessage('تم تفعيل كود الخصم 15% بنجاح!');
+      setPromoMessage('تم التحقق من الكود وتفعيله بنجاح');
     } else {
-      setPromoMessage('كود الخصم غير صالح. جرب: BS_2026');
+      setPromoMessage('كود الخصم غير صالح أو منتهي');
     }
   };
 

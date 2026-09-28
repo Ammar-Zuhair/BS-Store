@@ -47,7 +47,7 @@ interface AppContextType {
   cartDiscount: number;
   cartTotal: number;
   promoCode: string;
-  applyPromoCode: (code: string) => boolean;
+  applyPromoCode: (code: string) => Promise<boolean>;
   activateDeliveryDeal: (dealId: string, percent: number) => void;
   addresses: Address[];
   selectedAddress: Address | null;
@@ -147,6 +147,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           description: cleanDesc,
           sellingPrice: p.sellingPrice,
           imageUrl: p.images?.[0] || DEFAULT_PROD_IMG,
+          images: Array.isArray(p.images) ? p.images.filter(Boolean) : [],
           sourceType: (p.sourceType === 'ExternalStore' ? 'EXTERNAL_STORE' : 'IN_STOCK'),
           inStock: true,
           unit: 'حبة',
@@ -201,7 +202,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         imageUrl: d.imageUrl || '', originalPrice: Number(d.originalPrice ?? 0) || 0,
         offerPrice: Number(d.offerPrice ?? d.discountPrice ?? 0) || 0,
         discountPercent: Number(d.discountPercent ?? 0) || 0, couponCode: d.couponCode,
-        isFreeDelivery: d.isFreeDelivery, dealType: d.dealType || d.dealKind,
+        isFreeDelivery: d.isFreeDelivery, dealType: d.discountKind || d.dealType || d.dealKind,
+        discountKind: d.discountKind,
         deliveryDiscountPercent: Number(d.deliveryDiscountPercent ?? d.discountPercent ?? 0) || 0,
         expiresAt: d.expiresAt, isPublic: d.isActive !== false && d.isPublic !== false,
         products: (Array.isArray(d.products) ? d.products : (Array.isArray(d.bundleItems) ? d.bundleItems : [])).map((p: any, pidx: number) => ({
@@ -489,24 +491,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const cartDiscount = Math.round(cartSubtotal * (discountPercent / 100));
   const cartTotal = Math.max(0, cartSubtotal + cartDeliveryFee - cartDiscount);
 
-  const applyPromoCode = (code: string): boolean => {
-    const clean = code.trim().toUpperCase();
-    if (clean === 'BS_FREE' || clean === 'FREE' || clean === 'FREEDELIVERY') {
-      setPromoCode(code.trim());
-      setIsFreeDeliveryPromo(true);
-      setDeliveryDiscountPercent(0);
+  const applyPromoCode = async (code: string): Promise<boolean> => {
+    try {
+      const result = await ordersApi.validateCouponCode(code.trim());
+      const percent = Math.min(100, Math.max(0, Number(result.discountPercent) || 0));
+      setPromoCode(result.code);
       setDeliveryPromoDealId(null);
-      return true;
+      if (result.discountKind === 'DELIVERY_DISCOUNT') {
+        setDeliveryDiscountPercent(percent);
+        setDiscountPercent(0);
+        setIsFreeDeliveryPromo(percent >= 100);
+      } else {
+        setDiscountPercent(percent);
+        setDeliveryDiscountPercent(0);
+        setIsFreeDeliveryPromo(false);
+      }
+      return percent > 0;
+    } catch {
+      return false;
     }
-    if (clean === 'BS_2026' || clean === 'BSSTORE' || clean === 'BS_STORE' || clean === 'BS2026') {
-      setPromoCode(code.trim());
-      setDiscountPercent(15);
-      setIsFreeDeliveryPromo(false);
-      setDeliveryDiscountPercent(0);
-      setDeliveryPromoDealId(null);
-      return true;
-    }
-    return false;
   };
 
   const activateDeliveryDeal = (dealId: string, percent: number) => {
@@ -561,6 +564,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         paymentMethod: isManual ? 1 : 0,
         notes,
         deliveryDealId: deliveryPromoDealId || undefined,
+        couponCode: promoCode || undefined,
         idempotencyKey: `${Date.now()}-${Math.random()}`,
         items: cart.map((c) => ({
           productId: c.product.dealId ? undefined : c.product.id,

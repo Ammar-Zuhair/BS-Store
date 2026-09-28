@@ -26,7 +26,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
       activeOpacity={0.85}
     >
       <View style={styles.imageWrap}>
-        <Image source={{ uri: product.imageUrl }} style={styles.image} />
+              <Image source={{ uri: product.imageUrl }} style={styles.image} />
         {isDiscounted && (
           <View style={styles.discountBadge}>
             <Text style={styles.discountText}>خصم</Text>

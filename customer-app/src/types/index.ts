@@ -78,6 +78,7 @@ export interface Product {
   sellingPrice: number;
   expectedPurchasePrice?: number; // Hidden from customer app, used for admin/driver
   imageUrl: string;
+  images?: string[];
   sourceType: SourceType;
   inStock: boolean;
   discountPrice?: number;

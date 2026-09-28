@@ -231,6 +231,7 @@ export const addressApi = {
 
 // ─── Checkout & Orders API ───────────────────────────────────────────────────
 export const ordersApi = {
+  validateCouponCode: (code: string) => api.post<{ code: string; discountKind: 'DELIVERY_DISCOUNT' | 'PRODUCT_DISCOUNT'; discountPercent: number }>('/deals/validate-code', { code }),
   getDeliveryQuote: (addressId: string, storeIds: string[]) =>
     api.post<{ deliveryFee: number; farthestDistanceKm: number }>('/checkout/delivery-quote', { addressId, storeIds }),
   validateCheckout: (items: { productId: string; quantity: number }[], addressId?: string, paymentMethod = 0) =>
@@ -243,6 +244,7 @@ export const ordersApi = {
     notes?: string;
     idempotencyKey?: string;
     deliveryDealId?: string;
+    couponCode?: string;
     items?: { productId?: string; dealId?: string; dealProductId?: string; quantity: number }[];
   }) => api.post<any>('/checkout/place-order', req),
 

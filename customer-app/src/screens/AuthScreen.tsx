@@ -331,7 +331,7 @@ export const AuthScreen: React.FC = () => {
           {/* ─── Hero Brand Header with Waving Logo & Pulsating Aura ─── */}
           <View style={styles.heroSection}>
             <View style={styles.logoAnchor}>
-              {/* Pulsating Glowing Aura Ring */}
+              <View pointerEvents="none" style={styles.outerWaveRing} />
               <Animated.View
                 style={[
                   styles.auraRing,
@@ -355,13 +355,32 @@ export const AuthScreen: React.FC = () => {
                   source={require('../../assets/icon.png')}
                   style={styles.logoImage}
                   resizeMode="contain"
+                  accessibilityLabel="شعار متجر بي اس"
                 />
               </Animated.View>
+
+              {[{ icon: '👕', place: styles.orbitTopRight, tint: '#F59E0B' },
+                { icon: '🍲', place: styles.orbitBottomRight, tint: '#FB7185' },
+                { icon: '📱', place: styles.orbitBottomLeft, tint: '#60A5FA' },
+                { icon: '🛒', place: styles.orbitTopLeft, tint: '#34D399' }].map((item, index) => (
+                <Animated.View
+                  key={item.icon}
+                  pointerEvents="none"
+                  style={[
+                    styles.orbitBadge,
+                    item.place,
+                    { backgroundColor: `${item.tint}20`, borderColor: `${item.tint}80` },
+                    { transform: [{ translateY: waveAnim.interpolate({ inputRange: [-7, 0, 7], outputRange: index % 2 ? [5, 0, -5] : [-5, 0, 5] }) }] },
+                  ]}
+                >
+                  <Text style={styles.orbitIcon}>{item.icon}</Text>
+                </Animated.View>
+              ))}
             </View>
 
             {/* Brand Title with Tajawal Font */}
-            <Text style={styles.brandTitle}>BS STORE</Text>
-            <Text style={styles.brandSubtitle}>منصة التسوق والتوصيل المتكاملة</Text>
+            <Text style={styles.brandTitle}>كل ما تحتاجه.. في مكان واحد</Text>
+            <Text style={styles.brandSubtitle}>ملابس وطعام وإلكترونيات وأكثر — يصلك بسهولة مع BS Store</Text>
           </View>
 
           {/* ─── Dynamic Animated Form Body ─── */}
@@ -818,61 +837,83 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 56 : 40,
+    paddingTop: Platform.OS === 'ios' ? 42 : 26,
     paddingBottom: 48,
   },
   heroSection: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   logoAnchor: {
-    width: 96,
-    height: 96,
+    width: 252,
+    height: 236,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
     position: 'relative',
+  },
+  outerWaveRing: {
+    position: 'absolute',
+    width: 224,
+    height: 224,
+    borderRadius: 112,
+    borderWidth: 1,
+    borderColor: '#F59E9B35',
   },
   auraRing: {
     position: 'absolute',
-    width: 94,
-    height: 94,
-    borderRadius: 47,
-    backgroundColor: '#F59E0B',
-    opacity: 0.35,
-  },
-  logoBadge: {
-    width: 76,
-    height: 76,
-    borderRadius: 22,
-    backgroundColor: '#181A1E',
+    width: 190,
+    height: 190,
+    borderRadius: 95,
     borderWidth: 2,
     borderColor: '#F59E0B',
+    backgroundColor: 'transparent',
+    shadowColor: '#F59E0B',
+    shadowOpacity: 0.45,
+    shadowRadius: 24,
+  },
+  logoBadge: {
+    width: 164,
+    height: 164,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
   },
   logoImage: {
-    width: 50,
-    height: 50,
+    width: '100%',
+    height: '100%',
   },
+  orbitBadge: {
+    position: 'absolute',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.24,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  orbitTopRight: { top: 20, right: 22 },
+  orbitBottomRight: { bottom: 18, right: 30 },
+  orbitBottomLeft: { bottom: 18, left: 30 },
+  orbitTopLeft: { top: 20, left: 22 },
+  orbitIcon: { fontSize: 27 },
   brandTitle: {
     fontFamily: typography.fontFamily.extraBold,
-    fontSize: 24,
+    fontSize: 28,
     color: '#FFFFFF',
-    letterSpacing: 2,
     textAlign: 'center',
+    lineHeight: 38,
   },
   brandSubtitle: {
     fontFamily: typography.fontFamily.medium,
-    fontSize: 13,
-    color: '#9CA3AF',
+    fontSize: 16,
+    color: '#C4C9D2',
     textAlign: 'center',
-    marginTop: 3,
+    marginTop: 7,
+    lineHeight: 24,
   },
   cardContainer: {
     width: '100%',
@@ -880,7 +921,7 @@ const styles = StyleSheet.create({
   formCard: {
     backgroundColor: '#181A1E',
     borderRadius: 24,
-    padding: 20,
+    padding: 22,
     borderWidth: 1,
     borderColor: '#262A32',
     shadowColor: '#000000',
@@ -895,13 +936,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontFamily: typography.fontFamily.bold,
-    fontSize: 17,
+    fontSize: 20,
     color: '#F9FAFB',
     textAlign: 'right',
   },
   cardSubtitle: {
     fontFamily: typography.fontFamily.regular,
-    fontSize: 12.5,
+    fontSize: 14,
     color: '#9CA3AF',
     textAlign: 'right',
     marginTop: 4,
@@ -917,7 +958,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontFamily: typography.fontFamily.bold,
-    fontSize: 12.5,
+    fontSize: 14,
     color: '#E5E7EB',
     textAlign: 'right',
     marginBottom: 6,
@@ -940,7 +981,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontFamily: typography.fontFamily.medium,
-    fontSize: 14,
+    fontSize: 16,
     color: '#F9FAFB',
     height: '100%',
   },
@@ -987,7 +1028,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     fontFamily: typography.fontFamily.bold,
-    fontSize: 15,
+    fontSize: 17,
     color: '#111317',
   },
   btnRow: {

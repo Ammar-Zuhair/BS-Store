@@ -153,8 +153,12 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const centerTileX = Math.floor(centerTile.x);
   const centerTileY = Math.floor(centerTile.y);
   const mapTiles = [];
-  for (let y = -2; y <= 2; y++) {
-    for (let x = -2; x <= 2; x++) {
+  // Request only tiles intersecting the visible map (plus a one-tile margin).
+  // The OSM standard tile service explicitly disallows broad prefetching.
+  const visibleColumns = Math.ceil(mapSize.width / TILE_SIZE / 2) + 1;
+  const visibleRows = Math.ceil(mapSize.height / TILE_SIZE / 2) + 1;
+  for (let y = -visibleRows; y <= visibleRows; y++) {
+    for (let x = -visibleColumns; x <= visibleColumns; x++) {
       const tileX = centerTileX + x;
       const tileY = centerTileY + y;
       const tileCount = 2 ** ZOOM;
@@ -191,9 +195,9 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           {/* Map Viewer Container */}
           <View style={styles.mapFrame} onLayout={(event) => setMapSize({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height })}>
             <View style={StyleSheet.absoluteFill} {...mapPanResponder.panHandlers}>
-              {mapTiles.map((tile) => <Image key={tile.key} source={{ uri: tile.uri }} style={{ position: 'absolute', left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE }} resizeMode="cover" />)}
+              {mapTiles.map((tile) => <Image key={tile.key} source={{ uri: tile.uri, headers: { 'User-Agent': 'BSStore-Admin/1.0 (store location picker)' } }} style={{ position: 'absolute', left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE }} resizeMode="cover" />)}
             </View>
-            <View style={styles.mapAttribution} pointerEvents="none"><Text style={styles.mapAttributionText}>© OpenStreetMap</Text></View>
+            <View style={styles.mapAttribution} pointerEvents="none"><Text style={styles.mapAttributionText}>© OpenStreetMap contributors</Text></View>
 
             {/* Central Floating Pin Marker */}
             <View style={styles.floatingPinBox} pointerEvents="none">

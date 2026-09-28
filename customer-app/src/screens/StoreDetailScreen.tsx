@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { Header } from '../components/Header';
 import { mockStores, mockProducts } from '../mock';
 import { useApp } from '../context/AppContext';
 import { Product, BundlePiece } from '../types';
+import { ProductDetailsModal } from '../components/ProductDetailsModal';
 
 export const StoreDetailScreen: React.FC = () => {
   const {
@@ -42,21 +43,21 @@ export const StoreDetailScreen: React.FC = () => {
     (p) => p.storeId === store.id || (store.name && p.storeName === store.name)
   );
 
+  const storeDeals = (deals || []).filter((deal) => {
+    const sameStore = String(deal.storeId || '').toLowerCase() === String(store.id).toLowerCase() ||
+      Boolean(store.name && deal.storeName?.trim().toLocaleLowerCase() === store.name.trim().toLocaleLowerCase());
+    const validExpiry = !deal.expiresAt || new Date(deal.expiresAt).getTime() > Date.now();
+    return sameStore && validExpiry && deal.isPublic !== false && deal.products?.length > 0 &&
+      deal.dealType !== 'DELIVERY_DISCOUNT';
+  });
+
   // Include composite bundles and deals belonging to this store
-  const storeDealsAsBundles: Product[] = (deals || [])
-    .filter(
-      (d) =>
-        (d.storeId === store.id || (store.name && d.storeName === store.name)) &&
-        d.products &&
-        d.products.length > 0 &&
-        d.isPublic !== false
-    )
-    .map((d) => ({
+  const storeDealsAsBundles: Product[] = storeDeals.map((d) => ({
       id: d.id,
       storeId: store.id,
       storeName: store.name,
       categoryId: d.categoryId || store.categoryId,
-      subcategoryId: 'أطقم وعروض',
+      subcategoryId: 'العروض',
       name: d.title,
       description: d.description,
       sellingPrice: d.originalPrice,
@@ -84,15 +85,22 @@ export const StoreDetailScreen: React.FC = () => {
         .filter((sub): sub is string => Boolean(sub && sub.trim()))
     )
   );
+  const regularSubcategories = [
+    ...(store.subcategories || []).filter((name) => name !== 'العروض' && name !== 'أطقم وعروض'),
+    ...dynamicSubcats.filter((name) => name !== 'العروض' && name !== 'أطقم وعروض'),
+  ];
   const subcategories = [
     'الكل',
-    ...Array.from(new Set([...(store.subcategories || []), ...dynamicSubcats])),
+    ...(storeDealsAsBundles.length > 0 ? ['العروض'] : []),
+    ...Array.from(new Set(regularSubcategories)),
   ];
 
   const [selectedSubcat, setSelectedSubcat] = useState<string>('الكل');
+  useEffect(() => setSelectedSubcat('الكل'), [store.id]);
 
   // Selected composite product for Modal popup
   const [selectedBundleProduct, setSelectedBundleProduct] = useState<Product | null>(null);
+  const [selectedRegularProduct, setSelectedRegularProduct] = useState<Product | null>(null);
 
   const filteredProducts = allStoreProducts.filter((p) => {
     if (selectedSubcat === 'الكل') return true;
@@ -117,7 +125,7 @@ export const StoreDetailScreen: React.FC = () => {
       >
         {/* Store Profile Card */}
         <View style={styles.storeCard}>
-          <Image source={{ uri: store.imageUrl }} style={styles.storeCover} />
+          <Image source={{ uri: store.imageUrl }} style={styles.storeCover} resizeMode="contain" />
           <View style={styles.storeCardContent}>
             <View style={styles.storeTitleRow}>
               <View style={styles.statusBadge}>
@@ -211,10 +219,12 @@ export const StoreDetailScreen: React.FC = () => {
                 <TouchableOpacity
                   key={product.id}
                   style={styles.productCard}
-                  activeOpacity={isBundle ? 0.85 : 1}
+                  activeOpacity={0.85}
                   onPress={() => {
                     if (isBundle) {
                       setSelectedBundleProduct(product);
+                    } else {
+                      setSelectedRegularProduct(product);
                     }
                   }}
                 >
@@ -307,6 +317,8 @@ export const StoreDetailScreen: React.FC = () => {
         </View>
       </ScrollView>
 
+      <ProductDetailsModal product={selectedRegularProduct} onClose={() => setSelectedRegularProduct(null)} />
+
       {/* ================= MODAL: COMPOSITE / BUNDLE PRODUCT DETAILS ================= */}
       {selectedBundleProduct && (
         <Modal
@@ -360,7 +372,7 @@ export const StoreDetailScreen: React.FC = () => {
                       ر.ي
                     </Text>
                     <Text style={styles.entireBundleTitle}>
-                      طلب الطقم كاملاً (بالكامل)
+                      {selectedBundleProduct.isBundle ? 'طلب الباقة كاملة' : 'سعر المنتج'}
                     </Text>
                   </View>
 
@@ -414,7 +426,7 @@ export const StoreDetailScreen: React.FC = () => {
                         onPress={() => addToCart(selectedBundleProduct, 1)}
                       >
                         <Text style={styles.fullBundleOrderBtnText}>
-                          + إضافة الطقم كاملاً إلى السلة 🛍️
+                          {selectedBundleProduct.isBundle ? '+ إضافة الباقة كاملة إلى السلة 🛍️' : '+ إضافة المنتج إلى السلة 🛍️'}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -439,6 +451,7 @@ export const StoreDetailScreen: React.FC = () => {
 
                       return (
                         <View key={piece.id} style={styles.pieceCard}>
+                          {!!piece.imageUrl && <Image source={{ uri: piece.imageUrl }} style={styles.pieceImage} resizeMode="cover" />}
                           <View style={styles.pieceContent}>
                             <Text style={styles.pieceTitle}>{piece.name}</Text>
                             {piece.description && (
@@ -525,16 +538,20 @@ const createStyles = (colors: ThemeColors) =>
     marginTop: 8,
     borderRadius: borderRadius.xl,
     overflow: 'hidden',
+    flexDirection: 'row-reverse',
+    alignItems: 'stretch',
     borderWidth: 1,
     borderColor: colors.outlineVariant + '30',
     ...shadows.card,
   },
   storeCover: {
-    width: '100%',
-    height: 105,
-    resizeMode: 'cover',
+    width: 124,
+    minHeight: 142,
+    backgroundColor: colors.surfaceContainerLow,
   },
   storeCardContent: {
+    flex: 1,
+    justifyContent: 'center',
     padding: 10,
   },
   storeTitleRow: {
@@ -970,6 +987,13 @@ const createStyles = (colors: ThemeColors) =>
     alignItems: 'flex-end',
     flex: 1,
     paddingLeft: 8,
+  },
+  pieceImage: {
+    width: 64,
+    height: 64,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surfaceContainerLow,
+    marginLeft: 8,
   },
   pieceTitle: {
     fontFamily: typography.fontFamily.bold,

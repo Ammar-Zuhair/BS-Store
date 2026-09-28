@@ -218,6 +218,7 @@ export const InventoryScreen: React.FC = () => {
     setEditingProduct,
     flashDeals,
     addFlashDeal,
+    updateFlashDeal,
     toggleFlashDealStatus,
     deleteFlashDeal,
     navigateTo,
@@ -295,6 +296,7 @@ export const InventoryScreen: React.FC = () => {
 
   // ── Deal form ─────────────────────────────────────────────────────────────
   const [showDealForm, setShowDealForm] = useState(false);
+  const [editingDeal, setEditingDeal] = useState<AdminFlashDeal | null>(null);
   const [dealType, setDealType] = useState('bundle');
   const [dealTypePickerVisible, setDealTypePickerVisible] = useState(false);
   const [dealVisibility, setDealVisibility] = useState('home');
@@ -430,6 +432,29 @@ export const InventoryScreen: React.FC = () => {
     setBundleItemPrice('');
   };
 
+  const handleEditDeal = (deal: AdminFlashDeal) => {
+    const expiry = deal.expiresAt ? new Date(deal.expiresAt) : null;
+    const validExpiry = expiry && Number.isFinite(expiry.getTime());
+    setEditingDeal(deal);
+    setDealType(deal.dealKind === 'DELIVERY_DISCOUNT' || deal.dealType === 'DELIVERY_DISCOUNT' ? 'delivery' : 'bundle');
+    setDealVisibility(deal.visibility || 'home');
+    setDealTitle(deal.title || '');
+    setDealStore(deal.storeId || '');
+    setDealCatId(deal.categoryId || '');
+    setDealDiscount(deal.discountPrice > 0 && deal.discountPrice < deal.originalPrice ? String(deal.discountPrice) : '');
+    setDealExpiryDate(validExpiry ? `${expiry!.getFullYear()}-${String(expiry!.getMonth() + 1).padStart(2, '0')}-${String(expiry!.getDate()).padStart(2, '0')}` : '');
+    setDealExpiryTime(validExpiry ? `${String(expiry!.getHours()).padStart(2, '0')}:${String(expiry!.getMinutes()).padStart(2, '0')}` : '21:00');
+    setDeliveryDiscountPercent(String(deal.deliveryDiscountPercent || 0));
+    setDealIsPublic(deal.isPublic !== false);
+    setDealImageUrl(deal.imageUrl || '');
+    setBundleItems((deal.products?.length ? deal.products : deal.bundleItems || []).map((item) => ({
+      name: item.name,
+      price: String(item.price ?? 0),
+      imageUrl: item.imageUrl,
+    })));
+    setShowDealForm(true);
+  };
+
   const handleSaveDeal = async () => {
     if (!dealTitle.trim()) { Alert.alert('تنبيه', 'يرجى إدخال عنوان العرض'); return; }
     const orig = parseFloat(dealOriginal) || 0;
@@ -458,7 +483,7 @@ export const InventoryScreen: React.FC = () => {
 
     setIsSavingDeal(true);
     try {
-      await addFlashDeal({
+      const dealData: Omit<AdminFlashDeal, 'id'> = {
         title: dealTitle,
         storeName: isBundle ? (stores.find((s) => s.id === dealStore)?.name || 'متجر') : 'منصة متجر بي اس',
         storeId: isBundle ? dealStore : undefined,
@@ -474,14 +499,17 @@ export const InventoryScreen: React.FC = () => {
         imageUrl: dealImageUrl,
         remainingHours: Math.ceil((expiry.getTime() - Date.now()) / 3600000),
         expiresAt: expiry.toISOString(),
-        isActive: true,
+        isActive: editingDeal?.isActive ?? true,
         isPublic: dealType === 'delivery' ? dealIsPublic : true,
         description: isBundle ? bundleItems.map((i) => i.name).join('، ') : `خصم ${deliveryPct}% على رسوم التوصيل`,
         badge: isBundle ? (finalPrice < totalBundlePrice ? `باقة • وفر ${Math.round(((totalBundlePrice-finalPrice)/totalBundlePrice)*100)}%` : 'باقة منتجات') : `خصم ${deliveryPct}% على التوصيل`,
         isFreeDelivery: !isBundle && deliveryPct === 100,
-        products: isBundle ? bundleItems.map((item, index) => ({ id: `piece-${Date.now()}-${index}`, name: item.name, price: Number(item.price) || 0, imageUrl: item.imageUrl, description: '' })) : [],
-      });
+        products: isBundle ? bundleItems.map((item, index) => ({ id: editingDeal?.products?.[index]?.id || `piece-${Date.now()}-${index}`, name: item.name, price: Number(item.price) || 0, imageUrl: item.imageUrl, description: editingDeal?.products?.[index]?.description || '' })) : [],
+      };
+      if (editingDeal) await updateFlashDeal(editingDeal.id, dealData);
+      else await addFlashDeal(dealData);
       setShowDealForm(false);
+      setEditingDeal(null);
       setDealTitle('');
       setDealStore('');
       setDealCatId('');
@@ -495,7 +523,7 @@ export const InventoryScreen: React.FC = () => {
       setBundleItems([]);
       setDealType('bundle');
       setDealVisibility('home');
-      Alert.alert('نجاح ✓', 'تمت إضافة العرض بنجاح');
+      Alert.alert('نجاح ✓', editingDeal ? 'تم تحديث العرض بنجاح' : 'تمت إضافة العرض بنجاح');
     } catch {
       Alert.alert('خطأ', 'فشل حفظ العرض');
     } finally {
@@ -842,7 +870,12 @@ export const InventoryScreen: React.FC = () => {
       {activeTab === 'deals' && (
         <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={s.rowBetween}>
-            <TouchableOpacity style={s.addBtn} onPress={() => setShowDealForm(true)}>
+            <TouchableOpacity style={s.addBtn} onPress={() => {
+              setEditingDeal(null); setDealType('bundle'); setDealVisibility('home'); setDealTitle(''); setDealStore('');
+              setDealCatId(''); setDealDiscount(''); setDealExpiryDate(''); setDealExpiryTime('21:00');
+              setDeliveryDiscountPercent(''); setDealIsPublic(true); setDealImageUrl(''); setBundleItems([]);
+              setShowDealForm(true);
+            }}>
               <Text style={s.addBtnText}>+ إضافة عرض</Text>
             </TouchableOpacity>
             <Text style={s.sectionTitle}>العروض ({flashDeals.length})</Text>
@@ -866,6 +899,9 @@ export const InventoryScreen: React.FC = () => {
                       { text: 'حذف', style: 'destructive', onPress: () => deleteFlashDeal(deal.id) },
                     ])}>
                     <Text style={s.iconBtnTxt}>🗑</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.iconBtn} onPress={() => handleEditDeal(deal)}>
+                    <Text style={s.iconBtnTxt}>✏️</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={s.listCardInfo}>
@@ -1128,7 +1164,7 @@ export const InventoryScreen: React.FC = () => {
       <Modal visible={showDealForm} transparent animationType="slide">
         <View style={s.formOverlayBottom}>
           <View style={s.formCardLarge}>
-            <Text style={s.formTitle}>إضافة عرض جديد</Text>
+            <Text style={s.formTitle}>{editingDeal ? 'تعديل العرض' : 'إضافة عرض جديد'}</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
 
               {/* Deal type */}
@@ -1236,7 +1272,7 @@ export const InventoryScreen: React.FC = () => {
               </TouchableOpacity>
 
               <View style={s.formBtns}>
-                <TouchableOpacity style={s.cancelBtn} onPress={() => setShowDealForm(false)}>
+                <TouchableOpacity style={s.cancelBtn} onPress={() => { setShowDealForm(false); setEditingDeal(null); }}>
                   <Text style={s.cancelBtnText}>إلغاء</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1247,7 +1283,7 @@ export const InventoryScreen: React.FC = () => {
                   {isSavingDeal ? (
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
-                    <Text style={s.saveBtnText}>إضافة العرض</Text>
+                    <Text style={s.saveBtnText}>{editingDeal ? 'حفظ التعديلات' : 'إضافة العرض'}</Text>
                   )}
                 </TouchableOpacity>
               </View>

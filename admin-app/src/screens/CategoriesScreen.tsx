@@ -77,7 +77,7 @@ export const CategoriesScreen: React.FC = () => {
   const [dealOrigPriceInput, setDealOrigPriceInput] = useState('');
   const [dealDiscPriceInput, setDealDiscPriceInput] = useState('');
   const [dealHoursInput, setDealHoursInput] = useState('24');
-  const [dealTypeInput, setDealTypeInput] = useState<'STORE_OFFER' | 'DELIVERY_DISCOUNT' | 'PRODUCT_DISCOUNT'>('STORE_OFFER');
+  const [dealTypeInput, setDealTypeInput] = useState<'DELIVERY_DISCOUNT' | 'PRODUCT_DISCOUNT'>('PRODUCT_DISCOUNT');
   const [dealCouponCodeInput, setDealCouponCodeInput] = useState('');
   const [dealIsPublicInput, setDealIsPublicInput] = useState(true);
 
@@ -190,13 +190,12 @@ export const CategoriesScreen: React.FC = () => {
       Alert.alert('تنبيه', 'يرجى كتابة عنوان العرض');
       return;
     }
-    if (dealTypeInput !== 'DELIVERY_DISCOUNT' && (!dealOrigPriceInput.trim() || !dealDiscPriceInput.trim())) {
-      Alert.alert('تنبيه', 'يرجى إدخال السعر الأصلي والسعر بعد الخصم');
-      return;
+    const pct = Number(dealDiscPriceInput);
+    if (!dealCouponCodeInput.trim()) { Alert.alert('تنبيه', 'يرجى إدخال كود الخصم'); return; }
+    if (!Number.isFinite(pct) || pct < 1 || pct > 100) { Alert.alert('تنبيه', 'أدخل نسبة خصم من 1 إلى 100'); return; }
+    if (flashDeals.some((deal) => deal.couponCode?.toUpperCase() === dealCouponCodeInput.trim().toUpperCase())) {
+      Alert.alert('تنبيه', 'كود الخصم مستخدم بالفعل، اختر كوداً آخر'); return;
     }
-    const orig = parseFloat(dealOrigPriceInput) || (dealTypeInput === 'DELIVERY_DISCOUNT' ? 500 : 0);
-    const disc = parseFloat(dealDiscPriceInput) || 0;
-    const pct = orig > 0 && disc >= 0 && orig >= disc ? Math.round(((orig - disc) / orig) * 100) : (dealTypeInput === 'DELIVERY_DISCOUNT' ? 100 : 0);
     const hours = parseInt(dealHoursInput, 10) || 24;
     const expiresAt = new Date(Date.now() + hours * 3600 * 1000).toISOString();
 
@@ -204,13 +203,16 @@ export const CategoriesScreen: React.FC = () => {
     try {
       await addFlashDeal({
         title: dealTitleInput.trim(),
-        storeName: dealTypeInput === 'DELIVERY_DISCOUNT' ? 'منصة متجر بي اس' : dealStoreNameInput.trim(),
-        originalPrice: orig,
-        discountPrice: disc,
+        storeName: 'منصة متجر بي اس',
+        originalPrice: 0,
+        discountPrice: 0,
         discountPercent: pct,
         remainingHours: hours,
         expiresAt,
         dealType: dealTypeInput,
+        dealKind: dealTypeInput,
+        discountKind: dealTypeInput,
+        deliveryDiscountPercent: dealTypeInput === 'DELIVERY_DISCOUNT' ? pct : undefined,
         couponCode: dealCouponCodeInput.trim() ? dealCouponCodeInput.trim().toUpperCase() : undefined,
         isPublic: dealIsPublicInput,
         imageUrl: dealTypeInput === 'DELIVERY_DISCOUNT'
@@ -1307,23 +1309,6 @@ export const CategoriesScreen: React.FC = () => {
                 <TouchableOpacity
                   style={[
                     styles.statusOption,
-                    dealTypeInput === 'STORE_OFFER' && styles.statusOptionActive,
-                  ]}
-                  onPress={() => setDealTypeInput('STORE_OFFER')}
-                >
-                  <Text
-                    style={[
-                      styles.statusOptionText,
-                      dealTypeInput === 'STORE_OFFER' && styles.statusOptionTextActive,
-                    ]}
-                  >
-                    🏪 عرض متجر
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.statusOption,
                     dealTypeInput === 'DELIVERY_DISCOUNT' && styles.statusOptionActive,
                   ]}
                   onPress={() => setDealTypeInput('DELIVERY_DISCOUNT')}
@@ -1351,7 +1336,7 @@ export const CategoriesScreen: React.FC = () => {
                       dealTypeInput === 'PRODUCT_DISCOUNT' && styles.statusOptionTextActive,
                     ]}
                   >
-                    🏷️ كود منتجات
+                    🛍️ خصم من المنتجات
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1375,50 +1360,17 @@ export const CategoriesScreen: React.FC = () => {
             </View>
 
             {/* 3. Store Name (if not delivery) */}
-            {dealTypeInput !== 'DELIVERY_DISCOUNT' && (
-              <View style={styles.formGroup}>
-                <Text style={styles.inputLabel}>المتجر التابع له العرض</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={dealStoreNameInput}
-                  onChangeText={setDealStoreNameInput}
-                  textAlign="right"
-                />
-              </View>
-            )}
-
-            {/* 4. Pricing (if not delivery) */}
-            {dealTypeInput !== 'DELIVERY_DISCOUNT' && (
-              <View style={styles.formRow2}>
-                <View style={styles.formCol}>
-                  <Text style={styles.inputLabel}>السعر بعد الخصم (ر.ي)</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    keyboardType="numeric"
-                    value={dealDiscPriceInput}
-                    onChangeText={setDealDiscPriceInput}
-                    textAlign="center"
-                  />
-                </View>
-                <View style={styles.formCol}>
-                  <Text style={styles.inputLabel}>السعر الأصلي (ر.ي)</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    keyboardType="numeric"
-                    value={dealOrigPriceInput}
-                    onChangeText={setDealOrigPriceInput}
-                    textAlign="center"
-                  />
-                </View>
-              </View>
-            )}
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>نسبة الخصم من {dealTypeInput === 'DELIVERY_DISCOUNT' ? 'رسوم التوصيل' : 'قيمة المنتجات'} (%)</Text>
+              <TextInput style={styles.textInput} placeholder="مثال: 20" keyboardType="numeric" value={dealDiscPriceInput} onChangeText={setDealDiscPriceInput} textAlign="center" />
+            </View>
 
             {/* 5. Coupon Code */}
             <View style={styles.formGroup}>
-              <Text style={styles.inputLabel}>كود الخصم (اختياري)</Text>
+              <Text style={styles.inputLabel}>كود الخصم *</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="مثال: BS_DELIVERY أو BS_2026 أو GIFT50..."
+                placeholder="مثال: BS20 أو GIFT50"
                 placeholderTextColor={colors.outline}
                 value={dealCouponCodeInput}
                 onChangeText={setDealCouponCodeInput}
