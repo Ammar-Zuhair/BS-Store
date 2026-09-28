@@ -240,7 +240,8 @@ export const ordersApi = {
     paymentMethod: number; // 0: COD, 1: ManualTransfer
     notes?: string;
     idempotencyKey?: string;
-    items?: { productId: string; quantity: number }[];
+    deliveryDealId?: string;
+    items?: { productId?: string; dealId?: string; dealProductId?: string; quantity: number }[];
   }) => api.post<any>('/checkout/place-order', req),
 
   getMyOrders: () => api.get<any[]>('/orders'),

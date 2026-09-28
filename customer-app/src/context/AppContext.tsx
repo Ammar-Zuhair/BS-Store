@@ -3,7 +3,6 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { Product, CartItem, Address, Order, SubOrderGroup, PaymentMethodType, OrderStatusType, Store, BundlePiece, Category } from '../types';
 import { DealItem } from '../components/DealDetailsModal';
-import { initialDeals } from '../components/OffersDealsSection';
 import { api, authApi, catalogApi, cartApi, ordersApi, addressApi, paymentsApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, lightColors, darkColors, ThemeColors, setGlobalThemeMode } from '../theme';
@@ -48,6 +47,7 @@ interface AppContextType {
   cartTotal: number;
   promoCode: string;
   applyPromoCode: (code: string) => boolean;
+  activateDeliveryDeal: (dealId: string, percent: number) => void;
   addresses: Address[];
   selectedAddress: Address | null;
   setSelectedAddress: React.Dispatch<React.SetStateAction<Address | null>>;
@@ -81,7 +81,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [deals, setDeals] = useState<DealItem[]>(initialDeals);
+  const [deals, setDeals] = useState<DealItem[]>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState<boolean>(true);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
@@ -99,6 +99,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [promoCode, setPromoCode] = useState<string>('');
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [isFreeDeliveryPromo, setIsFreeDeliveryPromo] = useState<boolean>(false);
+  const [deliveryDiscountPercent, setDeliveryDiscountPercent] = useState(0);
+  const [deliveryPromoDealId, setDeliveryPromoDealId] = useState<string | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -189,33 +191,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       });
 
-      if (dealsRes && Array.isArray(dealsRes) && dealsRes.length > 0) {
-        const mappedDeals: DealItem[] = dealsRes.map((d: any) => ({
-          id: d.id,
-          title: d.title,
-          storeName: d.storeName,
-          storeId: d.storeId,
-          categoryId: d.categoryId,
-          description: d.description,
-          badge: d.badge || 'عرض خاص',
-          imageUrl: d.imageUrl,
-          originalPrice: d.originalPrice,
-          offerPrice: d.offerPrice,
-          discountPercent: d.discountPercent,
-          couponCode: d.couponCode,
-          isFreeDelivery: d.isFreeDelivery,
-          expiresAt: d.expiresAt,
-          isPublic: d.isActive !== false,
-          products: (d.products || []).map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            price: p.price,
-            description: p.description,
-            imageUrl: p.imageUrl,
-          })),
-        }));
-        setDeals(mappedDeals);
-      }
+      const mappedDeals: DealItem[] = (Array.isArray(dealsRes) ? dealsRes : []).map((d: any, idx: number) => ({
+        id: String(d.id ?? `deal-${idx}`), title: String(d.title ?? 'عرض'), storeName: String(d.storeName ?? 'متجر'),
+        storeId: d.storeId, categoryId: d.categoryId, description: d.description || '', badge: d.badge || 'عرض خاص',
+        imageUrl: d.imageUrl || '', originalPrice: Number(d.originalPrice ?? 0) || 0,
+        offerPrice: Number(d.offerPrice ?? d.discountPrice ?? 0) || 0,
+        discountPercent: Number(d.discountPercent ?? 0) || 0, couponCode: d.couponCode,
+        isFreeDelivery: d.isFreeDelivery, dealType: d.dealType || d.dealKind,
+        deliveryDiscountPercent: Number(d.deliveryDiscountPercent ?? d.discountPercent ?? 0) || 0,
+        expiresAt: d.expiresAt, isPublic: d.isActive !== false && d.isPublic !== false,
+        products: (Array.isArray(d.products) ? d.products : (Array.isArray(d.bundleItems) ? d.bundleItems : [])).map((p: any, pidx: number) => ({
+          id: String(p.id ?? `piece-${pidx}`), name: String(p.name ?? 'منتج'), price: Number(p.price ?? 0) || 0,
+          description: p.description || '', imageUrl: p.imageUrl,
+        })),
+      }));
+      setDeals(mappedDeals);
 
       setCategories(mappedCats);
       setStores(mappedStores);
@@ -443,6 +433,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCart([]);
     setPromoCode('');
     setDiscountPercent(0);
+    setDeliveryDiscountPercent(0);
+    setDeliveryPromoDealId(null);
+    setIsFreeDeliveryPromo(false);
   };
 
   // Group cart items by store to support multi-store sub-orders
@@ -471,7 +464,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const cartSubtotal = cartSubOrders.reduce((sum, so) => sum + so.subtotal, 0);
-  const cartDeliveryFee = isFreeDeliveryPromo ? 0 : (cartSubOrders.length > 0 ? 500 : 0);
+  const cartDeliveryFee = cartSubOrders.length === 0 ? 0 : isFreeDeliveryPromo ? 0 : Math.max(0, Math.round(500 * (1 - deliveryDiscountPercent / 100)));
   const cartDiscount = Math.round(cartSubtotal * (discountPercent / 100));
   const cartTotal = Math.max(0, cartSubtotal + cartDeliveryFee - cartDiscount);
 
@@ -480,14 +473,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (clean === 'BS_FREE' || clean === 'FREE' || clean === 'FREEDELIVERY') {
       setPromoCode(code.trim());
       setIsFreeDeliveryPromo(true);
+      setDeliveryDiscountPercent(0);
+      setDeliveryPromoDealId(null);
       return true;
     }
     if (clean === 'BS_2026' || clean === 'BSSTORE' || clean === 'BS_STORE' || clean === 'BS2026') {
       setPromoCode(code.trim());
       setDiscountPercent(15);
+      setIsFreeDeliveryPromo(false);
+      setDeliveryDiscountPercent(0);
+      setDeliveryPromoDealId(null);
       return true;
     }
     return false;
+  };
+
+  const activateDeliveryDeal = (dealId: string, percent: number) => {
+    setDeliveryPromoDealId(dealId);
+    setDeliveryDiscountPercent(Math.min(100, Math.max(0, percent)));
+    setDiscountPercent(0);
+    setIsFreeDeliveryPromo(percent >= 100);
+    setPromoCode('');
   };
 
   const addNewAddress = async (addr: Omit<Address, 'id'>) => {
@@ -533,9 +539,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         },
         paymentMethod: isManual ? 1 : 0,
         notes,
+        deliveryDealId: deliveryPromoDealId || undefined,
         idempotencyKey: `${Date.now()}-${Math.random()}`,
         items: cart.map((c) => ({
-          productId: c.product.id,
+          productId: c.product.dealId ? undefined : c.product.id,
+          dealId: c.product.dealId,
+          dealProductId: c.product.dealProductId,
           quantity: c.quantity,
         })),
       });
@@ -707,6 +716,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cartTotal,
         promoCode,
         applyPromoCode,
+        activateDeliveryDeal,
         isFreeDeliveryPromo,
         addresses,
         selectedAddress,

@@ -18,6 +18,8 @@ export interface DealItem {
   storeName: string;
   storeId?: string;
   categoryId?: string;
+  dealType?: 'BUNDLE' | 'DELIVERY_DISCOUNT';
+  deliveryDiscountPercent?: number;
   showInHome?: boolean;
   showInCategory?: boolean;
   showInStore?: boolean;
@@ -57,6 +59,9 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
     cart,
     updateQuantity,
     removeFromCart,
+    stores,
+    setSelectedStore,
+    navigateTo,
     colors: themeColors,
   } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
@@ -76,6 +81,8 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
       imageUrl: piece.imageUrl || deal.imageUrl,
       sourceType: 'IN_STOCK',
       inStock: true,
+      dealId: deal.id,
+      dealProductId: piece.id,
     };
     addToCart(parentProd, 1);
   };
@@ -94,6 +101,7 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
       sourceType: 'IN_STOCK',
       inStock: true,
       isBundle: true,
+      dealId: deal.id,
     };
     addToCart(wholeDealProd, 1);
     onClose();
@@ -129,6 +137,14 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
             </View>
 
             <Text style={styles.descText}>{deal.description}</Text>
+            {!!deal.storeId && (
+              <TouchableOpacity style={{ padding: 12, alignItems: 'center' }} onPress={() => {
+                const store = stores.find((item) => item.id === deal.storeId);
+                if (store) { setSelectedStore(store); navigateTo('store_detail'); onClose(); }
+              }}>
+                <Text style={{ color: themeColors.primary, fontWeight: '700' }}>الانتقال إلى متجر {deal.storeName} ←</Text>
+              </TouchableOpacity>
+            )}
 
             {/* Individual Included Products List */}
             {deal.products.length > 0 && (

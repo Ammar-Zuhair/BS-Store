@@ -113,6 +113,7 @@ export const OffersDealsSection: React.FC = () => {
     updateQuantity,
     removeFromCart,
     applyPromoCode,
+    activateDeliveryDeal,
     deals,
     colors: themeColors,
   } = useApp();
@@ -121,8 +122,8 @@ export const OffersDealsSection: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [now, setNow] = useState(Date.now());
 
-  const activeDeals = deals && deals.length > 0 ? deals : initialDeals;
-  const homeDeals = activeDeals.filter((d) => d.isPublic !== false);
+  const activeDeals = deals;
+  const homeDeals = activeDeals.filter((d) => d.isPublic !== false && (!d.expiresAt || new Date(d.expiresAt).getTime() > now));
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -146,6 +147,10 @@ export const OffersDealsSection: React.FC = () => {
   };
 
   const handleOpenDeal = (deal: DealItem) => {
+    if (deal.dealType === 'DELIVERY_DISCOUNT') {
+      activateDeliveryDeal(deal.id, deal.deliveryDiscountPercent ?? deal.discountPercent);
+      return;
+    }
     if (deal.isFreeDelivery || deal.couponCode) {
       const code = deal.couponCode || 'BS_FREE';
       applyPromoCode(code);
@@ -245,16 +250,16 @@ export const OffersDealsSection: React.FC = () => {
                   {deal.title}
                 </Text>
                 <Text style={styles.dealDescText} numberOfLines={2}>
-                  {deal.description}
+                  {deal.dealType === 'DELIVERY_DISCOUNT' ? `خصم ${deal.deliveryDiscountPercent ?? deal.discountPercent}% من رسوم التوصيل` : deal.description}
                 </Text>
 
                 {/* Price and Action Button / Stepper */}
                 <View style={styles.bottomRow}>
                   <View style={styles.priceColumn}>
-                    <Text style={styles.currentPrice}>
-                      {deal.offerPrice === 0 ? 'مجاناً' : `${deal.offerPrice.toLocaleString()} ر.ي`}
-                    </Text>
-                    {deal.originalPrice > deal.offerPrice && (
+                    {deal.dealType === 'DELIVERY_DISCOUNT' ? <Text style={styles.currentPrice}>خصم {deal.deliveryDiscountPercent ?? deal.discountPercent}% على التوصيل</Text> : <Text style={styles.currentPrice}>
+                      {deal.offerPrice.toLocaleString()} ر.ي
+                    </Text>}
+                    {deal.dealType !== 'DELIVERY_DISCOUNT' && deal.originalPrice > deal.offerPrice && (
                       <Text style={styles.oldPrice}>
                         {deal.originalPrice.toLocaleString()} ر.ي
                       </Text>
@@ -296,7 +301,7 @@ export const OffersDealsSection: React.FC = () => {
                       activeOpacity={0.85}
                     >
                       <Text style={styles.actionBtnText}>
-                        {deal.products.length > 0 ? 'عرض الباقة ➔' : (deal.couponCode ? 'تفعيل الكود' : '+ إضافة')}
+                        {deal.dealType === 'DELIVERY_DISCOUNT' ? 'تفعيل الخصم' : (deal.products.length > 0 ? 'عرض الباقة ➔' : (deal.couponCode ? 'تفعيل الكود' : '+ إضافة'))}
                       </Text>
                     </TouchableOpacity>
                   )}

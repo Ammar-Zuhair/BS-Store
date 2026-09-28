@@ -83,6 +83,8 @@ export interface Product {
   isTopPick?: boolean;
   isBundle?: boolean;
   bundleItems?: BundlePiece[];
+  dealId?: string;
+  dealProductId?: string;
 }
 
 export interface CartItem {

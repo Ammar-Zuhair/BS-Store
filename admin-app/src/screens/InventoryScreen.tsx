@@ -46,11 +46,8 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
 
 // ── Deal types ───────────────────────────────────────────────────────────────
 const DEAL_TYPES = [
-  { id: 'discount', label: 'خصم على منتج', icon: '🏷' },
-  { id: 'bundle', label: 'باقة / بكج', icon: '📦' },
-  { id: 'meal', label: 'وجبة / طعام', icon: '🍽' },
-  { id: 'set', label: 'طقم / كومبو', icon: '🎁' },
-  { id: 'store', label: 'عرض متجر', icon: '🏪' },
+  { id: 'bundle', label: 'باقة منتجات', icon: '📦' },
+  { id: 'delivery', label: 'خصم على التوصيل', icon: '🚚' },
 ];
 
 const DEAL_VISIBILITY = [
@@ -279,7 +276,7 @@ export const InventoryScreen: React.FC = () => {
 
   // ── Deal form ─────────────────────────────────────────────────────────────
   const [showDealForm, setShowDealForm] = useState(false);
-  const [dealType, setDealType] = useState('discount');
+  const [dealType, setDealType] = useState('bundle');
   const [dealTypePickerVisible, setDealTypePickerVisible] = useState(false);
   const [dealVisibility, setDealVisibility] = useState('home');
   const [dealVisibilityPickerVisible, setDealVisibilityPickerVisible] = useState(false);
@@ -290,7 +287,10 @@ export const InventoryScreen: React.FC = () => {
   const [dealCatPickerVisible, setDealCatPickerVisible] = useState(false);
   const [dealOriginal, setDealOriginal] = useState('');
   const [dealDiscount, setDealDiscount] = useState('');
-  const [dealHours, setDealHours] = useState('24');
+  const [dealExpiryDate, setDealExpiryDate] = useState('');
+  const [dealExpiryTime, setDealExpiryTime] = useState('21:00');
+  const [deliveryDiscountPercent, setDeliveryDiscountPercent] = useState('');
+  const [dealIsPublic, setDealIsPublic] = useState(true);
   // Bundle items
   const [bundleItems, setBundleItems] = useState<{ name: string; price: string; imageUrl?: string }[]>([]);
   const [bundleItemName, setBundleItemName] = useState('');
@@ -298,6 +298,7 @@ export const InventoryScreen: React.FC = () => {
   const [dealImageUrl, setDealImageUrl] = useState('');
   const [showDealImagePicker, setShowDealImagePicker] = useState(false);
   const [bundleImageIndex, setBundleImageIndex] = useState<number | null>(null);
+  const totalBundlePrice = bundleItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
 
   // ── Loading states ────────────────────────────────────────────────────────
   const [isSavingCat, setIsSavingCat] = useState(false);
@@ -403,30 +404,52 @@ export const InventoryScreen: React.FC = () => {
     if (!dealTitle.trim()) { Alert.alert('تنبيه', 'يرجى إدخال عنوان العرض'); return; }
     const orig = parseFloat(dealOriginal) || 0;
     const disc = parseFloat(dealDiscount) || 0;
-    const totalBundlePrice = bundleItems.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
-    const finalPrice = ['bundle', 'set', 'meal'].includes(dealType) ? totalBundlePrice : (disc > 0 ? disc : orig);
-    if (['bundle', 'set', 'meal'].includes(dealType) && bundleItems.length === 0) {
+    const expiry = new Date(`${dealExpiryDate}T${dealExpiryTime}:00`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dealExpiryDate) || !/^\d{2}:\d{2}$/.test(dealExpiryTime) || !Number.isFinite(expiry.getTime()) || expiry.getTime() <= Date.now()) {
+      Alert.alert('تنبيه', 'يرجى تحديد تاريخ ووقت انتهاء في المستقبل');
+      return;
+    }
+    const isBundle = dealType === 'bundle';
+    const finalPrice = isBundle ? (disc > 0 ? disc : totalBundlePrice) : 0;
+    if (isBundle && bundleItems.length === 0) {
       Alert.alert('تنبيه', 'أضف منتجاً واحداً على الأقل إلى الباقة');
       return;
     }
-    if (!dealStore) { Alert.alert('تنبيه', 'يرجى ربط العرض بمتجر'); return; }
+    if (isBundle && disc > totalBundlePrice) {
+      Alert.alert('تنبيه', 'السعر النهائي لا يمكن أن يتجاوز إجمالي أسعار المنتجات');
+      return;
+    }
+    if (isBundle && !dealStore) { Alert.alert('تنبيه', 'يرجى ربط الباقة بمتجر'); return; }
+    const deliveryPct = Math.round(Number(deliveryDiscountPercent));
+    if (!isBundle && (!Number.isFinite(deliveryPct) || deliveryPct < 1 || deliveryPct > 100)) {
+      Alert.alert('تنبيه', 'أدخل نسبة خصم توصيل من 1 إلى 100');
+      return;
+    }
 
     setIsSavingDeal(true);
     try {
       await addFlashDeal({
         title: dealTitle,
-        storeName: stores.find((s) => s.id === dealStore)?.name || 'متجر',
-        storeId: dealStore,
+        storeName: isBundle ? (stores.find((s) => s.id === dealStore)?.name || 'متجر') : 'منصة متجر بي اس',
+        storeId: isBundle ? dealStore : undefined,
         categoryId: dealCatId || undefined,
         visibility: dealVisibility,
-        dealKind: dealType,
+        dealKind: isBundle ? 'BUNDLE' : 'DELIVERY_DISCOUNT',
+        dealType: isBundle ? 'BUNDLE' : 'DELIVERY_DISCOUNT',
+        deliveryDiscountPercent: isBundle ? undefined : deliveryPct,
         bundleItems: bundleItems.map((item) => ({ name: item.name, price: Number(item.price) || 0, imageUrl: item.imageUrl })),
-        originalPrice: ['bundle', 'set', 'meal'].includes(dealType) ? totalBundlePrice : orig,
+        originalPrice: isBundle ? totalBundlePrice : 0,
         discountPrice: finalPrice,
-        discountPercent: orig > 0 && disc > 0 && orig >= disc ? Math.round(((orig - disc) / orig) * 100) : 0,
+        discountPercent: isBundle && totalBundlePrice > 0 && finalPrice < totalBundlePrice ? Math.round(((totalBundlePrice - finalPrice) / totalBundlePrice) * 100) : 0,
         imageUrl: dealImageUrl,
-        remainingHours: parseInt(dealHours) || 24,
+        remainingHours: Math.ceil((expiry.getTime() - Date.now()) / 3600000),
+        expiresAt: expiry.toISOString(),
         isActive: true,
+        isPublic: dealType === 'delivery' ? dealIsPublic : true,
+        description: isBundle ? bundleItems.map((i) => i.name).join('، ') : `خصم ${deliveryPct}% على رسوم التوصيل`,
+        badge: isBundle ? (finalPrice < totalBundlePrice ? `باقة • وفر ${Math.round(((totalBundlePrice-finalPrice)/totalBundlePrice)*100)}%` : 'باقة منتجات') : `خصم ${deliveryPct}% على التوصيل`,
+        isFreeDelivery: !isBundle && deliveryPct === 100,
+        products: isBundle ? bundleItems.map((item, index) => ({ id: `piece-${Date.now()}-${index}`, name: item.name, price: Number(item.price) || 0, imageUrl: item.imageUrl, description: '' })) : [],
       });
       setShowDealForm(false);
       setDealTitle('');
@@ -434,10 +457,13 @@ export const InventoryScreen: React.FC = () => {
       setDealCatId('');
       setDealOriginal('');
       setDealDiscount('');
-      setDealHours('24');
+      setDealExpiryDate('');
+      setDealExpiryTime('21:00');
+      setDeliveryDiscountPercent('');
+      setDealIsPublic(true);
       setDealImageUrl('');
       setBundleItems([]);
-      setDealType('discount');
+      setDealType('bundle');
       setDealVisibility('home');
       Alert.alert('نجاح ✓', 'تمت إضافة العرض بنجاح');
     } catch {
@@ -831,7 +857,7 @@ export const InventoryScreen: React.FC = () => {
                   <Text style={s.dealNewPrice}>{(Number(deal.discountPrice) || 0).toLocaleString()} ر.ي</Text>
                 </View>
               </View>
-              <Text style={s.dealHours}>⏱ {deal.remainingHours} ساعة · {deal.isActive ? 'نشط' : 'متوقف'}</Text>
+              <Text style={s.dealHours}>⏱ ينتهي: {deal.expiresAt ? new Date(deal.expiresAt).toLocaleString('ar-YE') : 'غير محدد'} · {deal.isActive ? 'نشط' : 'متوقف'}</Text>
             </View>
           ))}
         </ScrollView>
@@ -1089,14 +1115,15 @@ export const InventoryScreen: React.FC = () => {
               </TouchableOpacity>
               {!!dealImageUrl && <Image source={{ uri: dealImageUrl }} style={{ width: '100%', height: 130, borderRadius: 10, marginTop: 8 }} resizeMode="cover" />}
 
-              {/* Store picker */}
-              <Text style={s.formLabel}>المتجر</Text>
+              {dealType === 'bundle' && <>
+              <Text style={s.formLabel}>المتجر المرتبط بالباقة *</Text>
               <TouchableOpacity style={s.pickerTrigger} onPress={() => setDealStorePickerVisible(true)}>
                 <Text style={s.pickerArrow}>▾</Text>
                 <Text style={[s.pickerValue, !dealStore && s.pickerPlaceholder]} numberOfLines={1}>
                   {stores.find((s) => s.id === dealStore)?.name || 'اختر متجراً...'}
                 </Text>
               </TouchableOpacity>
+              </>}
 
               {/* Category picker (for category-level visibility) */}
               {(dealVisibility === 'category' || dealVisibility === 'all') && (
@@ -1112,7 +1139,7 @@ export const InventoryScreen: React.FC = () => {
               )}
 
               {/* Bundle items */}
-              {(dealType === 'bundle' || dealType === 'set' || dealType === 'meal') && (
+              {dealType === 'bundle' && (
                 <>
                   <Text style={s.formLabel}>محتويات الباقة / الطقم</Text>
                   {bundleItems.map((item, i) => (
@@ -1138,34 +1165,27 @@ export const InventoryScreen: React.FC = () => {
                   </View>
                   {bundleItems.length > 0 && (
                     <View style={s.bundleTotalRow}>
-                      <Text style={s.bundleTotalText}>
-                        الإجمالي: {bundleItems.reduce((t, i) => t + (parseFloat(i.price) || 0), 0).toLocaleString()} ر.ي
-                      </Text>
+                      <Text style={s.bundleTotalText}>إجمالي المنتجات: {totalBundlePrice.toLocaleString()} ر.ي</Text>
                     </View>
                   )}
+                  <Text style={s.formLabel}>السعر النهائي للباقة (اختياري)</Text>
+                  <TextInput style={s.formInput} placeholder={`${totalBundlePrice} (اتركه فارغاً بلا خصم)`} placeholderTextColor={colors.outline}
+                    value={dealDiscount} onChangeText={setDealDiscount} keyboardType="numeric" textAlign="center" />
                 </>
               )}
 
-              {/* Price fields for discount type */}
-              {(dealType === 'discount' || dealType === 'store') && (
-                <View style={s.priceRow}>
-                  <View style={s.priceHalf}>
-                    <Text style={s.formLabel}>سعر الخصم</Text>
-                    <TextInput style={s.formInput} placeholder="0" placeholderTextColor={colors.outline}
-                      value={dealDiscount} onChangeText={setDealDiscount} keyboardType="numeric" textAlign="center" />
-                  </View>
-                  <View style={s.priceHalf}>
-                    <Text style={s.formLabel}>السعر الأصلي</Text>
-                    <TextInput style={s.formInput} placeholder="0" placeholderTextColor={colors.outline}
-                      value={dealOriginal} onChangeText={setDealOriginal} keyboardType="numeric" textAlign="center" />
-                  </View>
-                </View>
-              )}
+              {dealType === 'delivery' && <>
+                <Text style={s.formLabel}>نسبة خصم رسوم التوصيل (٪)</Text>
+                <TextInput style={s.formInput} placeholder="مثال: 25" placeholderTextColor={colors.outline} value={deliveryDiscountPercent} onChangeText={setDeliveryDiscountPercent} keyboardType="numeric" textAlign="center" />
+                <TouchableOpacity style={s.pickerTrigger} onPress={() => setDealIsPublic((v) => !v)}>
+                  <Text style={s.pickerValue}>ظهور للعملاء: {dealIsPublic ? 'نعم' : 'لا'} (اضغط للتبديل)</Text>
+                </TouchableOpacity>
+              </>}
 
-              {/* Duration */}
-              <Text style={s.formLabel}>مدة العرض (ساعات)</Text>
-              <TextInput style={s.formInput} placeholder="24" placeholderTextColor={colors.outline}
-                value={dealHours} onChangeText={setDealHours} keyboardType="numeric" textAlign="center" />
+              <Text style={s.formLabel}>تاريخ الانتهاء (YYYY-MM-DD)</Text>
+              <TextInput style={s.formInput} placeholder="2026-12-31" placeholderTextColor={colors.outline} value={dealExpiryDate} onChangeText={setDealExpiryDate} textAlign="center" />
+              <Text style={s.formLabel}>وقت الانتهاء (24 ساعة)</Text>
+              <TextInput style={s.formInput} placeholder="21:00" placeholderTextColor={colors.outline} value={dealExpiryTime} onChangeText={setDealExpiryTime} textAlign="center" />
 
               <View style={s.formBtns}>
                 <TouchableOpacity style={s.cancelBtn} onPress={() => setShowDealForm(false)}>

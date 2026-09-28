@@ -149,7 +149,7 @@ export interface AdminFlashDeal {
   imageUrl: string;
   remainingHours: number;
   isActive: boolean;
-  dealType?: 'STORE_OFFER' | 'DELIVERY_DISCOUNT' | 'PRODUCT_DISCOUNT';
+  dealType?: 'BUNDLE' | 'DELIVERY_DISCOUNT' | 'STORE_OFFER' | 'PRODUCT_DISCOUNT';
   couponCode?: string;
   isPublic?: boolean;
   expiresAt?: string;
@@ -158,6 +158,11 @@ export interface AdminFlashDeal {
   visibility?: string;
   bundleItems?: { name: string; price: number; imageUrl?: string }[];
   dealKind?: string;
+  deliveryDiscountPercent?: number;
+  description?: string;
+  badge?: string;
+  isFreeDelivery?: boolean;
+  products?: { id: string; name: string; price: number; description?: string; imageUrl?: string }[];
 }
 
 export interface AdminProduct {

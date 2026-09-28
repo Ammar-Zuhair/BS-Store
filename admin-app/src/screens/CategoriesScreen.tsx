@@ -1276,10 +1276,10 @@ export const CategoriesScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.newCatBtn}
             activeOpacity={0.8}
-            onPress={() => setShowNewDealPanel((prev) => !prev)}
+            onPress={() => navigateTo('inventory')}
           >
             <Text style={styles.newCatBtnIcon}>⚡</Text>
-            <Text style={styles.newCatBtnText}>عرض جديد</Text>
+            <Text style={styles.newCatBtnText}>إدارة الباقات والتوصيل</Text>
           </TouchableOpacity>
         </View>
 
