@@ -31,7 +31,14 @@ import { BottomNav } from './src/components/BottomNav';
 import { colors } from './src/theme';
 
 const MainNavigator: React.FC = () => {
-  const { currentScreen, navigateTo, isAuthenticated, isAuthLoading } = useApp();
+  const {
+    currentScreen,
+    navigateTo,
+    isAuthenticated,
+    isAuthLoading,
+    isDarkMode,
+    colors: themeColors,
+  } = useApp();
 
   useEffect(() => {
     const handleBackPress = () => {
@@ -68,8 +75,8 @@ const MainNavigator: React.FC = () => {
 
   if (isAuthLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
+        <ActivityIndicator size="large" color={themeColors.primary} />
       </View>
     );
   }
@@ -105,13 +112,25 @@ const MainNavigator: React.FC = () => {
     <SafeAreaView
       style={[
         styles.safeArea,
-        currentScreen === 'auth' && { backgroundColor: '#0A0B0D' },
+        {
+          backgroundColor:
+            currentScreen === 'auth' ? '#0A0B0D' : themeColors.surfaceContainerLowest,
+        },
       ]}
       edges={['top', 'left', 'right']}
     >
-      <View style={[styles.appContainer, currentScreen === 'auth' && { backgroundColor: '#0A0B0D' }]}>
+      <View
+        key={isDarkMode ? 'dark' : 'light'}
+        style={[
+          styles.appContainer,
+          {
+            backgroundColor:
+              currentScreen === 'auth' ? '#0A0B0D' : themeColors.background,
+          },
+        ]}
+      >
         <StatusBar
-          barStyle={currentScreen === 'auth' ? 'light-content' : 'dark-content'}
+          barStyle={isDarkMode || currentScreen === 'auth' ? 'light-content' : 'dark-content'}
           backgroundColor="transparent"
           translucent={true}
           hidden={false}

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Product } from '../types';
 import { useApp } from '../context/AppContext';
 
@@ -10,7 +10,8 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
-  const { addToCart, cart, updateQuantity, removeFromCart } = useApp();
+  const { addToCart, cart, updateQuantity, removeFromCart, colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const isDiscounted = product.discountPrice && product.discountPrice < product.sellingPrice;
   const currentPrice = isDiscounted ? product.discountPrice! : product.sellingPrice;
@@ -96,7 +97,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   card: {
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,

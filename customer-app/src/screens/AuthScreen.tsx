@@ -49,7 +49,7 @@ export const AuthScreen: React.FC = () => {
   const [agreeTerms, setAgreeTerms] = useState(false);
 
   // Address & GPS Location States
-  const [regCity, setRegCity] = useState('صنعاء');
+  const [regCity, setRegCity] = useState('');
   const [regDistrict, setRegDistrict] = useState('');
   const [regStreet, setRegStreet] = useState('');
   const [regBuilding, setRegBuilding] = useState('');
@@ -696,7 +696,7 @@ export const AuthScreen: React.FC = () => {
                     <View style={styles.inputWrapper}>
                       <TextInput
                         style={[styles.textInput, { textAlign: 'right' }]}
-                        placeholder="صنعاء"
+                        placeholder="المدينة (مثال: صنعاء، عدن، ...)"
                         placeholderTextColor="#6B7280"
                         value={regCity}
                         onChangeText={setRegCity}
@@ -708,7 +708,7 @@ export const AuthScreen: React.FC = () => {
                     <View style={styles.inputWrapper}>
                       <TextInput
                         style={[styles.textInput, { textAlign: 'right' }]}
-                        placeholder="حي حدة"
+                        placeholder="اسم الحي / المنطقة"
                         placeholderTextColor="#6B7280"
                         value={regDistrict}
                         onChangeText={setRegDistrict}
@@ -723,7 +723,7 @@ export const AuthScreen: React.FC = () => {
                   <View style={styles.inputWrapper}>
                     <TextInput
                       style={[styles.textInput, { textAlign: 'right' }]}
-                      placeholder="شارع الخمسين - جوار مسجد السلام"
+                      placeholder="الشارع، رقم المبنى، أو أقرب معلم"
                       placeholderTextColor="#6B7280"
                       value={regStreet}
                       onChangeText={setRegStreet}
@@ -793,7 +793,7 @@ export const AuthScreen: React.FC = () => {
         title="تحديد موقع التوصيل على الخريطة"
         initialLat={regLat}
         initialLng={regLng}
-        initialDistrict={regDistrict || 'حي حدة'}
+        initialDistrict={regDistrict || ''}
         onClose={() => setShowMapPicker(false)}
         onConfirm={handleLocationPicked}
       />

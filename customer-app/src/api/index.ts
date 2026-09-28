@@ -45,23 +45,16 @@ export const authApi = {
         password,
         initialAddress: initialAddress
           ? {
-              city: initialAddress.city || 'صنعاء',
-              district: initialAddress.district || 'حي حدة',
-              street: initialAddress.street || 'الشارع الرئيسي',
+              city: initialAddress.city || '',
+              district: initialAddress.district || '',
+              street: initialAddress.street || '',
               building: initialAddress.building,
               description: initialAddress.description,
-              latitude: initialAddress.latitude || 15.35,
-              longitude: initialAddress.longitude || 44.20,
+              latitude: initialAddress.latitude || 0,
+              longitude: initialAddress.longitude || 0,
               label: 0,
             }
-          : {
-              city: 'صنعاء',
-              district: 'حي حدة',
-              street: 'الشارع الرئيسي',
-              latitude: 15.35,
-              longitude: 44.20,
-              label: 0,
-            },
+          : undefined,
       }
     );
     api.setToken(res.accessToken);
@@ -192,13 +185,13 @@ export const addressApi = {
           : a.label === 2 || a.label === 'Other'
           ? 'أخرى'
           : 'المنزل',
-      city: a.city || 'صنعاء',
+      city: a.city || '',
       district: a.district || '',
       street: a.street || '',
       building: a.building || '',
       description: a.description || '',
-      latitude: Number(a.latitude) || 15.35,
-      longitude: Number(a.longitude) || 44.2,
+      latitude: Number(a.latitude) || 0,
+      longitude: Number(a.longitude) || 0,
       isDefault: Boolean(a.isDefault),
     })) as Address[];
   },
@@ -210,8 +203,8 @@ export const addressApi = {
       street: addr.street,
       building: addr.building,
       description: addr.description,
-      latitude: addr.latitude || 15.35,
-      longitude: addr.longitude || 44.2,
+      latitude: addr.latitude || 0,
+      longitude: addr.longitude || 0,
       isDefault: addr.isDefault ?? false,
     });
     return {
@@ -222,7 +215,7 @@ export const addressApi = {
           : a.label === 2 || a.label === 'Other'
           ? 'أخرى'
           : 'المنزل',
-      city: a.city || 'صنعاء',
+      city: a.city || '',
       district: a.district || '',
       street: a.street || '',
       building: a.building || '',

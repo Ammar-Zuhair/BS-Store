@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
-import { colors, typography, spacing, borderRadius } from '../theme';
+import { typography, spacing, borderRadius, ThemeColors } from '../theme';
 import { mockCategories } from '../mock';
 import { useApp } from '../context/AppContext';
 
 export const CategoryPills: React.FC = () => {
-  const { selectedCategory, setSelectedCategory, categories } = useApp();
+  const { selectedCategory, setSelectedCategory, categories, colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+
   const displayCategories = categories.length > 0
     ? (categories.some((c) => c.id === 'cat-all') ? categories : [{ id: 'cat-all', name: 'الكل', icon: 'apps', itemCount: 0 }, ...categories])
     : mockCategories;
@@ -37,34 +39,35 @@ export const CategoryPills: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    marginVertical: spacing.baseXs,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.screenGutter,
-    flexDirection: 'row-reverse',
-    gap: spacing.baseXs,
-  },
-  pill: {
-    paddingHorizontal: spacing.baseMd,
-    paddingVertical: 8,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant + '50',
-  },
-  pillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  pillText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.semiBold,
-    color: colors.onSurfaceVariant,
-  },
-  pillTextActive: {
-    color: colors.onPrimary,
-    fontWeight: typography.fontWeight.bold,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      marginVertical: spacing.baseXs,
+    },
+    scrollContent: {
+      paddingHorizontal: spacing.screenGutter,
+      flexDirection: 'row-reverse',
+      gap: spacing.baseXs,
+    },
+    pill: {
+      paddingHorizontal: spacing.baseMd,
+      paddingVertical: 8,
+      borderRadius: borderRadius.full,
+      backgroundColor: colors.surfaceContainerLowest,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant + '50',
+    },
+    pillActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    pillText: {
+      fontSize: typography.fontSize.sm,
+      fontWeight: typography.fontWeight.semiBold,
+      color: colors.onSurfaceVariant,
+    },
+    pillTextActive: {
+      color: colors.onPrimary,
+      fontWeight: typography.fontWeight.bold,
+    },
+  });

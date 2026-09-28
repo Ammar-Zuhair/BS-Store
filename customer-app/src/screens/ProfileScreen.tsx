@@ -1,6 +1,15 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, Alert } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import React, { useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  Switch,
+} from 'react-native';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 
@@ -14,28 +23,35 @@ export const ProfileScreen: React.FC = () => {
     setCurrentOrder,
     navigateTo,
     isAuthenticated,
+    isDarkMode,
+    toggleTheme,
+    colors: themeColors,
   } = useApp();
 
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+
   const [showAddAddress, setShowAddAddress] = useState(false);
+  const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
   const [street, setStreet] = useState('');
   const [desc, setDesc] = useState('');
 
   const handleSaveAddress = () => {
-    if (!district.trim() || !street.trim()) {
-      Alert.alert('خطأ', 'يرجى إدخال اسم الحي والشارع');
+    if (!city.trim() || !district.trim() || !street.trim()) {
+      Alert.alert('خطأ', 'يرجى إدخال اسم المدينة والحي والشارع');
       return;
     }
     addNewAddress({
       label: 'أخرى',
-      city: 'صنعاء',
-      district,
-      street,
-      description: desc,
-      latitude: 15.35,
-      longitude: 44.2,
+      city: city.trim(),
+      district: district.trim(),
+      street: street.trim(),
+      description: desc.trim(),
+      latitude: 0,
+      longitude: 0,
       isDefault: false,
     });
+    setCity('');
     setDistrict('');
     setStreet('');
     setDesc('');
@@ -88,6 +104,32 @@ export const ProfileScreen: React.FC = () => {
           </View>
         )}
 
+        {/* Appearance & Dark Mode Toggle Card */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>المظهر والتفضيلات</Text>
+          <View style={styles.themeRow}>
+            <Switch
+              value={isDarkMode}
+              onValueChange={toggleTheme}
+              trackColor={{ false: themeColors.surfaceContainerHighest, true: themeColors.primary }}
+              thumbColor={isDarkMode ? themeColors.onPrimary : '#FFFFFF'}
+            />
+            <View style={styles.themeInfo}>
+              <View style={styles.themeTitleRow}>
+                <Text style={styles.themeTitle}>
+                  {isDarkMode ? 'الوضع الداكن (الليلي)' : 'الوضع الفاتح (النهاري)'}
+                </Text>
+                <Text style={styles.themeIcon}>{isDarkMode ? '🌙' : '☀️'}</Text>
+              </View>
+              <Text style={styles.themeDesc}>
+                {isDarkMode
+                  ? 'مظهر داكن مريح للعين في الإضاءة الخافتة'
+                  : 'المظهر الافتراضي المشرق عالي الوضوح'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Saved Addresses Section */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
@@ -101,27 +143,35 @@ export const ProfileScreen: React.FC = () => {
 
           {showAddAddress && (
             <View style={styles.addAddressForm}>
-              <Text style={styles.formTitle}>إضافة عنوان جديد في صنعاء</Text>
+              <Text style={styles.formTitle}>إضافة عنوان جديد</Text>
               <TextInput
                 style={styles.input}
-                placeholder="الحي (مثال: حي الأصبحي)"
-                placeholderTextColor={colors.outline}
+                placeholder="المدينة (مثال: صنعاء، عدن، تعز، ...)"
+                placeholderTextColor={themeColors.outline}
+                value={city}
+                onChangeText={setCity}
+                textAlign="right"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="الحي / المنطقة"
+                placeholderTextColor={themeColors.outline}
                 value={district}
                 onChangeText={setDistrict}
                 textAlign="right"
               />
               <TextInput
                 style={styles.input}
-                placeholder="الشارع (مثال: شارع المقالح)"
-                placeholderTextColor={colors.outline}
+                placeholder="الشارع أو المعلم البارز"
+                placeholderTextColor={themeColors.outline}
                 value={street}
                 onChangeText={setStreet}
                 textAlign="right"
               />
               <TextInput
                 style={styles.input}
-                placeholder="تفاصيل إضافية (عمارة، علامة مميزة)"
-                placeholderTextColor={colors.outline}
+                placeholder="تفاصيل إضافية (عمارة، شقة، علامة مميزة)"
+                placeholderTextColor={themeColors.outline}
                 value={desc}
                 onChangeText={setDesc}
                 textAlign="right"
@@ -135,62 +185,70 @@ export const ProfileScreen: React.FC = () => {
             </View>
           )}
 
-          {addresses.map((addr) => (
-            <View key={addr.id} style={styles.addressRow}>
-              <View style={styles.addrIconWrap}>
-                <Text style={styles.addrIcon}>
-                  {addr.label === 'المنزل' ? '🏠' : '🏢'}
-                </Text>
-              </View>
-              <View style={styles.addrInfo}>
-                <View style={styles.addrLabelRow}>
-                  <Text style={styles.addrLabel}>{addr.label}</Text>
-                  {addr.isDefault && <Text style={styles.defaultBadge}>الرئيسي</Text>}
+          {addresses.length === 0 ? (
+            <Text style={styles.emptyNotice}>لا توجد عناوين محفوظة حتى الآن</Text>
+          ) : (
+            addresses.map((addr) => (
+              <View key={addr.id} style={styles.addressRow}>
+                <View style={styles.addrIconWrap}>
+                  <Text style={styles.addrIcon}>
+                    {addr.label === 'المنزل' ? '🏠' : '🏢'}
+                  </Text>
                 </View>
-                <Text style={styles.addrStreet}>
-                  {addr.city} - {addr.district}، {addr.street}
-                </Text>
+                <View style={styles.addrInfo}>
+                  <View style={styles.addrLabelRow}>
+                    <Text style={styles.addrLabel}>{addr.label}</Text>
+                    {addr.isDefault && <Text style={styles.defaultBadge}>الرئيسي</Text>}
+                  </View>
+                  <Text style={styles.addrStreet}>
+                    {addr.city ? `${addr.city} - ` : ''}{addr.district}، {addr.street}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))}
+            ))
+          )}
         </View>
 
         {/* Past Orders History */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>سجل الطلبات السابقة</Text>
-          {orders.map((ord) => (
-            <View key={ord.id} style={styles.orderHistoryItem}>
-              <View style={styles.orderHistoryTop}>
-                <TouchableOpacity
-                  style={styles.trackBtn}
-                  onPress={() => {
-                    setCurrentOrder(ord);
-                    navigateTo('tracking');
-                  }}
-                >
-                  <Text style={styles.trackBtnText}>تتبع</Text>
-                </TouchableOpacity>
-                <View style={styles.orderHistoryInfo}>
-                  <Text style={styles.orderHistNum}>طلب #{ord.orderNumber}</Text>
-                  <Text style={styles.orderHistDate}>{ord.createdAt}</Text>
+          {orders.length === 0 ? (
+            <Text style={styles.emptyNotice}>لا توجد طلبات سابقة حتى الآن</Text>
+          ) : (
+            orders.map((ord) => (
+              <View key={ord.id} style={styles.orderHistoryItem}>
+                <View style={styles.orderHistoryTop}>
+                  <TouchableOpacity
+                    style={styles.trackBtn}
+                    onPress={() => {
+                      setCurrentOrder(ord);
+                      navigateTo('tracking');
+                    }}
+                  >
+                    <Text style={styles.trackBtnText}>تتبع</Text>
+                  </TouchableOpacity>
+                  <View style={styles.orderHistoryInfo}>
+                    <Text style={styles.orderHistNum}>طلب #{ord.orderNumber}</Text>
+                    <Text style={styles.orderHistDate}>{ord.createdAt}</Text>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.orderHistoryBottom}>
-                <Text style={styles.orderHistTotal}>
-                  {ord.totalAmount.toLocaleString()} ر.ي
-                </Text>
-                <View style={styles.statusPill}>
-                  <Text style={styles.statusPillText}>
-                    {ord.status === 'DELIVERED'
-                      ? 'تم التوصيل'
-                      : ord.status === 'OUT_FOR_DELIVERY'
-                      ? 'في الطريق'
-                      : 'قيد التنفيذ'}
+                <View style={styles.orderHistoryBottom}>
+                  <Text style={styles.orderHistTotal}>
+                    {ord.totalAmount.toLocaleString()} ر.ي
                   </Text>
+                  <View style={styles.statusPill}>
+                    <Text style={styles.statusPillText}>
+                      {ord.status === 'DELIVERED'
+                        ? 'تم التوصيل'
+                        : ord.status === 'OUT_FOR_DELIVERY'
+                        ? 'في الطريق'
+                        : 'قيد التنفيذ'}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          ))}
+            ))
+          )}
         </View>
 
         {/* Support & Logout */}
@@ -224,314 +282,354 @@ export const ProfileScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.screenGutter,
-    paddingVertical: spacing.baseSm,
-    paddingBottom: 130,
-  },
-  guestCard: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    padding: spacing.baseMd,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    marginBottom: spacing.baseSm,
-    borderWidth: 1,
-    borderColor: colors.primary + '30',
-    ...shadows.card,
-  },
-  guestInfo: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  guestTitle: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.onSurface,
-  },
-  guestSubtitle: {
-    fontSize: typography.fontSize.xs,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
-    marginBottom: spacing.baseXs,
-    textAlign: 'right',
-  },
-  loginBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.baseSm,
-    paddingVertical: 8,
-    borderRadius: borderRadius.lg,
-    marginTop: 4,
-  },
-  loginBtnText: {
-    color: colors.onPrimary,
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-  },
-  userCard: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    padding: spacing.baseMd,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    marginBottom: spacing.baseSm,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant + '30',
-    ...shadows.card,
-  },
-  avatarIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primaryFixed + '25',
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.baseSm,
-  },
-  avatarIconText: {
-    fontSize: 24,
-  },
-  userInfo: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  nameRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-  },
-  userName: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.onSurface,
-  },
-  vipBadge: {
-    backgroundColor: colors.secondaryContainer,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: borderRadius.full,
-  },
-  vipBadgeText: {
-    fontSize: 9,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.onSecondary,
-  },
-  userPhone: {
-    fontSize: typography.fontSize.xs,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
-  },
-  sectionCard: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    padding: spacing.baseMd,
-    marginBottom: spacing.baseSm,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant + '30',
-    ...shadows.card,
-  },
-  sectionHeader: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.baseSm,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.onSurface,
-    textAlign: 'right',
-  },
-  actionText: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
-  },
-  addAddressForm: {
-    backgroundColor: colors.surfaceContainerLow,
-    padding: spacing.baseSm,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.baseSm,
-  },
-  formTitle: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.onSurface,
-    textAlign: 'right',
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.baseSm,
-    height: 38,
-    fontSize: typography.fontSize.xs,
-    color: colors.onSurface,
-    marginBottom: 6,
-  },
-  saveAddrBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 8,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  saveAddrBtnText: {
-    color: colors.onPrimary,
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-  },
-  addressRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceContainerLow,
-  },
-  addrIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surfaceContainerLow,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.baseSm,
-  },
-  addrIcon: {
-    fontSize: 16,
-  },
-  addrInfo: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  addrLabelRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-  },
-  addrLabel: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.onSurface,
-  },
-  defaultBadge: {
-    fontSize: 9,
-    color: colors.primary,
-    backgroundColor: colors.primaryFixed,
-    paddingHorizontal: 4,
-    borderRadius: borderRadius.sm,
-    fontWeight: typography.fontWeight.bold,
-  },
-  addrStreet: {
-    fontSize: 11,
-    color: colors.onSurfaceVariant,
-    marginTop: 2,
-  },
-  orderHistoryItem: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: borderRadius.lg,
-    padding: spacing.baseSm,
-    marginTop: spacing.baseXs,
-  },
-  orderHistoryTop: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  orderHistoryInfo: {
-    alignItems: 'flex-end',
-  },
-  orderHistNum: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
-  },
-  orderHistDate: {
-    fontSize: 10,
-    color: colors.onSurfaceVariant,
-  },
-  trackBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: borderRadius.md,
-  },
-  trackBtnText: {
-    color: colors.onPrimary,
-    fontSize: 10,
-    fontWeight: typography.fontWeight.bold,
-  },
-  orderHistoryBottom: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceContainerLowest,
-  },
-  orderHistTotal: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.onSurface,
-  },
-  statusPill: {
-    backgroundColor: colors.primaryFixedDim + '40',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-  },
-  statusPillText: {
-    fontSize: 9,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
-  },
-  menuItem: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceContainerLow,
-  },
-  menuTitleRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 8,
-  },
-  menuIcon: {
-    fontSize: 16,
-  },
-  menuText: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.semiBold,
-    color: colors.onSurface,
-  },
-  menuArrow: {
-    fontSize: 18,
-    color: colors.outline,
-  },
-  logoutItem: {
-    borderBottomWidth: 0,
-    paddingTop: 12,
-  },
-  logoutIcon: {
-    fontSize: 16,
-  },
-  logoutText: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.error,
-  },
-  logoutArrow: {
-    fontSize: 18,
-    color: colors.error,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    scrollContent: {
+      paddingHorizontal: spacing.screenGutter,
+      paddingVertical: spacing.baseSm,
+      paddingBottom: 130,
+    },
+    guestCard: {
+      backgroundColor: c.surfaceContainerLowest,
+      borderRadius: borderRadius.xl,
+      padding: spacing.baseMd,
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      marginBottom: spacing.baseSm,
+      borderWidth: 1,
+      borderColor: c.primary + '30',
+      ...shadows.card,
+    },
+    guestInfo: {
+      flex: 1,
+      alignItems: 'flex-end',
+    },
+    guestTitle: {
+      fontSize: typography.fontSize.md,
+      fontWeight: typography.fontWeight.bold,
+      color: c.onSurface,
+    },
+    guestSubtitle: {
+      fontSize: typography.fontSize.xs,
+      color: c.onSurfaceVariant,
+      marginTop: 2,
+      marginBottom: spacing.baseXs,
+      textAlign: 'right',
+    },
+    loginBtn: {
+      backgroundColor: c.primary,
+      paddingHorizontal: spacing.baseSm,
+      paddingVertical: 8,
+      borderRadius: borderRadius.lg,
+      marginTop: 4,
+    },
+    loginBtnText: {
+      color: c.onPrimary,
+      fontSize: typography.fontSize.xs,
+      fontWeight: typography.fontWeight.bold,
+    },
+    userCard: {
+      backgroundColor: c.surfaceContainerLowest,
+      borderRadius: borderRadius.xl,
+      padding: spacing.baseMd,
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      marginBottom: spacing.baseSm,
+      borderWidth: 1,
+      borderColor: c.outlineVariant + '40',
+      ...shadows.card,
+    },
+    avatarIconWrap: {
+      width: 52,
+      height: 52,
+      borderRadius: borderRadius.full,
+      backgroundColor: c.primaryFixed + '40',
+      borderWidth: 1.5,
+      borderColor: c.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: spacing.baseSm,
+    },
+    avatarIconText: {
+      fontSize: 24,
+    },
+    userInfo: {
+      flex: 1,
+      alignItems: 'flex-end',
+    },
+    nameRow: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 6,
+    },
+    userName: {
+      fontSize: typography.fontSize.md,
+      fontWeight: typography.fontWeight.bold,
+      color: c.onSurface,
+    },
+    vipBadge: {
+      backgroundColor: c.secondaryContainer,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: borderRadius.full,
+    },
+    vipBadgeText: {
+      fontSize: 9,
+      fontWeight: typography.fontWeight.bold,
+      color: c.onSecondary,
+    },
+    userPhone: {
+      fontSize: typography.fontSize.xs,
+      color: c.onSurfaceVariant,
+      marginTop: 2,
+    },
+    sectionCard: {
+      backgroundColor: c.surfaceContainerLowest,
+      borderRadius: borderRadius.xl,
+      padding: spacing.baseMd,
+      marginBottom: spacing.baseSm,
+      borderWidth: 1,
+      borderColor: c.outlineVariant + '40',
+      ...shadows.card,
+    },
+    sectionHeader: {
+      flexDirection: 'row-reverse',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.baseSm,
+    },
+    sectionTitle: {
+      fontSize: typography.fontSize.sm,
+      fontWeight: typography.fontWeight.bold,
+      color: c.onSurface,
+      textAlign: 'right',
+    },
+    actionText: {
+      fontSize: typography.fontSize.xs,
+      fontWeight: typography.fontWeight.bold,
+      color: c.primary,
+    },
+    themeRow: {
+      flexDirection: 'row-reverse',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 6,
+    },
+    themeInfo: {
+      alignItems: 'flex-end',
+      flex: 1,
+      marginRight: spacing.baseSm,
+    },
+    themeTitleRow: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 6,
+    },
+    themeTitle: {
+      fontSize: typography.fontSize.sm,
+      fontWeight: typography.fontWeight.bold,
+      color: c.onSurface,
+    },
+    themeIcon: {
+      fontSize: 18,
+    },
+    themeDesc: {
+      fontSize: 11,
+      color: c.onSurfaceVariant,
+      marginTop: 2,
+      textAlign: 'right',
+    },
+    addAddressForm: {
+      backgroundColor: c.surfaceContainerLow,
+      padding: spacing.baseSm,
+      borderRadius: borderRadius.lg,
+      marginBottom: spacing.baseSm,
+    },
+    formTitle: {
+      fontSize: typography.fontSize.xs,
+      fontWeight: typography.fontWeight.bold,
+      color: c.onSurface,
+      textAlign: 'right',
+      marginBottom: 6,
+    },
+    input: {
+      backgroundColor: c.surfaceContainerLowest,
+      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.baseSm,
+      height: 38,
+      fontSize: typography.fontSize.xs,
+      color: c.onSurface,
+      marginBottom: 6,
+      borderWidth: 1,
+      borderColor: c.outlineVariant + '40',
+    },
+    saveAddrBtn: {
+      backgroundColor: c.primary,
+      paddingVertical: 8,
+      borderRadius: borderRadius.md,
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    saveAddrBtnText: {
+      color: c.onPrimary,
+      fontSize: typography.fontSize.xs,
+      fontWeight: typography.fontWeight.bold,
+    },
+    emptyNotice: {
+      fontSize: typography.fontSize.xs,
+      color: c.onSurfaceVariant,
+      textAlign: 'center',
+      paddingVertical: 12,
+    },
+    addressRow: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: c.surfaceContainerLow,
+    },
+    addrIconWrap: {
+      width: 36,
+      height: 36,
+      borderRadius: borderRadius.md,
+      backgroundColor: c.surfaceContainerLow,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: spacing.baseSm,
+    },
+    addrIcon: {
+      fontSize: 16,
+    },
+    addrInfo: {
+      flex: 1,
+      alignItems: 'flex-end',
+    },
+    addrLabelRow: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 6,
+    },
+    addrLabel: {
+      fontSize: typography.fontSize.xs,
+      fontWeight: typography.fontWeight.bold,
+      color: c.onSurface,
+    },
+    defaultBadge: {
+      fontSize: 9,
+      color: c.onPrimary,
+      backgroundColor: c.primary,
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      borderRadius: borderRadius.sm,
+      fontWeight: typography.fontWeight.bold,
+    },
+    addrStreet: {
+      fontSize: 11,
+      color: c.onSurfaceVariant,
+      marginTop: 2,
+    },
+    orderHistoryItem: {
+      backgroundColor: c.surfaceContainerLow,
+      borderRadius: borderRadius.lg,
+      padding: spacing.baseSm,
+      marginTop: spacing.baseXs,
+    },
+    orderHistoryTop: {
+      flexDirection: 'row-reverse',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    orderHistoryInfo: {
+      alignItems: 'flex-end',
+    },
+    orderHistNum: {
+      fontSize: typography.fontSize.xs,
+      fontWeight: typography.fontWeight.bold,
+      color: c.primary,
+    },
+    orderHistDate: {
+      fontSize: 10,
+      color: c.onSurfaceVariant,
+    },
+    trackBtn: {
+      backgroundColor: c.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: borderRadius.md,
+    },
+    trackBtnText: {
+      color: c.onPrimary,
+      fontSize: 10,
+      fontWeight: typography.fontWeight.bold,
+    },
+    orderHistoryBottom: {
+      flexDirection: 'row-reverse',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 6,
+      paddingTop: 6,
+      borderTopWidth: 1,
+      borderTopColor: c.surfaceContainerLowest,
+    },
+    orderHistTotal: {
+      fontSize: typography.fontSize.xs,
+      fontWeight: typography.fontWeight.bold,
+      color: c.onSurface,
+    },
+    statusPill: {
+      backgroundColor: c.primaryFixedDim + '40',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: borderRadius.sm,
+    },
+    statusPillText: {
+      fontSize: 9,
+      fontWeight: typography.fontWeight.bold,
+      color: c.primary,
+    },
+    menuItem: {
+      flexDirection: 'row-reverse',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: c.surfaceContainerLow,
+    },
+    menuTitleRow: {
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 8,
+    },
+    menuIcon: {
+      fontSize: 16,
+    },
+    menuText: {
+      fontSize: typography.fontSize.xs,
+      fontWeight: typography.fontWeight.semiBold,
+      color: c.onSurface,
+    },
+    menuArrow: {
+      fontSize: 18,
+      color: c.outline,
+    },
+    logoutItem: {
+      borderBottomWidth: 0,
+      paddingTop: 12,
+    },
+    logoutIcon: {
+      fontSize: 16,
+    },
+    logoutText: {
+      fontSize: typography.fontSize.xs,
+      fontWeight: typography.fontWeight.bold,
+      color: c.error,
+    },
+    logoutArrow: {
+      fontSize: 18,
+      color: c.error,
+    },
+  });

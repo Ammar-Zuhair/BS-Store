@@ -40,100 +40,85 @@ interface LocationPickerModalProps {
   title?: string;
 }
 
-const SANA_A_AREAS = [
-  { name: 'شارع حدة - تقاطع الرويشان', district: 'حدة', city: 'صنعاء', lat: 15.3340, lng: 44.1850 },
-  { name: 'شارع صخر', district: 'حدة', city: 'صنعاء', lat: 15.3385, lng: 44.1925 },
-  { name: 'شارع زايد', district: 'السبعين', city: 'صنعاء', lat: 15.3265, lng: 44.2185 },
-  { name: 'شارع إيران', district: 'حدة', city: 'صنعاء', lat: 15.3290, lng: 44.1880 },
-  { name: 'شارع صفر', district: 'حدة', city: 'صنعاء', lat: 15.3320, lng: 44.1960 },
-  { name: 'شارع بغداد', district: 'الوحدة', city: 'صنعاء', lat: 15.3470, lng: 44.1990 },
-  { name: 'شارع الجزائر', district: 'الوحدة', city: 'صنعاء', lat: 15.3430, lng: 44.1950 },
-  { name: 'شارع عمان', district: 'حدة', city: 'صنعاء', lat: 15.3300, lng: 44.1900 },
-  { name: 'شارع الزبيري', district: 'التحرير', city: 'صنعاء', lat: 15.3500, lng: 44.2050 },
-  { name: 'ميدان التحرير', district: 'التحرير', city: 'صنعاء', lat: 15.3550, lng: 44.2080 },
-  { name: 'شارع الستين الغربي', district: 'معين', city: 'صنعاء', lat: 15.3520, lng: 44.1780 },
-  { name: 'شارع الستين الجنوبي', district: 'السبعين', city: 'صنعاء', lat: 15.3210, lng: 44.1950 },
-  { name: 'شارع الستين الشمالي', district: 'الثورة', city: 'صنعاء', lat: 15.3880, lng: 44.1850 },
-  { name: 'شميلة سنتر', district: 'السبعين', city: 'صنعاء', lat: 15.3180, lng: 44.2250 },
-  { name: 'شارع تعز', district: 'الصافية', city: 'صنعاء', lat: 15.3360, lng: 44.2200 },
-  { name: 'شارع هايل', district: 'معين', city: 'صنعاء', lat: 15.3600, lng: 44.1900 },
-  { name: 'شارع النصر', district: 'شعوب', city: 'صنعاء', lat: 15.3780, lng: 44.2380 },
-  { name: 'مذبح', district: 'معين', city: 'صنعاء', lat: 15.3720, lng: 44.1680 },
-  { name: 'عصر', district: 'معين', city: 'صنعاء', lat: 15.3400, lng: 44.1650 },
-  { name: 'الحصبة', district: 'الثورة', city: 'صنعاء', lat: 15.3850, lng: 44.2020 },
-  { name: 'شارع تونس', district: 'الثورة', city: 'صنعاء', lat: 15.3690, lng: 44.2120 },
-  { name: 'شارع 14 أكتوبر', district: 'حدة', city: 'صنعاء', lat: 15.3315, lng: 44.1820 },
-  { name: 'شيراتون وفندق نوفمبيك', district: 'أزال', city: 'صنعاء', lat: 15.3580, lng: 44.2350 },
-];
-
-const findNearestArea = (lat: number, lng: number) => {
-  let nearest = SANA_A_AREAS[0];
-  let minDistance = Infinity;
-  for (const item of SANA_A_AREAS) {
-    const d = Math.hypot(item.lat - lat, item.lng - lng);
-    if (d < minDistance) {
-      minDistance = d;
-      nearest = item;
-    }
-  }
-  return nearest;
-};
-
 export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   visible,
   onClose,
-  initialLat = 15.3340,
-  initialLng = 44.1850,
-  initialDistrict = 'شارع حدة',
+  initialLat = 15.35,
+  initialLng = 44.20,
+  initialDistrict = '',
   onConfirm,
   title = 'تحديد موقع التوصيل',
 }) => {
   const [currentLat, setCurrentLat] = useState<number>(initialLat);
   const [currentLng, setCurrentLng] = useState<number>(initialLng);
   const [currentDistrict, setCurrentDistrict] = useState<string>(initialDistrict);
-  const [currentCity] = useState<string>('صنعاء');
-  const [streetInput, setStreetInput] = useState<string>(initialDistrict);
-  const [buildingInput, setBuildingInput] = useState<string>('');
-  const [apartmentInput, setApartmentInput] = useState<string>('');
-  const [contactPhone, setContactPhone] = useState<string>('');
+  const [currentCity, setCurrentCity] = useState<string>('');
+  const [fullAddress, setFullAddress] = useState<string>(initialDistrict);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [searchResults, setSearchResults] = useState<typeof SANA_A_AREAS>([]);
+  const [searchResults, setSearchResults] = useState<Array<{ name: string; lat: number; lng: number }>>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isLocating, setIsLocating] = useState<boolean>(false);
 
   const webViewRef = useRef<WebView>(null);
+  const searchTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
     if (visible) {
       setCurrentLat(initialLat);
       setCurrentLng(initialLng);
       setCurrentDistrict(initialDistrict);
-      setStreetInput(initialDistrict);
+      setFullAddress(initialDistrict);
       setSearchQuery('');
       setSearchResults([]);
     }
   }, [visible, initialLat, initialLng, initialDistrict]);
 
+  // Dynamic OpenStreetMap Geocoding Search
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
-    if (!text.trim()) {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (!text.trim() || text.trim().length < 3) {
       setSearchResults([]);
       return;
     }
-    const filtered = SANA_A_AREAS.filter(
-      (a) => a.name.includes(text) || a.district.includes(text)
-    ).slice(0, 5);
-    setSearchResults(filtered);
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const query = encodeURIComponent(text.trim());
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5&accept-language=ar`,
+          {
+            headers: {
+              'User-Agent': 'BSStore-App/1.0',
+            },
+          }
+        );
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const mapped = data.map((item: any) => ({
+            name: item.display_name,
+            lat: parseFloat(item.lat),
+            lng: parseFloat(item.lon),
+          }));
+          setSearchResults(mapped);
+        }
+      } catch (err) {
+        console.warn('Search geocoding error:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 600);
   };
 
-  const handleSelectSearchResult = (area: typeof SANA_A_AREAS[0]) => {
-    setCurrentLat(area.lat);
-    setCurrentLng(area.lng);
-    setCurrentDistrict(area.district);
-    setStreetInput(area.name);
+  const handleSelectSearchResult = (item: { name: string; lat: number; lng: number }) => {
+    setCurrentLat(item.lat);
+    setCurrentLng(item.lng);
+    setFullAddress(item.name);
     setSearchQuery('');
     setSearchResults([]);
-
-    panMapTo(area.lat, area.lng);
+    panMapTo(item.lat, item.lng);
   };
 
   const panMapTo = (lat: number, lng: number) => {
@@ -150,6 +135,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     }
   };
 
+  // ─── Native GPS Detection with 100% Arabic Alerts & Reverse Geocoding ───
   const handleDetectGPS = async () => {
     setIsLocating(true);
     try {
@@ -157,8 +143,9 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert(
-            'صلاحية الموقع الجغرافي',
-            'يرجى تفعيل صلاحية الوصول للموقع الجغرافي (GPS) لتحديد عنوانك تلقائياً.'
+            'صلاحية الموقع الجغرافي مطلوبة',
+            'يرجى السماح للتطبيق بالوصول إلى موقعك الحالي (GPS) لتحديد عنوان التوصيل تلقائياً وبدقة.',
+            [{ text: 'حسناً' }]
           );
           setIsLocating(false);
           return;
@@ -172,10 +159,30 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         const lng = position.coords.longitude;
         setCurrentLat(lat);
         setCurrentLng(lng);
-        const nearest = findNearestArea(lat, lng);
-        setCurrentDistrict(nearest.district);
-        setStreetInput(nearest.name);
         panMapTo(lat, lng);
+
+        // Reverse geocode to get actual city / district / street
+        try {
+          const reverseResults = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+          if (reverseResults && reverseResults.length > 0) {
+            const addr = reverseResults[0];
+            const city = addr.city || addr.subregion || addr.region || '';
+            const district = addr.district || addr.subregion || '';
+            const street = addr.street || addr.name || '';
+
+            if (city) setCurrentCity(city);
+            if (district) setCurrentDistrict(district);
+
+            const detectedParts = [city, district, street].filter(Boolean);
+            if (detectedParts.length > 0) {
+              setFullAddress(detectedParts.join(' - '));
+            }
+          }
+        } catch {
+          // If reverse geocode fails, let user type freely
+        }
+
+        Alert.alert('تم بنجاح ✓', 'تم تحديد موقعك الجغرافي الحالي بنجاح.');
       } else {
         if (typeof navigator !== 'undefined' && navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
@@ -184,13 +191,14 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               const lng = pos.coords.longitude;
               setCurrentLat(lat);
               setCurrentLng(lng);
-              const nearest = findNearestArea(lat, lng);
-              setCurrentDistrict(nearest.district);
-              setStreetInput(nearest.name);
               panMapTo(lat, lng);
+              Alert.alert('تم بنجاح ✓', 'تم تحديد موقعك الجغرافي بنجاح.');
             },
             () => {
-              Alert.alert('تنبيه GPS', 'تعذر جلب موقع الهاتف، يمكنك تحريك الخريطة لتثبيت المؤشر.');
+              Alert.alert(
+                'تنبيه GPS',
+                'تعذر تحديد موقع الجهاز تلقائياً، يمكنك تحريك الخريطة لتثبيت المؤشر على موقعك بدقة.'
+              );
             },
             { enableHighAccuracy: true, timeout: 8000 }
           );
@@ -198,7 +206,10 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       }
     } catch (err) {
       console.warn('GPS detection err:', err);
-      Alert.alert('تنبيه GPS', 'يرجى تحريك الخريطة لوضع المؤشر على موقعك بدقة.');
+      Alert.alert(
+        'تنبيه GPS',
+        'تعذر تحديد الموقع تلقائياً. يرجى تحريك الخريطة لتثبيت المؤشر على موقعك بدقة.'
+      );
     } finally {
       setIsLocating(false);
     }
@@ -212,11 +223,6 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         const lng = parseFloat(Number(data.longitude).toFixed(6));
         setCurrentLat(lat);
         setCurrentLng(lng);
-        const nearest = findNearestArea(lat, lng);
-        setCurrentDistrict(nearest.district);
-        if (!streetInput || SANA_A_AREAS.some((a) => a.name === streetInput)) {
-          setStreetInput(nearest.name);
-        }
       }
     } catch {
       // ignore
@@ -224,25 +230,15 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   };
 
   const handleConfirm = () => {
-    const finalStreet = streetInput.trim() || currentDistrict;
-    const details = [
-      currentCity,
-      currentDistrict,
-      finalStreet,
-      buildingInput.trim() ? `عمارة ${buildingInput.trim()}` : '',
-      apartmentInput.trim() ? `شقة/طابق ${apartmentInput.trim()}` : '',
-    ].filter(Boolean).join('، ');
+    const finalAddress = fullAddress.trim() || 'موقع محدد عبر الخريطة';
 
     onConfirm({
       latitude: currentLat,
       longitude: currentLng,
-      district: currentDistrict,
-      city: currentCity,
-      street: finalStreet,
-      building: buildingInput.trim() || undefined,
-      apartment: apartmentInput.trim() || undefined,
-      contactPhone: contactPhone.trim() || undefined,
-      addressTitle: details,
+      district: currentDistrict || finalAddress,
+      city: currentCity || 'عام',
+      street: finalAddress,
+      addressTitle: finalAddress,
     });
     onClose();
   };
@@ -250,159 +246,182 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const leafletHtml = `<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    * { box-sizing: border-box; }
-    body, html, #map { margin: 0; padding: 0; width: 100%; height: 100%; background: #F4F5F7; overflow: hidden; }
-    .leaflet-control-attribution { display: none !important; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; background: #E8EBEF; }
+    .center-pin-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -100%);
+      pointer-events: none;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .pin-head {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #181A1E;
+      border: 3px solid #F59E0B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .pin-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #FFFFFF;
+    }
+    .pin-tip {
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 10px solid #181A1E;
+      margin-top: -2px;
+    }
+    .gps-shadow {
+      width: 16px;
+      height: 6px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 50%;
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <div class="center-pin-container">
+    <div class="pin-head"><div class="pin-dot"></div></div>
+    <div class="pin-tip"></div>
+    <div class="gps-shadow"></div>
+  </div>
   <script>
-    var map = L.map('map', { zoomControl: false }).setView([${initialLat}, ${initialLng}], 16);
+    var initialLat = ${currentLat};
+    var initialLng = ${currentLng};
+
+    var map = L.map('map', {
+      center: [initialLat, initialLng],
+      zoom: 16,
+      zoomControl: false,
+      attributionControl: false
+    });
+
     window.map = map;
 
-    // Use standard, natural colored OpenStreetMap tiles
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      subdomains: ['a', 'b', 'c']
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
     }).addTo(map);
 
     function reportCenter() {
       var center = map.getCenter();
       var payload = JSON.stringify({
-        source: 'bs-map',
         latitude: center.lat,
         longitude: center.lng
       });
-      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+      if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(payload);
-      } else if (window.parent) {
-        window.parent.postMessage(payload, '*');
       }
     }
 
     map.on('moveend', reportCenter);
 
-    window.addEventListener('message', function(e) {
-      if (e.data && e.data.action === 'panTo') {
-        map.setView([e.data.lat, e.data.lng], 16, { animate: true });
-      }
+    window.addEventListener('message', function(event) {
+      try {
+        var data = JSON.parse(event.data);
+        if (data.action === 'panTo') {
+          map.setView([data.lat, data.lng], 16, { animate: true });
+        }
+      } catch(e){}
     });
   </script>
 </body>
 </html>`;
 
-  const topInset = Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 44;
-
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={false}
+      onRequestClose={onClose}
+    >
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#181A1E" translucent />
+        <StatusBar barStyle="light-content" backgroundColor={colors.surfaceContainerLowest} />
 
-        {/* 1. Top Safe Header Bar (Charcoal Theme) */}
-        <View style={[styles.topBar, { paddingTop: topInset }]}>
+        {/* 1. Header Bar */}
+        <View style={styles.topBar}>
           <TouchableOpacity
             style={styles.topBarActionBtn}
-            activeOpacity={0.7}
-            onPress={() =>
-              Alert.alert(
-                'تحديد الموقع بدقة',
-                'اسحب الخريطة لضبط المؤشر على موقع منزلك أو عملك بدقة، ثم اضغط حفظ وتأكيد الموقع.'
-              )
-            }
+            onPress={onClose}
+            activeOpacity={0.8}
           >
-            <View style={styles.helpIconCircle}>
-              <Text style={styles.helpIconText}>؟</Text>
-            </View>
+            <Text style={styles.topBarBackArrow}>✕</Text>
           </TouchableOpacity>
 
           <View style={styles.topBarTitleWrap}>
             <Text style={styles.topBarTitle}>{title}</Text>
-            <Text style={styles.topBarSubtitle}>متجر بي إس • دقة الموقع وسرعة التوصيل</Text>
+            <Text style={styles.topBarSubtitle}>حرّك الخريطة أو استخدم GPS لتحديد موقعك</Text>
           </View>
 
-          <TouchableOpacity style={styles.topBarActionBtn} activeOpacity={0.7} onPress={onClose}>
-            <Text style={styles.topBarBackArrow}>➔</Text>
-          </TouchableOpacity>
+          <View style={{ width: 40 }} />
         </View>
 
-        {/* 2. Interactive Map Container (Natural colored Leaflet Map) */}
+        {/* 2. Interactive Map View */}
         <View style={styles.mapContainer}>
           {Platform.OS === 'web' ? (
-            <iframe
-              title="Interactive Map"
-              srcDoc={leafletHtml}
-              style={{ width: '100%', height: '100%', border: 'none' }}
-            />
+            <View style={styles.mapLoader}>
+              <Text style={styles.mapLoaderText}>📍 الخريطة متاحة في التطبيق</Text>
+            </View>
           ) : (
             <WebView
               ref={webViewRef}
+              originWhitelist={['*']}
               source={{ html: leafletHtml }}
-              style={styles.mapAbsolute}
               onMessage={handleWebViewMessage}
-              javaScriptEnabled
-              domStorageEnabled
-              startInLoadingState
-              renderLoading={() => (
-                <View style={styles.mapLoader}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={styles.mapLoaderText}>جاري تحميل الخريطة الطبيعية...</Text>
-                </View>
-              )}
+              style={styles.mapAbsolute}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
             />
           )}
 
-          {/* Central Precise Pin & Marker Bubble (Charcoal & Amber Palette) */}
-          <View style={styles.centerMarkerWrapper} pointerEvents="none">
-            <View style={styles.markerHintBubble}>
-              <Text style={styles.markerHintText}>📍 موقع التوصيل المحدد</Text>
-            </View>
-            <View style={styles.pinHead}>
-              <View style={styles.pinDot} />
-            </View>
-            <View style={styles.pinTip} />
-            <View style={styles.gpsPulseRing}>
-              <View style={styles.gpsCenterDot} />
-            </View>
-          </View>
-
-          {/* Live Coordinates Pill */}
-          <View style={styles.coordinatesPill}>
-            <Text style={styles.coordinatesPillText}>
-              📍 {currentLat.toFixed(5)}, {currentLng.toFixed(5)} ({currentDistrict})
-            </Text>
-          </View>
-
-          {/* Floating Search Bar */}
+          {/* Search Bar on Map */}
           <View style={styles.searchFloatingWrap}>
             <View style={styles.searchBar}>
+              {isSearching ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.searchIcon}>🔍</Text>
+              )}
               <TextInput
                 style={styles.searchInput}
-                placeholder="ابحث عن شارع أو حي في صنعاء..."
-                placeholderTextColor={colors.onSurfaceVariant}
+                placeholder="ابحث عن اسم الحي، الشارع، أو المنطقة..."
+                placeholderTextColor={colors.outline}
                 value={searchQuery}
                 onChangeText={handleSearchChange}
                 textAlign="right"
               />
-              <Text style={styles.searchIcon}>🔍</Text>
             </View>
 
-            {/* Live Search Suggestions Dropdown */}
             {searchResults.length > 0 && (
               <View style={styles.searchResultsDropdown}>
-                {searchResults.map((item) => (
+                {searchResults.map((item, idx) => (
                   <TouchableOpacity
-                    key={item.name}
+                    key={idx}
                     style={styles.searchResultItem}
                     onPress={() => handleSelectSearchResult(item)}
+                    activeOpacity={0.85}
                   >
-                    <Text style={styles.searchResultText}>
-                      📍 {item.name} - {item.district}
+                    <Text style={styles.searchResultText} numberOfLines={1}>
+                      📍 {item.name}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -410,23 +429,34 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             )}
           </View>
 
-          {/* Floating "موقعي الحالي" GPS Button */}
+          {/* Coordinates indicator badge */}
+          <View style={styles.coordinatesPill}>
+            <Text style={styles.coordinatesPillText}>
+              {currentLat.toFixed(5)} , {currentLng.toFixed(5)}
+            </Text>
+          </View>
+
+          {/* GPS Floating Action Button */}
           <TouchableOpacity
             style={styles.currentLocationFloatingBtn}
             onPress={handleDetectGPS}
-            activeOpacity={0.88}
             disabled={isLocating}
+            activeOpacity={0.85}
           >
             <Text style={styles.currentLocationText}>
-              {isLocating ? 'جاري تحديد GPS...' : 'موقعي الحالي'}
+              {isLocating ? 'جاري تحديد GPS...' : 'موقعي الحالي (GPS)'}
             </Text>
             <View style={styles.gpsIconCircle}>
-              <Text style={styles.gpsIcon}>🎯</Text>
+              {isLocating ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.gpsIcon}>🎯</Text>
+              )}
             </View>
           </TouchableOpacity>
         </View>
 
-        {/* 3. Bottom Sheet Card (Clean Project Styling) */}
+        {/* 3. Bottom Sheet Card with SINGLE Comprehensive Address Input (Requirement 3) */}
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView
             style={styles.bottomCard}
@@ -435,74 +465,34 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           >
             <View style={styles.sheetHeaderRow}>
               <View style={styles.pillBadge}>
-                <Text style={styles.pillBadgeText}>عنوان دقيق</Text>
+                <Text style={styles.pillBadgeText}>عنوان التوصيل</Text>
               </View>
-              <Text style={styles.sheetSectionTitle}>بيانات التوصيل والتواصل</Text>
+              <Text style={styles.sheetSectionTitle}>العنوان بشكل كامل</Text>
             </View>
 
-            {/* Input 1: Street / Area */}
-            <View style={styles.inputBox}>
+            <Text style={styles.sheetSubtitle}>
+              حدد عنوان التوصيل بالتفصيل لتسهيل وصول مندوب التوصيل (رقم التواصل مسجل بحسابك)
+            </Text>
+
+            {/* Single Full Address Input */}
+            <View style={styles.fullAddressBox}>
               <TextInput
-                style={styles.textInput}
-                placeholder="اسم الشارع والحي (مثال: شارع حدة - أمام مركز الكميم)"
-                placeholderTextColor="#8891A0"
-                value={streetInput}
-                onChangeText={setStreetInput}
+                style={styles.fullAddressInput}
+                placeholder="أدخل عنوان التوصيل بالتفصيل (مثل: المدينة، اسم الحي، الشارع، رقم المبنى، وأي علامة مميزة قريبة)"
+                placeholderTextColor={colors.outline}
+                value={fullAddress}
+                onChangeText={setFullAddress}
+                multiline={true}
+                numberOfLines={3}
                 textAlign="right"
+                textAlignVertical="top"
               />
-              <View style={styles.inputIconBox}>
-                <Text style={styles.inputIcon}>🛣️</Text>
+              <View style={styles.fullAddressIconBox}>
+                <Text style={styles.inputIcon}>📍</Text>
               </View>
             </View>
 
-            {/* Input 2: Building & Apartment Row */}
-            <View style={styles.inputsRow2}>
-              <View style={[styles.inputBox, { flex: 1 }]}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="رقم الشقة / الطابق"
-                  placeholderTextColor="#8891A0"
-                  value={apartmentInput}
-                  onChangeText={setApartmentInput}
-                  textAlign="right"
-                />
-                <View style={styles.inputIconBox}>
-                  <Text style={styles.inputIcon}>🚪</Text>
-                </View>
-              </View>
-
-              <View style={[styles.inputBox, { flex: 1 }]}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="رقم العمارة / المنزل"
-                  placeholderTextColor="#8891A0"
-                  value={buildingInput}
-                  onChangeText={setBuildingInput}
-                  textAlign="right"
-                />
-                <View style={styles.inputIconBox}>
-                  <Text style={styles.inputIcon}>🏢</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Input 3: Contact Phone */}
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="رقم هاتف الاتصال للتسليم (مثال: 777123456)"
-                placeholderTextColor="#8891A0"
-                value={contactPhone}
-                onChangeText={setContactPhone}
-                keyboardType="phone-pad"
-                textAlign="right"
-              />
-              <View style={styles.inputIconBox}>
-                <Text style={styles.inputIcon}>📞</Text>
-              </View>
-            </View>
-
-            {/* CTA Button */}
+            {/* Save Location CTA Button */}
             <TouchableOpacity
               style={styles.saveLocationBtn}
               onPress={handleConfirm}
@@ -517,25 +507,22 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   );
 };
 
-const { width } = Dimensions.get('window');
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
   topBar: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surfaceContainerLowest,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 50 : 16,
     paddingBottom: 14,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant + '35',
+    ...shadows.header,
     zIndex: 30,
   },
   topBarTitleWrap: {
@@ -543,48 +530,33 @@ const styles = StyleSheet.create({
   },
   topBarTitle: {
     fontFamily: typography.fontFamily.bold,
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 16,
+    color: colors.onSurface,
     textAlign: 'center',
   },
   topBarSubtitle: {
     fontFamily: typography.fontFamily.regular,
     fontSize: 11,
-    color: colors.primaryFixedDim,
+    color: colors.onSurfaceVariant,
     marginTop: 2,
   },
   topBarActionBtn: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
-    backgroundColor: colors.primaryContainer,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceContainerLow,
   },
   topBarBackArrow: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  helpIconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  helpIconText: {
-    color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 16,
+    color: colors.onSurface,
     fontWeight: 'bold',
   },
   mapContainer: {
     flex: 1,
     position: 'relative',
-    backgroundColor: '#E8EBEF',
+    backgroundColor: colors.surfaceContainer,
   },
   mapAbsolute: {
     position: 'absolute',
@@ -599,7 +571,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#F4F5F7',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 5,
@@ -608,7 +580,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.medium,
     fontSize: 13,
     color: colors.onSurfaceVariant,
-    marginTop: 8,
   },
   searchFloatingWrap: {
     position: 'absolute',
@@ -620,12 +591,12 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
     paddingHorizontal: 14,
     height: 48,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
+    borderColor: colors.outlineVariant + '50',
     ...shadows.card,
   },
   searchInput: {
@@ -637,106 +608,30 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   searchIcon: {
-    fontSize: 16,
-    color: colors.outline,
-    marginLeft: 8,
+    fontSize: 15,
+    marginRight: 6,
   },
   searchResultsDropdown: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.lg,
     marginTop: 6,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    ...shadows.card,
+    borderColor: colors.outlineVariant + '50',
+    ...shadows.floating,
     overflow: 'hidden',
+    maxHeight: 180,
   },
   searchResultItem: {
     paddingVertical: 11,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceContainerLow,
+    borderBottomColor: colors.outlineVariant + '25',
   },
   searchResultText: {
     fontFamily: typography.fontFamily.medium,
-    fontSize: 13,
+    fontSize: 12,
     color: colors.onSurface,
     textAlign: 'right',
-  },
-  centerMarkerWrapper: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ translateX: -16 }, { translateY: -44 }],
-    zIndex: 10,
-  },
-  markerHintBubble: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 6,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  markerHintText: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 11,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  pinHead: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2.5,
-    borderColor: '#FFFFFF',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  pinDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FFFFFF',
-  },
-  pinTip: {
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 10,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: colors.primary,
-    marginTop: -2,
-  },
-  gpsPulseRing: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(24, 26, 30, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -4,
-  },
-  gpsCenterDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
   },
   coordinatesPill: {
     position: 'absolute',
@@ -744,7 +639,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     backgroundColor: 'rgba(24, 26, 30, 0.85)',
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: 20,
     zIndex: 12,
   },
@@ -759,19 +654,18 @@ const styles = StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.full,
     paddingVertical: 9,
     paddingHorizontal: 15,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    ...shadows.card,
+    borderColor: colors.outlineVariant + '60',
+    ...shadows.floating,
     zIndex: 12,
   },
   currentLocationText: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 12,
-    fontWeight: '700',
     color: colors.primary,
     marginRight: 6,
   },
@@ -786,17 +680,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   bottomCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
     borderTopLeftRadius: borderRadius.xxl,
     borderTopRightRadius: borderRadius.xxl,
     paddingHorizontal: 18,
     paddingTop: 16,
     paddingBottom: 24,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    ...shadows.floating,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant + '30',
   },
   bottomCardScroll: {
     paddingBottom: 24,
@@ -805,13 +697,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 4,
   },
   sheetSectionTitle: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 15,
-    fontWeight: '700',
     color: colors.onSurface,
+  },
+  sheetSubtitle: {
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 11.5,
+    color: colors.onSurfaceVariant,
+    textAlign: 'right',
+    marginBottom: 12,
   },
   pillBadge: {
     backgroundColor: colors.surfaceContainerLow,
@@ -822,56 +720,50 @@ const styles = StyleSheet.create({
   pillBadgeText: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 10,
-    color: colors.secondary,
+    color: colors.primary,
   },
-  inputsRow2: {
+  fullAddressBox: {
     flexDirection: 'row-reverse',
-    gap: 10,
-  },
-  inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: colors.surfaceContainerLow,
     borderWidth: 1.2,
-    borderColor: colors.outlineVariant,
+    borderColor: colors.outlineVariant + '50',
     borderRadius: borderRadius.lg,
-    height: 48,
-    paddingHorizontal: 12,
-    marginBottom: 10,
+    padding: 10,
+    minHeight: 82,
+    marginBottom: 14,
   },
-  textInput: {
+  fullAddressInput: {
     flex: 1,
     fontFamily: typography.fontFamily.medium,
     fontSize: 13,
     color: colors.onSurface,
     textAlign: 'right',
-    paddingVertical: 4,
+    lineHeight: 20,
+    paddingVertical: 2,
   },
-  inputIconBox: {
+  fullAddressIconBox: {
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: colors.surfaceContainerLow,
+    backgroundColor: colors.surfaceContainerLowest,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    marginRight: 8,
   },
   inputIcon: {
-    fontSize: 15,
+    fontSize: 16,
   },
   saveLocationBtn: {
     backgroundColor: colors.primary,
-    height: 48,
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 6,
     ...shadows.button,
   },
   saveLocationBtnText: {
     fontFamily: typography.fontFamily.bold,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 14,
+    color: colors.onPrimary,
   },
 });

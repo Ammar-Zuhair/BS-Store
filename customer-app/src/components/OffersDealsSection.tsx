@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { DealDetailsModal, DealItem } from './DealDetailsModal';
 import { mockStores } from '../mock';
@@ -107,7 +107,16 @@ export const initialDeals: DealItem[] = [
 ];
 
 export const OffersDealsSection: React.FC = () => {
-  const { addToCart, cart, updateQuantity, removeFromCart, applyPromoCode, deals } = useApp();
+  const {
+    addToCart,
+    cart,
+    updateQuantity,
+    removeFromCart,
+    applyPromoCode,
+    deals,
+    colors: themeColors,
+  } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [selectedDeal, setSelectedDeal] = useState<DealItem | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -308,7 +317,8 @@ export const OffersDealsSection: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     marginVertical: spacing.baseSm,
   },

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, Alert } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 
@@ -18,7 +18,10 @@ export const CartScreen: React.FC = () => {
     applyPromoCode,
     navigateTo,
     isAuthenticated,
+    colors: themeColors,
   } = useApp();
+
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [inputCode, setInputCode] = useState(promoCode);
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
@@ -140,7 +143,7 @@ export const CartScreen: React.FC = () => {
               <TextInput
                 style={styles.promoInput}
                 placeholder="أدخل كود الخصم (مثال: BS_FREE أو BS_2026)"
-                placeholderTextColor={colors.outline}
+                placeholderTextColor={themeColors.outline}
                 value={inputCode}
                 onChangeText={setInputCode}
                 textAlign="right"
@@ -224,7 +227,8 @@ export const CartScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

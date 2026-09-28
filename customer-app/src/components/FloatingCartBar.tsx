@@ -1,10 +1,18 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 
 export const FloatingCartBar: React.FC = () => {
-  const { cart, cartSubOrders, cartTotal, navigateTo, currentScreen } = useApp();
+  const {
+    cart,
+    cartSubOrders,
+    cartTotal,
+    navigateTo,
+    currentScreen,
+    colors: themeColors,
+  } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   if (cart.length === 0 || currentScreen === 'cart' || currentScreen === 'checkout' || currentScreen === 'auth') {
     return null;
@@ -50,7 +58,8 @@ export const FloatingCartBar: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 74,

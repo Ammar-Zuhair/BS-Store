@@ -4,7 +4,7 @@ import { colors, typography, borderRadius, shadows } from '../theme';
 import { useApp, ScreenName } from '../context/AppContext';
 
 export const BottomNav: React.FC = () => {
-  const { currentScreen, navigateTo } = useApp();
+  const { currentScreen, navigateTo, colors: themeColors } = useApp();
 
   const tabs: { id: ScreenName; label: string; icon: string }[] = [
     { id: 'home', label: 'الرئيسية', icon: '🏠' },
@@ -13,7 +13,15 @@ export const BottomNav: React.FC = () => {
   ];
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: themeColors.surfaceContainerLowest,
+          borderTopColor: themeColors.outlineVariant + '35',
+        },
+      ]}
+    >
       <View style={styles.bar}>
         {tabs.map((tab) => {
           const isActive = currentScreen === tab.id;
@@ -26,9 +34,17 @@ export const BottomNav: React.FC = () => {
             >
               <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
                 <Text style={styles.tabIcon}>{tab.icon}</Text>
-                {isActive && <View style={styles.activeDot} />}
+                {isActive && (
+                  <View style={[styles.activeDot, { backgroundColor: themeColors.primary }]} />
+                )}
               </View>
-              <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  { color: isActive ? themeColors.primary : themeColors.onSurfaceVariant },
+                  isActive && styles.tabLabelActive,
+                ]}
+              >
                 {tab.label}
               </Text>
             </TouchableOpacity>

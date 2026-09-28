@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { LocationPickerModal, LocationResult } from './LocationPickerModal';
 
@@ -12,7 +12,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack, rightAction }) => {
-  const { selectedAddress, setSelectedAddress, addresses, navigateTo } = useApp();
+  const { selectedAddress, setSelectedAddress, addresses, navigateTo, colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
 
@@ -179,7 +180,8 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     backgroundColor: colors.surfaceContainerLowest,
     borderBottomWidth: 1,

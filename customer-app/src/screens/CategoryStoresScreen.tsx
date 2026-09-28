@@ -8,7 +8,7 @@ import {
   TextInput,
   Image,
 } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { StoreCard } from '../components/StoreCard';
 import { mockCategories, mockStores, mockProducts } from '../mock';
@@ -32,7 +32,10 @@ export const CategoryStoresScreen: React.FC = () => {
     cart,
     updateQuantity,
     removeFromCart,
+    colors: themeColors,
   } = useApp();
+
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const allCategories = categories.length > 0 ? categories : mockCategories;
   const allStores = stores.length > 0 ? stores : mockStores;
@@ -164,7 +167,7 @@ export const CategoryStoresScreen: React.FC = () => {
             <TextInput
               style={styles.searchInput}
               placeholder={`ابحث عن متجر في قسم ${currentCatObj?.name || ''} (مثال: ابو)...`}
-              placeholderTextColor={colors.onSurfaceVariant}
+              placeholderTextColor={themeColors.onSurfaceVariant}
               value={searchQuery}
               onChangeText={setSearchQuery}
               textAlign="right"
@@ -367,7 +370,8 @@ export const CategoryStoresScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

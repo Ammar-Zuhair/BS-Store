@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Image,
   Modal,
 } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { mockStores, mockProducts } from '../mock';
 import { useApp } from '../context/AppContext';
@@ -26,7 +26,10 @@ export const StoreDetailScreen: React.FC = () => {
     products,
     stores,
     deals,
+    colors: themeColors,
   } = useApp();
+
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const allStores = stores.length > 0 ? stores : mockStores;
   const allProducts = products.length > 0 ? products : mockProducts;
@@ -507,7 +510,8 @@ export const StoreDetailScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

@@ -6,6 +6,7 @@ import { DealItem } from '../components/DealDetailsModal';
 import { initialDeals } from '../components/OffersDealsSection';
 import { api, authApi, catalogApi, cartApi, ordersApi, addressApi, paymentsApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors, lightColors, darkColors, ThemeColors, setGlobalThemeMode } from '../theme';
 
 export type ScreenName = 'home' | 'category' | 'category_stores' | 'store_detail' | 'cart' | 'checkout' | 'tracking' | 'profile' | 'auth';
 
@@ -68,6 +69,9 @@ interface AppContextType {
   isFreeDeliveryPromo: boolean;
   deals: DealItem[];
   setDeals: React.Dispatch<React.SetStateAction<DealItem[]>>;
+  isDarkMode: boolean;
+  toggleTheme: () => Promise<void>;
+  colors: ThemeColors;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -79,6 +83,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [products, setProducts] = useState<Product[]>([]);
   const [deals, setDeals] = useState<DealItem[]>(initialDeals);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState<boolean>(true);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+
+  const toggleTheme = async () => {
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+    setGlobalThemeMode(next ? 'dark' : 'light');
+    await AsyncStorage.setItem('@bs_theme_mode', next ? 'dark' : 'light');
+  };
 
   const [selectedCategory, setSelectedCategory] = useState<string>('cat-all');
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
@@ -236,6 +248,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setAddresses(parsedAddrs);
             setSelectedAddress(parsedAddrs.find((a: Address) => a.isDefault) || parsedAddrs[0]);
           }
+        }
+
+        const savedTheme = await AsyncStorage.getItem('@bs_theme_mode');
+        if (savedTheme === 'dark') {
+          setIsDarkMode(true);
+          setGlobalThemeMode('dark');
+        } else {
+          setIsDarkMode(false);
+          setGlobalThemeMode('light');
         }
       } catch (err) {
         console.warn('Failed to restore session:', err);
@@ -707,6 +728,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         refreshOrders,
         deals,
         setDeals,
+        isDarkMode,
+        toggleTheme,
+        colors: isDarkMode ? darkColors : lightColors,
       }}
     >
       {children}

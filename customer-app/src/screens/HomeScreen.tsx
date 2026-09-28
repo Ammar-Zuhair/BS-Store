@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { colors, typography, spacing } from '../theme';
+import { typography, spacing, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { OffersDealsSection } from '../components/OffersDealsSection';
 import { CategoryGrid } from '../components/CategoryGrid';
@@ -8,7 +8,8 @@ import { HomeSkeleton } from '../components/Shimmer';
 import { useApp } from '../context/AppContext';
 
 export const HomeScreen: React.FC = () => {
-  const { isLoadingCatalog, categories } = useApp();
+  const { isLoadingCatalog, categories, colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   // Show YouTube-style Shimmer skeleton when catalog is loading initially
   const showSkeleton = isLoadingCatalog && categories.length === 0;
@@ -35,7 +36,8 @@ export const HomeScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

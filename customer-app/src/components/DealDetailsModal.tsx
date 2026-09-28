@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { Product, BundlePiece } from '../types';
 
@@ -51,7 +51,15 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
   onClose,
   deal,
 }) => {
-  const { addToCart, addBundlePieceToCart, cart, updateQuantity, removeFromCart } = useApp();
+  const {
+    addToCart,
+    addBundlePieceToCart,
+    cart,
+    updateQuantity,
+    removeFromCart,
+    colors: themeColors,
+  } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   if (!deal) return null;
 
@@ -233,7 +241,8 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.55)',

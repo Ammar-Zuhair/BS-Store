@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Store } from '../types';
+import { useApp } from '../context/AppContext';
 
 interface StoreCardProps {
   store: Store;
@@ -9,6 +10,8 @@ interface StoreCardProps {
 }
 
 export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
+  const { colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   return (
     <TouchableOpacity
       style={styles.card}
@@ -58,7 +61,8 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   card: {
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,

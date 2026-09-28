@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,13 +12,14 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { Order, OrderStatusType } from '../types';
 
 export const TrackingScreen: React.FC = () => {
-  const { orders, navigateTo, currentOrder, setCurrentOrder, refreshOrders } = useApp();
+  const { orders, navigateTo, currentOrder, setCurrentOrder, refreshOrders, colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -43,17 +44,17 @@ export const TrackingScreen: React.FC = () => {
       case 'DELIVERED':
         return {
           label: 'تم التسليم بنجاح ✓',
-          bgColor: colors.success + '20',
-          textColor: colors.success,
-          borderColor: colors.success + '50',
+          bgColor: themeColors.success + '20',
+          textColor: themeColors.success,
+          borderColor: themeColors.success + '50',
           stepIndex: 4,
         };
       case 'OUT_FOR_DELIVERY':
         return {
           label: 'في الطريق إليك 🛵',
-          bgColor: colors.primary + '20',
-          textColor: colors.primary,
-          borderColor: colors.primary + '50',
+          bgColor: themeColors.primary + '20',
+          textColor: themeColors.primary,
+          borderColor: themeColors.primary + '50',
           stepIndex: 3,
         };
       case 'PURCHASING':
@@ -69,9 +70,9 @@ export const TrackingScreen: React.FC = () => {
       case 'DRIVER_ACCEPTED':
         return {
           label: 'تم تعيين الكابتن 🛵',
-          bgColor: colors.primary + '20',
-          textColor: colors.primary,
-          borderColor: colors.primary + '50',
+          bgColor: themeColors.primary + '20',
+          textColor: themeColors.primary,
+          borderColor: themeColors.primary + '50',
           stepIndex: 1,
         };
       case 'PENDING_PAYMENT':
@@ -86,17 +87,17 @@ export const TrackingScreen: React.FC = () => {
       case 'CANCELLED':
         return {
           label: 'ملغي ❌',
-          bgColor: colors.error + '20',
-          textColor: colors.error,
-          borderColor: colors.error + '50',
+          bgColor: themeColors.error + '20',
+          textColor: themeColors.error,
+          borderColor: themeColors.error + '50',
           stepIndex: 0,
         };
       default:
         return {
           label: 'قيد المعالجة',
-          bgColor: colors.surfaceContainerHigh,
-          textColor: colors.onSurface,
-          borderColor: colors.outlineVariant,
+          bgColor: themeColors.surfaceContainerHigh,
+          textColor: themeColors.onSurface,
+          borderColor: themeColors.outlineVariant,
           stepIndex: 0,
         };
     }
@@ -170,7 +171,7 @@ export const TrackingScreen: React.FC = () => {
               activeOpacity={0.7}
             >
               {isRefreshing ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <ActivityIndicator size="small" color={themeColors.primary} />
               ) : (
                 <View style={styles.refreshBtnInner}>
                   <Text style={styles.refreshIconText}>🔄</Text>
@@ -188,8 +189,8 @@ export const TrackingScreen: React.FC = () => {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={[themeColors.primary]}
+              tintColor={themeColors.primary}
             />
           }
         >
@@ -427,7 +428,7 @@ export const TrackingScreen: React.FC = () => {
             activeOpacity={0.7}
           >
             {isRefreshing ? (
-              <ActivityIndicator size="small" color={colors.primary} />
+              <ActivityIndicator size="small" color={themeColors.primary} />
             ) : (
               <View style={styles.refreshBtnInner}>
                 <Text style={styles.refreshIconText}>🔄</Text>
@@ -445,8 +446,8 @@ export const TrackingScreen: React.FC = () => {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={[themeColors.primary]}
+              tintColor={themeColors.primary}
             />
           }
         >
@@ -464,7 +465,7 @@ export const TrackingScreen: React.FC = () => {
             disabled={isRefreshing}
           >
             {isRefreshing ? (
-              <ActivityIndicator size="small" color={colors.primary} />
+              <ActivityIndicator size="small" color={themeColors.primary} />
             ) : (
               <Text style={styles.emptyRefreshBtnText}>🔄 تحديث الطلبات</Text>
             )}
@@ -478,8 +479,8 @@ export const TrackingScreen: React.FC = () => {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={[themeColors.primary]}
+              tintColor={themeColors.primary}
             />
           }
         >
@@ -576,7 +577,8 @@ export const TrackingScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

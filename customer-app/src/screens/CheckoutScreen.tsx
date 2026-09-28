@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Image, ActivityIndicator } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { PaymentMethodType } from '../types';
@@ -18,7 +18,10 @@ export const CheckoutScreen: React.FC = () => {
     placeOrder,
     navigateTo,
     isAuthenticated,
+    colors: themeColors,
   } = useApp();
+
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('CASH_ON_DELIVERY');
   const [transferRef, setTransferRef] = useState('');
@@ -35,12 +38,10 @@ export const CheckoutScreen: React.FC = () => {
   const handleLocationPicked = (loc: LocationResult) => {
     addNewAddress({
       label: 'المنزل',
-      city: loc.city || 'صنعاء',
-      district: loc.district,
-      street: loc.street || loc.district,
-      building: loc.building,
-      apartment: loc.apartment,
-      phone: loc.contactPhone,
+      city: loc.city || '',
+      district: loc.district || '',
+      street: loc.street || loc.district || '',
+      description: loc.addressTitle || '',
       latitude: loc.latitude,
       longitude: loc.longitude,
       isDefault: true,
@@ -211,7 +212,7 @@ export const CheckoutScreen: React.FC = () => {
               <TextInput
                 style={styles.textInput}
                 placeholder="أدخل رقم الإشعار / الحوالة"
-                placeholderTextColor={colors.outline}
+                placeholderTextColor={themeColors.outline}
                 value={transferRef}
                 onChangeText={setTransferRef}
                 textAlign="right"
@@ -239,7 +240,7 @@ export const CheckoutScreen: React.FC = () => {
           <TextInput
             style={[styles.textInput, styles.textArea]}
             placeholder="مثال: يرجى عدم الضغط على جرس الباب، أو الاتصال مسبقاً..."
-            placeholderTextColor={colors.outline}
+            placeholderTextColor={themeColors.outline}
             value={notes}
             onChangeText={setNotes}
             multiline
@@ -282,7 +283,7 @@ export const CheckoutScreen: React.FC = () => {
           activeOpacity={0.88}
         >
           {isSubmitting ? (
-            <ActivityIndicator color={colors.onPrimary} size="small" />
+            <ActivityIndicator color={themeColors.onPrimary} size="small" />
           ) : (
             <Text style={styles.confirmBtnText}>تأكيد الطلب وإرساله للكابتن 🚀</Text>
           )}
@@ -295,7 +296,7 @@ export const CheckoutScreen: React.FC = () => {
         title="تحديد موقع التوصيل على الخريطة"
         initialLat={selectedAddress?.latitude || 15.34}
         initialLng={selectedAddress?.longitude || 44.20}
-        initialDistrict={selectedAddress?.district || 'حي حدة'}
+        initialDistrict={selectedAddress?.district || ''}
         onClose={() => setShowMapPicker(false)}
         onConfirm={handleLocationPicked}
       />
@@ -303,7 +304,8 @@ export const CheckoutScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

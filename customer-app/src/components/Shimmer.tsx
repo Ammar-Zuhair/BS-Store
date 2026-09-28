@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,7 +11,8 @@ import {
   Easing,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, borderRadius, spacing } from '../theme';
+import { borderRadius, spacing, ThemeColors } from '../theme';
+import { useApp } from '../context/AppContext';
 
 interface ShimmerPlaceholderProps {
   width?: number | string;
@@ -32,6 +33,7 @@ export const ShimmerPlaceholder: React.FC<ShimmerPlaceholderProps> = ({
   style,
   children,
 }) => {
+  const { isDarkMode } = useApp();
   const [layoutWidth, setLayoutWidth] = useState<number>(0);
   const animatedValue = useRef(new Animated.Value(0)).current;
 
@@ -71,6 +73,7 @@ export const ShimmerPlaceholder: React.FC<ShimmerPlaceholderProps> = ({
           width: width as any,
           height: height as any,
           borderRadius: radius,
+          backgroundColor: isDarkMode ? '#232832' : '#E2E8F0',
         },
         style,
       ]}
@@ -85,13 +88,23 @@ export const ShimmerPlaceholder: React.FC<ShimmerPlaceholderProps> = ({
         ]}
       >
         <LinearGradient
-          colors={[
-            'rgba(255, 255, 255, 0)',
-            'rgba(255, 255, 255, 0.4)',
-            'rgba(255, 255, 255, 0.8)',
-            'rgba(255, 255, 255, 0.4)',
-            'rgba(255, 255, 255, 0)',
-          ]}
+          colors={
+            isDarkMode
+              ? [
+                  'rgba(255, 255, 255, 0)',
+                  'rgba(255, 255, 255, 0.05)',
+                  'rgba(255, 255, 255, 0.15)',
+                  'rgba(255, 255, 255, 0.05)',
+                  'rgba(255, 255, 255, 0)',
+                ]
+              : [
+                  'rgba(255, 255, 255, 0)',
+                  'rgba(255, 255, 255, 0.4)',
+                  'rgba(255, 255, 255, 0.8)',
+                  'rgba(255, 255, 255, 0.4)',
+                  'rgba(255, 255, 255, 0)',
+                ]
+          }
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={StyleSheet.absoluteFill}
@@ -138,6 +151,9 @@ export const SkeletonLine: React.FC<{
 export const HomeSkeleton: React.FC<{ includeHeader?: boolean }> = ({
   includeHeader = false,
 }) => {
+  const { colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -224,6 +240,9 @@ export const HomeSkeleton: React.FC<{ includeHeader?: boolean }> = ({
  * Category & Stores Shimmer Skeleton
  */
 export const CategoryStoresSkeleton: React.FC = () => {
+  const { colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -265,88 +284,92 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-  skeletonContainer: {
-    paddingBottom: 110,
-  },
-  headerPlaceholder: {
-    backgroundColor: colors.surfaceContainerLowest,
-    paddingHorizontal: spacing.screenGutter,
-    paddingTop: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.outlineVariant,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerInfoCol: {
-    flex: 1,
-    marginHorizontal: 12,
-  },
-  sectionPlaceholder: {
-    marginTop: spacing.baseMd,
-    paddingHorizontal: spacing.screenGutter,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.baseMd,
-  },
-  heroCardPlaceholder: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  heroCardContent: {
-    paddingTop: 12,
-    paddingHorizontal: 4,
-  },
-  heroBottomRow: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  gridItemPlaceholder: {
-    width: '48%',
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    paddingVertical: 20,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  horizontalRow: {
-    flexDirection: 'row-reverse',
-    gap: 12,
-  },
-  miniCardPlaceholder: {
-    width: 140,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.lg,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  storeCardPlaceholder: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    padding: 12,
-    marginHorizontal: spacing.screenGutter,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
 });
+
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    skeletonContainer: {
+      paddingBottom: 110,
+    },
+    headerPlaceholder: {
+      backgroundColor: colors.surfaceContainerLowest,
+      paddingHorizontal: spacing.screenGutter,
+      paddingTop: 16,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.outlineVariant + '35',
+    },
+    headerTopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    headerInfoCol: {
+      flex: 1,
+      marginHorizontal: 12,
+    },
+    sectionPlaceholder: {
+      marginTop: spacing.baseMd,
+      paddingHorizontal: spacing.screenGutter,
+    },
+    sectionHeaderRow: {
+      flexDirection: 'row-reverse',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.baseMd,
+    },
+    heroCardPlaceholder: {
+      backgroundColor: colors.surfaceContainerLowest,
+      borderRadius: borderRadius.xl,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant + '35',
+    },
+    heroCardContent: {
+      paddingTop: 12,
+      paddingHorizontal: 4,
+    },
+    heroBottomRow: {
+      flexDirection: 'row-reverse',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 6,
+    },
+    gridRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    gridItemPlaceholder: {
+      width: '48%',
+      backgroundColor: colors.surfaceContainerLowest,
+      borderRadius: borderRadius.xl,
+      paddingVertical: 20,
+      paddingHorizontal: 12,
+      alignItems: 'center',
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant + '35',
+    },
+    horizontalRow: {
+      flexDirection: 'row-reverse',
+      gap: 12,
+    },
+    miniCardPlaceholder: {
+      width: 140,
+      backgroundColor: colors.surfaceContainerLowest,
+      borderRadius: borderRadius.lg,
+      padding: 8,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant + '35',
+    },
+    storeCardPlaceholder: {
+      backgroundColor: colors.surfaceContainerLowest,
+      borderRadius: borderRadius.xl,
+      padding: 12,
+      marginHorizontal: spacing.screenGutter,
+      marginBottom: 14,
+      borderWidth: 1,
+      borderColor: colors.outlineVariant + '35',
+    },
+  });
