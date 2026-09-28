@@ -486,24 +486,29 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // 9. Deals & Bundles
       try {
         const dls = await adminApi.getDeals();
-        if (dls && Array.isArray(dls) && dls.length > 0) {
-          const mappedDeals: AdminFlashDeal[] = dls.map((d: any) => ({
-            id: d.id,
-            title: d.title,
-            storeName: d.storeName,
-            originalPrice: d.originalPrice,
-            discountPrice: d.offerPrice || d.discountPrice,
-            discountPercent: d.discountPercent || 0,
-            imageUrl: d.imageUrl,
-            remainingHours: 24,
-            isActive: d.isActive !== false,
-            dealType: 'STORE_OFFER',
-            couponCode: d.couponCode,
-            isPublic: d.isPublic !== false,
-            expiresAt: d.expiresAt,
-          }));
-          setFlashDeals(mappedDeals);
-        }
+        const mappedDeals: AdminFlashDeal[] = (Array.isArray(dls) ? dls : []).map((d: any, index: number) => ({
+          id: String(d.id ?? `deal-${index}`),
+          title: String(d.title ?? 'عرض بدون عنوان'),
+          storeName: String(d.storeName ?? 'متجر'),
+          originalPrice: Number(d.originalPrice ?? 0) || 0,
+          discountPrice: Number(d.offerPrice ?? d.discountPrice ?? 0) || 0,
+          discountPercent: Number(d.discountPercent ?? 0) || 0,
+          imageUrl: String(d.imageUrl ?? ''),
+          remainingHours: Number(d.remainingHours ?? 24) || 24,
+          isActive: d.isActive !== false,
+          dealType: d.dealType || 'STORE_OFFER',
+          dealKind: d.dealKind,
+          storeId: d.storeId,
+          categoryId: d.categoryId,
+          visibility: d.visibility,
+          bundleItems: Array.isArray(d.bundleItems) ? d.bundleItems.map((i: any) => ({
+            name: String(i.name ?? 'منتج'), price: Number(i.price ?? 0) || 0, imageUrl: i.imageUrl,
+          })) : [],
+          couponCode: d.couponCode,
+          isPublic: d.isPublic !== false,
+          expiresAt: d.expiresAt,
+        }));
+        setFlashDeals(mappedDeals);
       } catch (e) {
         console.warn('Deals fetch error:', e);
       }
@@ -526,7 +531,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       biometricEnabled: true,
       registeredAt: new Date().toISOString(),
     });
-    await refreshData();
+    // Authentication should not wait for every dashboard resource. Load them after
+    // navigation so slow or unavailable secondary endpoints do not delay sign-in.
+    void refreshData();
     return true;
   };
 
@@ -893,6 +900,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await adminApi.saveDeals(updated);
     } catch (e) {
       console.warn('Failed to save deals to backend:', e);
+      setFlashDeals(flashDeals);
+      throw e;
     }
   };
 

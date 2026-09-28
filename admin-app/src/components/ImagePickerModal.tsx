@@ -19,7 +19,7 @@ interface ImagePickerModalProps {
   onClose: () => void;
   onImageSelected: (url: string) => void;
   title?: string;
-  folder?: 'stores' | 'products';
+  folder?: 'stores' | 'products' | 'offers';
   presetSamples?: { label: string; url: string }[];
   initialUrl?: string;
 }

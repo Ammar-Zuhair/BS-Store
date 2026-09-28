@@ -153,6 +153,11 @@ export interface AdminFlashDeal {
   couponCode?: string;
   isPublic?: boolean;
   expiresAt?: string;
+  storeId?: string;
+  categoryId?: string;
+  visibility?: string;
+  bundleItems?: { name: string; price: number; imageUrl?: string }[];
+  dealKind?: string;
 }
 
 export interface AdminProduct {

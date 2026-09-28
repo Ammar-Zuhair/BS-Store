@@ -97,7 +97,7 @@ export const pickImageFromGallery = async (): Promise<PickedImage | null> => {
  */
 export const uploadImageToSupabase = async (
   imageInput: string | PickedImage,
-  folder: 'stores' | 'products' = 'products'
+  folder: 'stores' | 'products' | 'offers' = 'products'
 ): Promise<string> => {
   try {
     const localUri = typeof imageInput === 'string' ? imageInput : imageInput.uri;

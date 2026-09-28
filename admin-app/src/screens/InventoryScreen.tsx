@@ -292,9 +292,12 @@ export const InventoryScreen: React.FC = () => {
   const [dealDiscount, setDealDiscount] = useState('');
   const [dealHours, setDealHours] = useState('24');
   // Bundle items
-  const [bundleItems, setBundleItems] = useState<{ name: string; price: string }[]>([]);
+  const [bundleItems, setBundleItems] = useState<{ name: string; price: string; imageUrl?: string }[]>([]);
   const [bundleItemName, setBundleItemName] = useState('');
   const [bundleItemPrice, setBundleItemPrice] = useState('');
+  const [dealImageUrl, setDealImageUrl] = useState('');
+  const [showDealImagePicker, setShowDealImagePicker] = useState(false);
+  const [bundleImageIndex, setBundleImageIndex] = useState<number | null>(null);
 
   // ── Loading states ────────────────────────────────────────────────────────
   const [isSavingCat, setIsSavingCat] = useState(false);
@@ -387,7 +390,11 @@ export const InventoryScreen: React.FC = () => {
   // ── Deal handlers ─────────────────────────────────────────────────────────
   const handleAddBundleItem = () => {
     if (!bundleItemName.trim()) return;
-    setBundleItems((prev) => [...prev, { name: bundleItemName, price: bundleItemPrice }]);
+    if (!bundleItemPrice.trim() || !Number.isFinite(Number(bundleItemPrice))) {
+      Alert.alert('تنبيه', 'يرجى إدخال سعر صحيح للمنتج');
+      return;
+    }
+    setBundleItems((prev) => [...prev, { name: bundleItemName.trim(), price: bundleItemPrice }]);
     setBundleItemName('');
     setBundleItemPrice('');
   };
@@ -397,17 +404,27 @@ export const InventoryScreen: React.FC = () => {
     const orig = parseFloat(dealOriginal) || 0;
     const disc = parseFloat(dealDiscount) || 0;
     const totalBundlePrice = bundleItems.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
-    const finalPrice = dealType === 'bundle' ? totalBundlePrice : (disc > 0 ? disc : orig);
+    const finalPrice = ['bundle', 'set', 'meal'].includes(dealType) ? totalBundlePrice : (disc > 0 ? disc : orig);
+    if (['bundle', 'set', 'meal'].includes(dealType) && bundleItems.length === 0) {
+      Alert.alert('تنبيه', 'أضف منتجاً واحداً على الأقل إلى الباقة');
+      return;
+    }
+    if (!dealStore) { Alert.alert('تنبيه', 'يرجى ربط العرض بمتجر'); return; }
 
     setIsSavingDeal(true);
     try {
       await addFlashDeal({
         title: dealTitle,
-        storeName: stores.find((s) => s.id === dealStore)?.name || dealStore || 'عام',
-        originalPrice: dealType === 'bundle' ? totalBundlePrice : orig,
+        storeName: stores.find((s) => s.id === dealStore)?.name || 'متجر',
+        storeId: dealStore,
+        categoryId: dealCatId || undefined,
+        visibility: dealVisibility,
+        dealKind: dealType,
+        bundleItems: bundleItems.map((item) => ({ name: item.name, price: Number(item.price) || 0, imageUrl: item.imageUrl })),
+        originalPrice: ['bundle', 'set', 'meal'].includes(dealType) ? totalBundlePrice : orig,
         discountPrice: finalPrice,
         discountPercent: orig > 0 && disc > 0 && orig >= disc ? Math.round(((orig - disc) / orig) * 100) : 0,
-        imageUrl: '',
+        imageUrl: dealImageUrl,
         remainingHours: parseInt(dealHours) || 24,
         isActive: true,
       });
@@ -418,6 +435,7 @@ export const InventoryScreen: React.FC = () => {
       setDealOriginal('');
       setDealDiscount('');
       setDealHours('24');
+      setDealImageUrl('');
       setBundleItems([]);
       setDealType('discount');
       setDealVisibility('home');
@@ -808,9 +826,9 @@ export const InventoryScreen: React.FC = () => {
                 )}
                 <View style={s.dealPrices}>
                   {deal.originalPrice > 0 && deal.originalPrice !== deal.discountPrice && (
-                    <Text style={s.dealOrigPrice}>{deal.originalPrice.toLocaleString()} ر.ي</Text>
+                  <Text style={s.dealOrigPrice}>{(Number(deal.originalPrice) || 0).toLocaleString()} ر.ي</Text>
                   )}
-                  <Text style={s.dealNewPrice}>{deal.discountPrice.toLocaleString()} ر.ي</Text>
+                  <Text style={s.dealNewPrice}>{(Number(deal.discountPrice) || 0).toLocaleString()} ر.ي</Text>
                 </View>
               </View>
               <Text style={s.dealHours}>⏱ {deal.remainingHours} ساعة · {deal.isActive ? 'نشط' : 'متوقف'}</Text>
@@ -1065,6 +1083,12 @@ export const InventoryScreen: React.FC = () => {
               <TextInput style={s.formInput} placeholder="عنوان العرض..." placeholderTextColor={colors.outline}
                 value={dealTitle} onChangeText={setDealTitle} textAlign="right" />
 
+              <Text style={s.formLabel}>الصورة العامة للعرض</Text>
+              <TouchableOpacity style={s.pickerTrigger} onPress={() => setShowDealImagePicker(true)}>
+                <Text style={s.pickerValue}>{dealImageUrl ? 'تغيير الصورة' : 'اختيار صورة العرض'}</Text>
+              </TouchableOpacity>
+              {!!dealImageUrl && <Image source={{ uri: dealImageUrl }} style={{ width: '100%', height: 130, borderRadius: 10, marginTop: 8 }} resizeMode="cover" />}
+
               {/* Store picker */}
               <Text style={s.formLabel}>المتجر</Text>
               <TouchableOpacity style={s.pickerTrigger} onPress={() => setDealStorePickerVisible(true)}>
@@ -1098,6 +1122,9 @@ export const InventoryScreen: React.FC = () => {
                       </TouchableOpacity>
                       <Text style={s.bundleItemPrice}>{item.price} ر.ي</Text>
                       <Text style={s.bundleItemName} numberOfLines={1}>{item.name}</Text>
+                      <TouchableOpacity onPress={() => { setBundleImageIndex(i); setShowDealImagePicker(true); }}>
+                        <Text style={s.removeIcon}>{item.imageUrl ? '🖼️✓' : '🖼️'}</Text>
+                      </TouchableOpacity>
                     </View>
                   ))}
                   <View style={s.bundleAddRow}>
@@ -1226,6 +1253,18 @@ export const InventoryScreen: React.FC = () => {
         folder="stores"
         initialUrl={storeImageUrl}
         title="اختيار صورة المتجر"
+      />
+      <ImagePickerModal
+        visible={showDealImagePicker}
+        onClose={() => { setShowDealImagePicker(false); setBundleImageIndex(null); }}
+        onImageSelected={(url) => {
+          if (bundleImageIndex !== null) {
+            setBundleItems((prev) => prev.map((item, i) => i === bundleImageIndex ? { ...item, imageUrl: url } : item));
+          } else setDealImageUrl(url);
+        }}
+        folder="offers"
+        initialUrl={bundleImageIndex !== null ? bundleItems[bundleImageIndex]?.imageUrl || '' : dealImageUrl}
+        title={bundleImageIndex !== null ? 'صورة المنتج المركب' : 'صورة العرض العامة'}
       />
 
     </View>
