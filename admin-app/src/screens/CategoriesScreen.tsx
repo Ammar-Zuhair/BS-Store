@@ -65,7 +65,7 @@ export const CategoriesScreen: React.FC = () => {
     setStoreLatInput(loc.latitude.toFixed(6));
     setStoreLngInput(loc.longitude.toFixed(6));
     if (loc.district) {
-      setStoreAddressInput(`صنعاء - ${loc.district}`);
+      setStoreAddressInput(loc.district);
     }
     setIsStoreLocationPicked(true);
   };
@@ -1213,7 +1213,7 @@ export const CategoriesScreen: React.FC = () => {
               </View>
 
               <Text style={styles.storeAdminMeta}>
-                📍 {st.address} • 🗺️ خرائط: ({st.latitude ? st.latitude.toFixed(4) : '15.3500'}, {st.longitude ? st.longitude.toFixed(4) : '44.2000'}) • 📞 {st.phone}
+                📍 {st.address} • 🗺️ خرائط: ({Number.isFinite(st.latitude) ? st.latitude!.toFixed(4) : 'غير محدد'}, {Number.isFinite(st.longitude) ? st.longitude!.toFixed(4) : 'غير محدد'}) • 📞 {st.phone}
               </Text>
 
               {/* Store Departments Badges */}

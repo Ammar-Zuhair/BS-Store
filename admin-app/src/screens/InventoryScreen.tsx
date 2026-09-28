@@ -26,6 +26,8 @@ import {
 import { colors, spacing, borderRadius, shadows } from '../theme';
 import { AdminHeader } from '../components/AdminHeader';
 import { ImagePickerModal } from '../components/ImagePickerModal';
+import { DealDatePickerModal, DealTimePickerModal } from '../components/DealDateTimePickers';
+import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
 import { useAdmin } from '../context/AdminContext';
 import {
   AdminCategory,
@@ -241,6 +243,9 @@ export const InventoryScreen: React.FC = () => {
   const [storeName, setStoreName] = useState('');
   const [storePhone, setStorePhone] = useState('');
   const [storeAddress, setStoreAddress] = useState('');
+  const [storeLatitude, setStoreLatitude] = useState<number | null>(null);
+  const [storeLongitude, setStoreLongitude] = useState<number | null>(null);
+  const [showStoreMapPicker, setShowStoreMapPicker] = useState(false);
   const [storeImageUrl, setStoreImageUrl] = useState('');
   const [showStoreImagePicker, setShowStoreImagePicker] = useState(false);
   const [storeCatId, setStoreCatId] = useState('');
@@ -248,6 +253,12 @@ export const InventoryScreen: React.FC = () => {
   // Store product types
   const [storeProductTypes, setStoreProductTypes] = useState<string[]>([]);
   const [storeCustomTypeInput, setStoreCustomTypeInput] = useState('');
+
+  const handleStoreLocationPicked = (location: LocationResult) => {
+    setStoreLatitude(location.latitude);
+    setStoreLongitude(location.longitude);
+    if (!storeAddress.trim() && location.district) setStoreAddress(location.district);
+  };
 
   // ── Categories & Stores visibility filters ────────────────────────────────
   const [catFilter, setCatFilter] = useState<'all' | 'visible' | 'hidden'>('all');
@@ -297,6 +308,8 @@ export const InventoryScreen: React.FC = () => {
   const [dealDiscount, setDealDiscount] = useState('');
   const [dealExpiryDate, setDealExpiryDate] = useState('');
   const [dealExpiryTime, setDealExpiryTime] = useState('21:00');
+  const [showDealDatePicker, setShowDealDatePicker] = useState(false);
+  const [showDealTimePicker, setShowDealTimePicker] = useState(false);
   const [deliveryDiscountPercent, setDeliveryDiscountPercent] = useState('');
   const [dealIsPublic, setDealIsPublic] = useState(true);
   // Bundle items
@@ -340,6 +353,8 @@ export const InventoryScreen: React.FC = () => {
     setStoreName(store.name);
     setStorePhone(store.phone || '');
     setStoreAddress(store.address || '');
+    setStoreLatitude(Number.isFinite(Number(store.latitude)) ? Number(store.latitude) : null);
+    setStoreLongitude(Number.isFinite(Number(store.longitude)) ? Number(store.longitude) : null);
     setStoreImageUrl(store.imageUrl || '');
     setStoreCatId(store.categoryId || '');
     setStoreProductTypes(store.subcategories || []);
@@ -349,6 +364,7 @@ export const InventoryScreen: React.FC = () => {
 
   const handleSaveStore = async () => {
     if (!storeName.trim()) { Alert.alert('تنبيه', 'يرجى إدخال اسم المتجر'); return; }
+    if (storeLatitude === null || storeLongitude === null) { Alert.alert('تنبيه', 'يرجى تحديد موقع المتجر من الخريطة قبل الحفظ'); return; }
     setIsSavingStore(true);
     try {
       const catObj = categories.find((c) => c.id === storeCatId) || categories[0];
@@ -361,6 +377,8 @@ export const InventoryScreen: React.FC = () => {
           categoryName: catObj?.name || 'عام',
           subcategories: storeProductTypes,
           imageUrl: storeImageUrl.trim(),
+          latitude: storeLatitude,
+          longitude: storeLongitude,
         });
         Alert.alert('نجاح ✓', `تم تحديث بيانات متجر ${storeName.trim()}`);
       } else {
@@ -372,6 +390,8 @@ export const InventoryScreen: React.FC = () => {
           categoryName: catObj?.name || 'عام',
           subcategories: storeProductTypes,
           imageUrl: storeImageUrl.trim(),
+          latitude: storeLatitude,
+          longitude: storeLongitude,
           rating: 4.8,
           deliveryTime: '30-45 دقيقة',
           deliveryFee: 400,
@@ -385,6 +405,8 @@ export const InventoryScreen: React.FC = () => {
       setStoreName('');
       setStorePhone('');
       setStoreAddress('');
+      setStoreLatitude(null);
+      setStoreLongitude(null);
       setStoreImageUrl('');
       setStoreCatId('');
       setStoreProductTypes([]);
@@ -921,6 +943,16 @@ export const InventoryScreen: React.FC = () => {
               <TextInput style={s.formInput} placeholder="العنوان التفصيلي (شارع، مبنى...)" placeholderTextColor={colors.outline}
                 value={storeAddress} onChangeText={setStoreAddress} textAlign="right" />
 
+              <Text style={s.formLabel}>موقع المتجر على الخريطة *</Text>
+              <TouchableOpacity style={s.pickerTrigger} onPress={() => setShowStoreMapPicker(true)}>
+                <Text style={s.pickerArrow}>📍</Text>
+                <Text style={[s.pickerValue, storeLatitude === null && s.pickerPlaceholder]} numberOfLines={1}>
+                  {storeLatitude !== null && storeLongitude !== null
+                    ? `${storeLatitude.toFixed(5)}, ${storeLongitude.toFixed(5)} — اضغط لتغيير الموقع`
+                    : 'اختر موقع المتجر من الخريطة'}
+                </Text>
+              </TouchableOpacity>
+
               {/* Store Image */}
               <Text style={s.formLabel}>صورة المتجر</Text>
               {storeImageUrl ? (
@@ -1190,10 +1222,18 @@ export const InventoryScreen: React.FC = () => {
                 </TouchableOpacity>
               </>}
 
-              <Text style={s.formLabel}>تاريخ الانتهاء (YYYY-MM-DD)</Text>
-              <TextInput style={s.formInput} placeholder="2026-12-31" placeholderTextColor={colors.outline} value={dealExpiryDate} onChangeText={setDealExpiryDate} textAlign="center" />
-              <Text style={s.formLabel}>وقت الانتهاء (24 ساعة)</Text>
-              <TextInput style={s.formInput} placeholder="21:00" placeholderTextColor={colors.outline} value={dealExpiryTime} onChangeText={setDealExpiryTime} textAlign="center" />
+              <Text style={s.formLabel}>تاريخ انتهاء العرض</Text>
+              <TouchableOpacity style={s.pickerTrigger} onPress={() => setShowDealDatePicker(true)}>
+                <Text style={s.pickerArrow}>▦</Text>
+                <Text style={[s.pickerValue, !dealExpiryDate && s.pickerPlaceholder]}>
+                  {dealExpiryDate ? new Date(`${dealExpiryDate}T12:00:00`).toLocaleDateString('ar-YE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'اختر التاريخ من التقويم'}
+                </Text>
+              </TouchableOpacity>
+              <Text style={s.formLabel}>وقت الانتهاء</Text>
+              <TouchableOpacity style={s.pickerTrigger} onPress={() => setShowDealTimePicker(true)}>
+                <Text style={s.pickerArrow}>◷</Text>
+                <Text style={s.pickerValue}>{dealExpiryTime}</Text>
+              </TouchableOpacity>
 
               <View style={s.formBtns}>
                 <TouchableOpacity style={s.cancelBtn} onPress={() => setShowDealForm(false)}>
@@ -1281,6 +1321,27 @@ export const InventoryScreen: React.FC = () => {
         folder="stores"
         initialUrl={storeImageUrl}
         title="اختيار صورة المتجر"
+      />
+      <LocationPickerModal
+        visible={showStoreMapPicker}
+        title="حدد موقع المتجر على الخريطة"
+        initialLat={storeLatitude ?? 15.35}
+        initialLng={storeLongitude ?? 44.20}
+        initialDistrict={storeAddress}
+        onClose={() => setShowStoreMapPicker(false)}
+        onConfirm={handleStoreLocationPicked}
+      />
+      <DealDatePickerModal
+        visible={showDealDatePicker}
+        value={dealExpiryDate}
+        onSelect={setDealExpiryDate}
+        onClose={() => setShowDealDatePicker(false)}
+      />
+      <DealTimePickerModal
+        visible={showDealTimePicker}
+        value={dealExpiryTime}
+        onSelect={setDealExpiryTime}
+        onClose={() => setShowDealTimePicker(false)}
       />
       <ImagePickerModal
         visible={showDealImagePicker}

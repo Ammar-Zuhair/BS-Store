@@ -71,7 +71,7 @@ export const FinancialsScreen: React.FC = () => {
   const simBf = parseFloat(baseFeeInput) || 400;
   const simBd = parseFloat(baseDistanceInput) || 1.0;
   const simPk = parseFloat(perKmFeeInput) || 50;
-  const simCalculated = simKm <= simBd ? simBf : simBf + (Math.ceil(simKm) * simPk);
+  const simCalculated = simBf + (Math.ceil(Math.max(0, simKm - simBd)) * simPk);
 
   // Selected driver for active settlement
   const [selectedDriverId, setSelectedDriverId] = useState<string>(

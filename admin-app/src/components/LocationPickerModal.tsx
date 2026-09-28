@@ -8,6 +8,9 @@ import {
   Platform,
   Alert,
   ScrollView,
+  Image,
+  TextInput,
+  PanResponder,
 } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 
@@ -28,16 +31,24 @@ interface LocationPickerModalProps {
   title?: string;
 }
 
-const COMMERCIAL_DISTRICTS = [
-  { name: 'حدة (البرج التجاري)', lat: 15.3340, lng: 44.1850 },
-  { name: 'الستين الغربي', lat: 15.3520, lng: 44.1780 },
-  { name: 'شارع الزبيري', lat: 15.3500, lng: 44.2050 },
-  { name: 'ميدان التحرير', lat: 15.3550, lng: 44.2080 },
-  { name: 'شميلة سنتر', lat: 15.3180, lng: 44.2250 },
-  { name: 'مذبح التجاري', lat: 15.3720, lng: 44.1680 },
-  { name: 'جولة عصر', lat: 15.3400, lng: 44.1650 },
-  { name: 'الحصبة', lat: 15.3850, lng: 44.2020 },
-];
+const ZOOM = 15;
+const TILE_SIZE = 256;
+const toTile = (latitude: number, longitude: number) => {
+  const scale = 2 ** ZOOM;
+  const lat = Math.max(-85, Math.min(85, latitude)) * Math.PI / 180;
+  return {
+    x: (longitude + 180) / 360 * scale,
+    y: (1 - Math.asinh(Math.tan(lat)) / Math.PI) / 2 * scale,
+  };
+};
+const fromTile = (x: number, y: number) => {
+  const scale = 2 ** ZOOM;
+  const wrappedX = ((x % scale) + scale) % scale;
+  return {
+    longitude: wrappedX / scale * 360 - 180,
+    latitude: Math.atan(Math.sinh(Math.PI * (1 - 2 * y / scale))) * 180 / Math.PI,
+  };
+};
 
 export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   visible,
@@ -52,12 +63,19 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const [currentLng, setCurrentLng] = useState<number>(initialLng);
   const [currentDistrict, setCurrentDistrict] = useState<string>(initialDistrict);
   const [isLocating, setIsLocating] = useState<boolean>(false);
+  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ name: string; lat: number; lng: number }>>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const panOrigin = React.useRef({ latitude: initialLat, longitude: initialLng });
 
   useEffect(() => {
     if (visible) {
       setCurrentLat(initialLat);
       setCurrentLng(initialLng);
       setCurrentDistrict(initialDistrict);
+      setSearchQuery('');
+      setSearchResults([]);
     }
   }, [visible, initialLat, initialLng, initialDistrict]);
 
@@ -87,15 +105,38 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     }
   };
 
-  const handleSelectPreset = (preset: typeof COMMERCIAL_DISTRICTS[0]) => {
-    setCurrentLat(preset.lat);
-    setCurrentLng(preset.lng);
-    setCurrentDistrict(preset.name);
-  };
-
   const adjustCoords = (dLat: number, dLng: number) => {
     setCurrentLat((prev) => parseFloat((prev + dLat).toFixed(5)));
     setCurrentLng((prev) => parseFloat((prev + dLng).toFixed(5)));
+  };
+
+  const mapPanResponder = React.useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => { panOrigin.current = { latitude: currentLat, longitude: currentLng }; },
+    onPanResponderMove: (_event, gesture) => {
+      const origin = toTile(panOrigin.current.latitude, panOrigin.current.longitude);
+      const selected = fromTile(origin.x - gesture.dx / TILE_SIZE, origin.y - gesture.dy / TILE_SIZE);
+      setCurrentLat(selected.latitude);
+      setCurrentLng(selected.longitude);
+      setCurrentDistrict('الموقع المحدد على الخريطة');
+    },
+  }), []);
+
+  const searchAddress = async () => {
+    if (searchQuery.trim().length < 3) return;
+    setIsSearching(true);
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.trim())}&limit=5&accept-language=ar`, {
+        headers: { 'User-Agent': 'BSStore-Admin/1.0' },
+      });
+      const rows = await response.json();
+      setSearchResults(Array.isArray(rows) ? rows.map((row: any) => ({ name: row.display_name, lat: Number(row.lat), lng: Number(row.lon) })) : []);
+    } catch {
+      Alert.alert('تعذر البحث', 'تحقق من الاتصال بالإنترنت ثم حاول مجدداً.');
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleConfirm = () => {
@@ -103,12 +144,29 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       latitude: currentLat,
       longitude: currentLng,
       district: currentDistrict,
-      city: 'صنعاء',
+      city: '',
     });
     onClose();
   };
 
-  const mapEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${currentLng - 0.015}%2C${currentLat - 0.015}%2C${currentLng + 0.015}%2C${currentLat + 0.015}&layer=mapnik&marker=${currentLat}%2C${currentLng}`;
+  const centerTile = toTile(currentLat, currentLng);
+  const centerTileX = Math.floor(centerTile.x);
+  const centerTileY = Math.floor(centerTile.y);
+  const mapTiles = [];
+  for (let y = -2; y <= 2; y++) {
+    for (let x = -2; x <= 2; x++) {
+      const tileX = centerTileX + x;
+      const tileY = centerTileY + y;
+      const tileCount = 2 ** ZOOM;
+      if (tileY < 0 || tileY >= tileCount) continue;
+      mapTiles.push({
+        key: `${tileX}-${tileY}`,
+        uri: `https://tile.openstreetmap.org/${ZOOM}/${((tileX % tileCount) + tileCount) % tileCount}/${tileY}.png`,
+        left: mapSize.width / 2 + (x - (centerTile.x - centerTileX)) * TILE_SIZE,
+        top: mapSize.height / 2 + (y - (centerTile.y - centerTileY)) * TILE_SIZE,
+      });
+    }
+  }
 
   return (
     <Modal
@@ -131,24 +189,11 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           </View>
 
           {/* Map Viewer Container */}
-          <View style={styles.mapFrame}>
-            {Platform.OS === 'web' ? (
-              <iframe
-                title="Store Location Map"
-                src={mapEmbedUrl}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                  borderRadius: 16,
-                }}
-              />
-            ) : (
-              <View style={styles.mapFallbackPlaceholder}>
-                <Text style={{ fontSize: 42 }}>🏪</Text>
-                <Text style={styles.mapFallbackText}>خريطة موقع المتجر</Text>
-              </View>
-            )}
+          <View style={styles.mapFrame} onLayout={(event) => setMapSize({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height })}>
+            <View style={StyleSheet.absoluteFill} {...mapPanResponder.panHandlers}>
+              {mapTiles.map((tile) => <Image key={tile.key} source={{ uri: tile.uri }} style={{ position: 'absolute', left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE }} resizeMode="cover" />)}
+            </View>
+            <View style={styles.mapAttribution} pointerEvents="none"><Text style={styles.mapAttributionText}>© OpenStreetMap</Text></View>
 
             {/* Central Floating Pin Marker */}
             <View style={styles.floatingPinBox} pointerEvents="none">
@@ -208,21 +253,28 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             </View>
           </View>
 
-          {/* Quick Commercial Area Selector */}
-          <View style={styles.presetsSection}>
-            <Text style={styles.presetsLabel}>أو اختر من المناطق والشوارع التجارية الرئيسية:</Text>
+          <View style={styles.searchRow}>
+            <TouchableOpacity style={styles.searchButton} onPress={searchAddress} disabled={isSearching}>
+              <Text style={styles.searchButtonText}>{isSearching ? '...' : 'بحث'}</Text>
+            </TouchableOpacity>
+            <TextInput style={styles.searchInput} placeholder="ابحث عن مدينة أو شارع" placeholderTextColor={colors.outline} value={searchQuery} onChangeText={setSearchQuery} onSubmitEditing={searchAddress} returnKeyType="search" textAlign="right" />
+          </View>
+
+          {/* Search results */}
+          {searchResults.length > 0 ? <View style={styles.presetsSection}>
+            <Text style={styles.presetsLabel}>نتائج البحث — اختر موقع المتجر:</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.presetsScroll}
             >
-              {COMMERCIAL_DISTRICTS.map((p) => {
+              {searchResults.map((p) => {
                 const isSelected = currentDistrict === p.name;
                 return (
                   <TouchableOpacity
                     key={p.name}
                     style={[styles.presetChip, isSelected && styles.presetChipActive]}
-                    onPress={() => handleSelectPreset(p)}
+                    onPress={() => { setCurrentLat(p.lat); setCurrentLng(p.lng); setCurrentDistrict(p.name); setSearchResults([]); }}
                     activeOpacity={0.75}
                   >
                     <Text style={[styles.presetChipText, isSelected && styles.presetChipTextActive]}>
@@ -232,13 +284,13 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                 );
               })}
             </ScrollView>
-          </View>
+          </View> : null}
 
           {/* Selected Location Summary Card */}
           <View style={styles.locationSummaryBox}>
             <View style={styles.locationSummaryRight}>
               <Text style={styles.summaryDistrict}>
-                {currentDistrict} - صنعاء
+                {currentDistrict || 'الموقع المحدد'}
               </Text>
               <Text style={styles.summaryCoords}>
                 خط العرض: {currentLat.toFixed(5)} • خط الطول: {currentLng.toFixed(5)}
@@ -321,6 +373,15 @@ const styles = StyleSheet.create({
     borderColor: colors.outlineVariant + '40',
     marginBottom: spacing.baseSm,
   },
+  mapAttribution: {
+    position: 'absolute',
+    bottom: 2,
+    right: 4,
+    zIndex: 11,
+    paddingHorizontal: 4,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+  },
+  mapAttributionText: { color: '#333', fontSize: 9 },
   mapFallbackPlaceholder: {
     flex: 1,
     alignItems: 'center',
@@ -332,6 +393,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 8,
   },
+  searchRow: { flexDirection: 'row-reverse', gap: 8, marginBottom: spacing.baseSm },
+  searchInput: {
+    flex: 1,
+    minHeight: 42,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.md,
+    color: colors.onSurface,
+    backgroundColor: colors.surfaceContainerLow,
+  },
+  searchButton: { minWidth: 58, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.md, backgroundColor: colors.primary, paddingHorizontal: 10 },
+  searchButtonText: { color: colors.onPrimary, fontFamily: typography.fontFamily.bold },
   floatingPinBox: {
     position: 'absolute',
     top: '38%',

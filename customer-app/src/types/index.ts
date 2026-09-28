@@ -55,6 +55,8 @@ export interface Store {
   isOpen: boolean;
   isVerified: boolean;
   tags: string[];
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface BundlePiece {

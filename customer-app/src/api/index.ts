@@ -231,6 +231,8 @@ export const addressApi = {
 
 // ─── Checkout & Orders API ───────────────────────────────────────────────────
 export const ordersApi = {
+  getDeliveryQuote: (addressId: string, storeIds: string[]) =>
+    api.post<{ deliveryFee: number; farthestDistanceKm: number }>('/checkout/delivery-quote', { addressId, storeIds }),
   validateCheckout: (items: { productId: string; quantity: number }[], addressId?: string, paymentMethod = 0) =>
     api.post<any>('/checkout/validate', { items, addressId, paymentMethod }),
 

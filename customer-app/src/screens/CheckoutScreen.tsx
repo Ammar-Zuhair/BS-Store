@@ -12,6 +12,7 @@ export const CheckoutScreen: React.FC = () => {
     addNewAddress,
     cartTotal,
     cartDeliveryFee,
+    cartFarthestStoreDistanceKm,
     cartSubtotal,
     cartDiscount,
     cartSubOrders,
@@ -260,6 +261,12 @@ export const CheckoutScreen: React.FC = () => {
             <Text style={styles.summaryVal}>{cartDeliveryFee.toLocaleString()} ر.ي</Text>
             <Text style={styles.summaryLbl}>رسوم التوصيل</Text>
           </View>
+          {cartSubOrders.length > 1 && cartFarthestStoreDistanceKm > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryVal}>{cartFarthestStoreDistanceKm.toFixed(1)} كم</Text>
+              <Text style={styles.summaryLbl}>المسافة إلى أبعد متجر</Text>
+            </View>
+          )}
           {cartDiscount > 0 && (
             <View style={styles.summaryRow}>
               <Text style={styles.discountVal}>-{cartDiscount.toLocaleString()} ر.ي</Text>
@@ -294,8 +301,8 @@ export const CheckoutScreen: React.FC = () => {
       <LocationPickerModal
         visible={showMapPicker}
         title="تحديد موقع التوصيل على الخريطة"
-        initialLat={selectedAddress?.latitude || 15.34}
-        initialLng={selectedAddress?.longitude || 44.20}
+        initialLat={selectedAddress?.latitude ?? 15.34}
+        initialLng={selectedAddress?.longitude ?? 44.20}
         initialDistrict={selectedAddress?.district || ''}
         onClose={() => setShowMapPicker(false)}
         onConfirm={handleLocationPicked}

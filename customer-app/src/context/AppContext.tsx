@@ -43,6 +43,7 @@ interface AppContextType {
   cartSubOrders: SubOrderGroup[];
   cartSubtotal: number;
   cartDeliveryFee: number;
+  cartFarthestStoreDistanceKm: number;
   cartDiscount: number;
   cartTotal: number;
   promoCode: string;
@@ -101,6 +102,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isFreeDeliveryPromo, setIsFreeDeliveryPromo] = useState<boolean>(false);
   const [deliveryDiscountPercent, setDeliveryDiscountPercent] = useState(0);
   const [deliveryPromoDealId, setDeliveryPromoDealId] = useState<string | null>(null);
+  const [deliveryQuote, setDeliveryQuote] = useState<{ fee: number; farthestDistanceKm: number } | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -185,6 +187,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           reviewsCount: 24,
           deliveryTime: '25-35 دقيقة',
           deliveryFee: 500,
+          latitude: Number(s.latitude ?? 0),
+          longitude: Number(s.longitude ?? 0),
           isOpen: s.isActive,
           isVerified: true,
           tags: ['توصيل فوري', 'متجر معتمد'],
@@ -464,7 +468,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const cartSubtotal = cartSubOrders.reduce((sum, so) => sum + so.subtotal, 0);
-  const cartDeliveryFee = cartSubOrders.length === 0 ? 0 : isFreeDeliveryPromo ? 0 : Math.max(0, Math.round(500 * (1 - deliveryDiscountPercent / 100)));
+  const deliveryStoreIds = Array.from(new Set(cartSubOrders.map((subOrder) => subOrder.storeId).filter((id) => /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id))));
+  const deliveryStoreIdsKey = deliveryStoreIds.slice().sort().join(',');
+  useEffect(() => {
+    const addressId = selectedAddress?.id;
+    if (!isAuthenticated || !addressId || !/^[0-9a-f-]{36}$/i.test(addressId) || deliveryStoreIds.length === 0) {
+      setDeliveryQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setDeliveryQuote(null);
+    ordersApi.getDeliveryQuote(addressId, deliveryStoreIds).then((quote) => {
+      if (!cancelled) setDeliveryQuote({ fee: Number(quote.deliveryFee) || 0, farthestDistanceKm: Number(quote.farthestDistanceKm) || 0 });
+    }).catch(() => { if (!cancelled) setDeliveryQuote(null); });
+    return () => { cancelled = true; };
+  }, [isAuthenticated, selectedAddress?.id, selectedAddress?.latitude, selectedAddress?.longitude, deliveryStoreIdsKey]);
+  const baseDeliveryFee = cartSubOrders.length === 0 ? 0 : deliveryQuote?.fee ?? 500;
+  const cartDeliveryFee = isFreeDeliveryPromo ? 0 : Math.max(0, Math.round(baseDeliveryFee * (1 - deliveryDiscountPercent / 100)));
+  const cartFarthestStoreDistanceKm = deliveryQuote?.farthestDistanceKm ?? 0;
   const cartDiscount = Math.round(cartSubtotal * (discountPercent / 100));
   const cartTotal = Math.max(0, cartSubtotal + cartDeliveryFee - cartDiscount);
 
@@ -534,8 +555,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           city: selectedAddress.city,
           district: selectedAddress.district || 'وسط المدينة',
           street: selectedAddress.street || 'الشارع العام',
-          latitude: selectedAddress.latitude || 15.35,
-          longitude: selectedAddress.longitude || 44.20,
+          latitude: selectedAddress.latitude,
+          longitude: selectedAddress.longitude,
         },
         paymentMethod: isManual ? 1 : 0,
         notes,
@@ -712,6 +733,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cartSubOrders,
         cartSubtotal,
         cartDeliveryFee,
+        cartFarthestStoreDistanceKm,
         cartDiscount,
         cartTotal,
         promoCode,

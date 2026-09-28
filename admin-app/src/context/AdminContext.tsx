@@ -417,8 +417,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             deliveryFee: 400,
             isOpen: isActive,
             isActive: isActive,
-            latitude: s.latitude ? Number(s.latitude) : 15.35,
-            longitude: s.longitude ? Number(s.longitude) : 44.20,
+            latitude: Number(s.latitude ?? 0),
+            longitude: Number(s.longitude ?? 0),
           };
         });
         setStores((prev) => {
@@ -800,6 +800,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addStore = async (storeData: Omit<AdminStore, 'id'>) => {
     try {
+      if (!Number.isFinite(storeData.latitude) || !Number.isFinite(storeData.longitude) || Math.abs(storeData.latitude!) > 90 || Math.abs(storeData.longitude!) > 180) {
+        throw new Error('يجب تحديد إحداثيات موقع المتجر الصحيحة على الخريطة');
+      }
       if (storeData.name && storeData.subcategories) {
         storeTypesMapRef.current[storeData.name] = storeData.subcategories;
       }
@@ -813,8 +816,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         name: storeData.name,
         phone: storeData.phone,
         address: storeData.address,
-        latitude: storeData.latitude ?? 15.35,
-        longitude: storeData.longitude ?? 44.20,
+        latitude: storeData.latitude!,
+        longitude: storeData.longitude!,
         imageUrl: storeData.imageUrl,
       });
       await refreshData();
@@ -826,6 +829,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateStore = async (storeId: string, data: Partial<AdminStore>) => {
     try {
+      if (data.latitude !== undefined && (!Number.isFinite(data.latitude) || Math.abs(data.latitude) > 90)) throw new Error('خط العرض غير صالح');
+      if (data.longitude !== undefined && (!Number.isFinite(data.longitude) || Math.abs(data.longitude) > 180)) throw new Error('خط الطول غير صالح');
       if (data.subcategories) {
         storeTypesMapRef.current[storeId] = data.subcategories;
         if (data.name) storeTypesMapRef.current[data.name] = data.subcategories;
@@ -846,8 +851,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         name: data.name,
         phone: data.phone,
         address: data.address,
-        latitude: data.latitude ?? 15.35,
-        longitude: data.longitude ?? 44.20,
+        latitude: data.latitude ?? stores.find((store) => store.id === storeId)?.latitude ?? 0,
+        longitude: data.longitude ?? stores.find((store) => store.id === storeId)?.longitude ?? 0,
         isActive: data.isActive ?? true,
         imageUrl: data.imageUrl,
       });
