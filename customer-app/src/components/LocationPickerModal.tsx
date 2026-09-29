@@ -40,7 +40,9 @@ interface LocationPickerModalProps {
   title?: string;
 }
 
-const buildCustomerLeafletHtml = (lat: number, lng: number) => `<!doctype html>
+const CARTO_API_KEY = process.env.EXPO_PUBLIC_CARTO_API_KEY || '';
+
+const buildCustomerLeafletHtml = (lat: number, lng: number, apiKey: string = '') => `<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8"/>
@@ -129,8 +131,9 @@ const buildCustomerLeafletHtml = (lat: number, lng: number) => `<!doctype html>
       window.map = map;
 
       // CartoDB Voyager tiles (Fast, worldwide CDN, high-contrast Arabic labels)
-      var cartoKey = 'cb1_43q8_1_cdc36f6d519c491796b6ac33';
-      var cartoVoyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + cartoKey, {
+      var cartoKey = ${JSON.stringify(apiKey)};
+      var cartoUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png' + (cartoKey ? ('?key=' + encodeURIComponent(cartoKey)) : '');
+      var cartoVoyager = L.tileLayer(cartoUrl, {
         maxZoom: 19,
         subdomains: ['a', 'b', 'c', 'd'],
         attribution: '© OpenStreetMap, © CartoDB'
@@ -439,7 +442,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const leafletHtml = React.useMemo(() => {
     const lat = initialCoordsRef.current.lat || 15.35;
     const lng = initialCoordsRef.current.lng || 44.20;
-    return buildCustomerLeafletHtml(lat, lng);
+    return buildCustomerLeafletHtml(lat, lng, CARTO_API_KEY);
   }, [sessionKey]);
 
   return (
