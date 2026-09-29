@@ -130,6 +130,8 @@ export const AuthScreen: React.FC = () => {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* Simple Brand Header */}
         <View style={styles.headerBlock}>

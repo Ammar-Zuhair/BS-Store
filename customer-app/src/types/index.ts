@@ -11,6 +11,7 @@ export type PaymentStatusType = 'PENDING' | 'PAID' | 'REJECTED' | 'VERIFIED';
 
 export type OrderStatusType =
   | 'PENDING_PAYMENT'
+  | 'PENDING_ADMIN_APPROVAL'
   | 'PAYMENT_PENDING_VERIFICATION'
   | 'CONFIRMED'
   | 'SEARCHING_DRIVER'
@@ -131,6 +132,8 @@ export interface Order {
     currentLocation?: string;
   };
   notes?: string;
+  customerRating?: number;
+  customerReview?: string;
 }
 
 export interface FlashDeal {

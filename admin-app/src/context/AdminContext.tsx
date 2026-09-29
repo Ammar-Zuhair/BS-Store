@@ -183,26 +183,24 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (s.includes('outfordelivery')) return 'OUT_FOR_DELIVERY';
       if (s.includes('delivered')) return 'DELIVERED';
       if (s.includes('cancel')) return 'CANCELLED';
+      if (s.includes('pendingadminapproval')) return 'PENDING_ADMIN_APPROVAL';
       if (s.includes('pendingpayment') || s.includes('pendingverification')) return 'PAYMENT_PENDING_VERIFICATION';
       return 'CONFIRMED';
     }
     const num = Number(status);
     switch (num) {
-      case 0:
-      case 1:
-        return 'CONFIRMED';
-      case 2:
-        return 'SEARCHING_DRIVER';
-      case 3:
-        return 'DRIVER_ASSIGNED';
-      case 4:
-        return 'PURCHASING';
-      case 5:
-        return 'OUT_FOR_DELIVERY';
-      case 6:
-        return 'DELIVERED';
-      case 7:
-        return 'CANCELLED';
+      case 0: return 'PAYMENT_PENDING_VERIFICATION';
+      case 1: return 'PAYMENT_PENDING_VERIFICATION';
+      case 2: return 'CONFIRMED';
+      case 3: return 'SEARCHING_DRIVER';
+      case 4: return 'DRIVER_ASSIGNED';
+      case 5: return 'DRIVER_ASSIGNED';
+      case 6: return 'PURCHASING';
+      case 7: return 'PURCHASING';
+      case 8: return 'OUT_FOR_DELIVERY';
+      case 9: return 'DELIVERED';
+      case 10: return 'CANCELLED';
+      case 13: return 'PENDING_ADMIN_APPROVAL';
       default:
         return 'CONFIRMED';
     }
@@ -256,6 +254,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           paymentStatus: o.paymentStatus === 1 || o.paymentStatus === 'Verified' ? 'VERIFIED' : o.paymentStatus === 2 || o.paymentStatus === 'Rejected' ? 'REJECTED' : 'PENDING',
           assignedDriverName: o.driverName,
           addressSummary: o.deliveryAddress || o.addressSummary || 'صنعاء، اليمن',
+          customerRating: o.customerRating,
+          customerReview: o.customerReview,
           subOrders: (o.subOrders || []).map((so: any) => ({
             id: so.id,
             storeId: so.storeId,
@@ -460,7 +460,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           driverName: d.fullName,
           phone: d.phone,
           vehiclePlate: 'صنعاء 1/12345',
-          status: d.status === 1 || d.status === 'Online' ? 'ONLINE' : d.status === 2 || d.status === 'Busy' ? 'BUSY' : 'OFFLINE',
+          status: d.status === 0 || d.status === 'Online' ? 'ONLINE' : d.status === 2 || d.status === 'Busy' ? 'BUSY' : 'OFFLINE',
           totalCollections: d.outstandingDebt > 0 ? d.outstandingDebt : 0,
           totalStorePurchases: 0,
           totalSettlements: 0,
@@ -993,22 +993,18 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const approveOrder = async (orderId: string) => {
     try {
-      await adminApi.assignDriver(orderId, '');
+      await adminApi.approveOrder(orderId);
       await refreshData();
     } catch (e) {
       console.warn('approveOrder error:', e);
-      // Update local state to show as confirmed
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: 'CONFIRMED' as OrderStatus } : o))
-      );
+      throw e;
     }
   };
 
   const rejectOrder = async (orderId: string, _reason: string) => {
     try {
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: 'CANCELLED' as OrderStatus } : o))
-      );
+      await adminApi.rejectOrder(orderId, _reason);
+      await refreshData();
     } catch (e) {
       console.warn('rejectOrder error:', e);
     }

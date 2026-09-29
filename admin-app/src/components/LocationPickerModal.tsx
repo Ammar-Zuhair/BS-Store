@@ -12,7 +12,6 @@ import {
   TextInput,
   PanResponder,
 } from 'react-native';
-import * as Location from 'expo-location';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 
 export interface LocationResult {
@@ -83,6 +82,9 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const handleDetectGPS = async () => {
     setIsLocating(true);
     try {
+      // Defer native module initialization until React Native has finished booting
+      // and the user explicitly requests GPS.
+      const Location = await import('expo-location');
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') throw new Error('اسمح للتطبيق بالوصول إلى الموقع من إعدادات الجهاز.');
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });

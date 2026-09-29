@@ -125,6 +125,13 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+            {deal.expiresAt ? (
+              <View style={{ marginTop: 12, marginBottom: 8, padding: 12, borderRadius: 12, backgroundColor: themeColors.surfaceContainerHigh }}>
+                <Text style={{ color: themeColors.onSurface, textAlign: 'right', fontWeight: '700' }}>
+                  ينتهي العرض في {new Date(deal.expiresAt).toLocaleString('ar', { dateStyle: 'medium', timeStyle: 'short' })}
+                </Text>
+              </View>
+            ) : null}
             {/* Cover Image & Badge */}
             <View style={styles.imageWrap}>
               <CachedImage source={{ uri: deal.imageUrl }} style={styles.image} />

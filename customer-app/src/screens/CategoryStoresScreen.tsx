@@ -57,6 +57,7 @@ export const CategoryStoresScreen: React.FC = () => {
   const categoryDeals = useMemo(() => {
     return (deals || []).filter((d) => {
       if (d.isPublic === false) return false;
+      if (d.expiresAt && new Date(d.expiresAt).getTime() <= Date.now()) return false;
       if (d.visibility && d.visibility !== 'category' && d.visibility !== 'all') return false;
       if (d.visibility === 'all') return true;
       if (activeCat === 'cat-all') return true;

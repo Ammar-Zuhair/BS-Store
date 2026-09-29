@@ -155,7 +155,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           id: status.driverId,
           name: status.fullName,
           phone: status.phone,
-          shiftStatus: status.status === 1 ? 'ONLINE' : status.status === 2 ? 'BUSY' : 'OFFLINE',
+          shiftStatus: status.status === 0 ? 'ONLINE' : status.status === 2 ? 'BUSY' : 'OFFLINE',
         }));
         setWallet((w) => ({
           ...w,
@@ -231,12 +231,12 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [authenticated]);
 
   const toggleShiftStatus = async () => {
-    const nextStatus = driver.shiftStatus === 'ONLINE' ? 0 : 1;
+    const nextStatus = driver.shiftStatus === 'ONLINE' ? 1 : 0;
     try {
       await driverApi.updateStatus(nextStatus);
       setDriver((prev) => ({
         ...prev,
-        shiftStatus: nextStatus === 1 ? 'ONLINE' : 'OFFLINE',
+        shiftStatus: nextStatus === 0 ? 'ONLINE' : 'OFFLINE',
       }));
     } catch (e) {
       console.error('Failed to update shift status:', e);

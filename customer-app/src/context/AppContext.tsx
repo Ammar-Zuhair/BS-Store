@@ -124,7 +124,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const mappedCats: Category[] = catsRes.map((c) => ({
         id: c.id,
         name: c.name,
-        icon: ICON_MAP[c.iconName] || c.iconName || '🛍️',
+        icon: ICON_MAP[c.iconName || c.icon || ''] || c.iconName || c.icon || '🛍️',
         itemCount: c.productsCount || 0,
       }));
 
@@ -244,6 +244,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
+        const storedOrders = await AsyncStorage.getItem('@bs_customer_orders');
+        if (storedOrders) {
+          try {
+            const parsedOrders = JSON.parse(storedOrders);
+            if (Array.isArray(parsedOrders) && parsedOrders.length > 0) {
+              setOrders(parsedOrders);
+              setCurrentOrder(parsedOrders[0]);
+            }
+          } catch {}
+        }
+
         const savedTheme = await AsyncStorage.getItem('@bs_theme_mode');
         if (savedTheme === 'dark') {
           setIsDarkMode(true);
@@ -278,6 +289,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (s === 'DRIVERASSIGNED' || s === 'DRIVER_ASSIGNED') return 'DRIVER_ASSIGNED';
       if (s === 'SEARCHINGDRIVER' || s === 'SEARCHING_DRIVER') return 'SEARCHING_DRIVER';
       if (s === 'CONFIRMED') return 'CONFIRMED';
+      if (s === 'PENDINGADMINAPPROVAL' || s === 'PENDING_ADMIN_APPROVAL') return 'PENDING_ADMIN_APPROVAL';
       if (s === 'PAYMENTPENDINGVERIFICATION' || s === 'PAYMENT_PENDING_VERIFICATION') return 'PAYMENT_PENDING_VERIFICATION';
       if (s === 'PENDINGPAYMENT' || s === 'PENDING_PAYMENT') return 'PENDING_PAYMENT';
       if (s === 'CANCELLED') return 'CANCELLED';
@@ -296,18 +308,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       case 9: return 'DELIVERED';
       case 10: return 'CANCELLED';
       case 11: return 'PAYMENT_FAILED';
+      case 13: return 'PENDING_ADMIN_APPROVAL';
       default: return 'CONFIRMED';
     }
   };
 
   const refreshOrders = async () => {
-    if (!isAuthenticated) return;
+    const token = api.getToken() || (await api.initToken());
+    if (!token && !isAuthenticated) return;
     try {
       const ordersRes = await ordersApi.getMyOrders();
+      if (!Array.isArray(ordersRes)) return;
       const mappedOrders: Order[] = ordersRes.map((o: any) => ({
         id: o.id,
         orderNumber: o.orderNumber,
-        createdAt: new Date(o.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
+        createdAt: o.createdAt
+          ? new Date(o.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })
+          : new Date().toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
         status: mapBackendOrderStatus(o.status),
         items: (o.subOrders || []).flatMap((so: any) =>
           (so.items || []).map((i: any) => ({
@@ -316,33 +333,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               storeId: so.storeId,
               storeName: so.storeName,
               categoryId: '',
-              name: i.productName,
+              name: i.productName || 'منتج',
               description: '',
-              sellingPrice: i.unitPrice,
-              imageUrl: '',
+              sellingPrice: i.unitPrice || 0,
+              imageUrl: i.imageUrl || '',
               sourceType: 'IN_STOCK' as const,
               inStock: true,
             },
-            quantity: i.quantity,
+            quantity: i.quantity || 1,
           }))
         ),
-        subtotal: o.subTotal,
-        deliveryFee: o.deliveryFee,
-        discount: o.discount,
-        totalAmount: o.totalAmount,
+        subtotal: o.subTotal || 0,
+        deliveryFee: o.deliveryFee || 0,
+        discount: o.discount || 0,
+        totalAmount: o.totalAmount || 0,
         address: {
           id: 'addr-order',
           label: 'المنزل',
-          city: o.deliveryAddress,
+          city: o.deliveryAddress || 'العنوان المحدد',
           district: '',
           street: '',
-          latitude: 15.34,
-          longitude: 44.20,
+          latitude: Number(o.customerLatitude ?? 15.34),
+          longitude: Number(o.customerLongitude ?? 44.20),
           isDefault: true,
         },
         paymentMethod: o.paymentMethod === 1 ? 'MANUAL_TRANSFER' : 'CASH_ON_DELIVERY',
         paymentStatus: o.paymentStatus === 2 ? 'VERIFIED' : o.paymentStatus === 3 ? 'REJECTED' : o.paymentStatus === 1 ? 'PAID' : 'PENDING',
         notes: o.notes,
+        customerRating: o.customerRating,
+        customerReview: o.customerReview,
         driver: o.driverName
           ? {
               id: 'drv',
@@ -356,6 +375,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
 
       setOrders(mappedOrders);
+      await AsyncStorage.setItem('@bs_customer_orders', JSON.stringify(mappedOrders));
       setCurrentOrder((prev) => {
         if (!prev) return mappedOrders[0] || null;
         const matching = mappedOrders.find((m) => m.id === prev.id);
@@ -365,6 +385,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('Failed to load orders from backend:', err);
     }
   };
+
+  // Fetch after session restoration/login has committed authenticated state.
+  // The direct calls in login/register can run against the previous state value.
+  useEffect(() => {
+    if (isAuthenticated) {
+      void refreshOrders();
+    } else {
+      setOrders([]);
+    }
+  }, [isAuthenticated]);
 
   const getItemKey = (item: CartItem) =>
     item.selectedPiece ? `${item.product.id}__piece__${item.selectedPiece.id}` : item.product.id;
@@ -600,7 +630,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: res.id,
         orderNumber: res.orderNumber,
         createdAt: new Date().toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
-        status: isManual ? 'PAYMENT_PENDING_VERIFICATION' : 'CONFIRMED',
+        status: mapBackendOrderStatus(res.status),
         items: [...cart],
         subtotal: res.subTotal,
         deliveryFee: res.deliveryFee,
@@ -613,7 +643,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         notes,
       };
 
-      setOrders((prev) => [newOrder, ...prev]);
+      setOrders((prev) => {
+        const next = [newOrder, ...prev.filter((o) => o.id !== newOrder.id)];
+        void AsyncStorage.setItem('@bs_customer_orders', JSON.stringify(next));
+        return next;
+      });
       setCurrentOrder(newOrder);
       await clearCart();
       navigateTo('tracking');
@@ -646,7 +680,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           notes,
         };
 
-        setOrders((prev) => [fallbackOrder, ...prev]);
+        setOrders((prev) => {
+          const next = [fallbackOrder, ...prev.filter((o) => o.id !== fallbackOrder.id)];
+          void AsyncStorage.setItem('@bs_customer_orders', JSON.stringify(next));
+          return next;
+        });
         setCurrentOrder(fallbackOrder);
         await clearCart();
         navigateTo('tracking');
@@ -718,6 +756,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await authApi.logout();
     } catch {}
     await AsyncStorage.removeItem('@bs_customer_user');
+    await AsyncStorage.removeItem('@bs_customer_orders');
     api.setToken(null);
     setUser(null);
     setIsAuthenticated(false);

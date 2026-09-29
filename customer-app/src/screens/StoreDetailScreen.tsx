@@ -358,6 +358,11 @@ export const StoreDetailScreen: React.FC = () => {
                 <Text style={styles.modalBundleDesc}>
                   {selectedBundleProduct.description}
                 </Text>
+                {deals.find((deal) => deal.id === selectedBundleProduct.id)?.expiresAt ? (
+                  <Text style={{ marginTop: 8, marginBottom: 12, color: themeColors.primary, textAlign: 'right', fontWeight: '700' }}>
+                    ينتهي العرض في {new Date(deals.find((deal) => deal.id === selectedBundleProduct.id)!.expiresAt!).toLocaleString('ar', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </Text>
+                ) : null}
 
                 {/* Option 1: Order Entire Bundle */}
                 <View style={styles.entireBundleBox}>

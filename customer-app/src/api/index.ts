@@ -76,7 +76,8 @@ export const authApi = {
 export interface ApiCategory {
   id: string;
   name: string;
-  iconName: string;
+  iconName?: string;
+  icon?: string;
   sortOrder: number;
   productsCount: number;
 }
@@ -250,6 +251,7 @@ export const ordersApi = {
 
   getMyOrders: () => api.get<any[]>('/orders'),
   getOrderDetails: (id: string) => api.get<any>(`/orders/${id}`),
+  submitReview: (id: string, rating: number, comment: string) => api.post<any>(`/orders/${id}/review`, { rating, comment }),
   cancelOrder: (id: string, reasonCode: string, description?: string) =>
     api.post<any>(`/orders/${id}/cancel`, { reasonCode, description }),
 };

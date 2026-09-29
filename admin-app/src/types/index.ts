@@ -79,6 +79,8 @@ export interface AdminOrder {
   transferReceiptUrl?: string;
   transferReference?: string;
   addressSummary: string;
+  customerRating?: number;
+  customerReview?: string;
 }
 
 export interface BankTransferRequest {

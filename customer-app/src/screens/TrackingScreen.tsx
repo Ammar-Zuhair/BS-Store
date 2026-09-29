@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,17 +11,22 @@ import {
   Platform,
   RefreshControl,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { Order, OrderStatusType } from '../types';
+import { ordersApi } from '../api';
 
 export const TrackingScreen: React.FC = () => {
   const { orders, navigateTo, currentOrder, setCurrentOrder, refreshOrders, colors: themeColors } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -33,6 +38,10 @@ export const TrackingScreen: React.FC = () => {
       setIsRefreshing(false);
     }
   };
+
+  useEffect(() => {
+    void handleRefresh();
+  }, []);
 
   const selectedOrder =
     (selectedOrderId ? orders.find((o) => o.id === selectedOrderId) : null) ||
@@ -79,6 +88,14 @@ export const TrackingScreen: React.FC = () => {
       case 'PAYMENT_PENDING_VERIFICATION':
         return {
           label: 'قيد المراجعة والتحقق ⏳',
+          bgColor: '#F57C0020',
+          textColor: '#E65100',
+          borderColor: '#F57C0040',
+          stepIndex: 0,
+        };
+      case 'PENDING_ADMIN_APPROVAL':
+        return {
+          label: 'بانتظار موافقة الإدارة ⏳',
           bgColor: '#F57C0020',
           textColor: '#E65100',
           borderColor: '#F57C0040',
@@ -329,6 +346,33 @@ export const TrackingScreen: React.FC = () => {
             })}
           </View>
 
+          {selectedOrder.status === 'DELIVERED' && (selectedOrder.customerRating ? (
+            <View style={styles.timelineCard}>
+              <Text style={styles.timelineTitle}>تقييمك: {'★'.repeat(selectedOrder.customerRating)} ({selectedOrder.customerRating}/5)</Text>
+              {!!selectedOrder.customerReview && <Text style={styles.stepDesc}>{selectedOrder.customerReview}</Text>}
+            </View>
+          ) : (
+            <View style={styles.timelineCard}>
+              <Text style={styles.timelineTitle}>كيف كانت تجربتك؟</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginVertical: 12 }}>
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <TouchableOpacity key={rating} onPress={() => setReviewRating(rating)}>
+                    <Text style={{ fontSize: 30, color: rating <= reviewRating ? '#F5B301' : '#BDBDBD' }}>★</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TextInput value={reviewComment} onChangeText={setReviewComment} placeholder="اكتب ملاحظتك عن الطلب" multiline style={{ minHeight: 72, textAlign: 'right', borderWidth: 1, borderColor: themeColors.outlineVariant, borderRadius: 12, padding: 12, color: themeColors.onSurface }} />
+              <TouchableOpacity disabled={isSubmittingReview || !reviewComment.trim()} onPress={async () => {
+                setIsSubmittingReview(true);
+                try { await ordersApi.submitReview(selectedOrder.id, reviewRating, reviewComment.trim()); await refreshOrders?.(); Alert.alert('شكراً لك', 'تم حفظ تقييمك للطلب'); setReviewComment(''); }
+                catch (error: any) { Alert.alert('تعذر حفظ التقييم', error?.message || 'حاول مرة أخرى'); }
+                finally { setIsSubmittingReview(false); }
+              }} style={{ backgroundColor: themeColors.primary, borderRadius: 12, padding: 13, alignItems: 'center', marginTop: 12, opacity: isSubmittingReview || !reviewComment.trim() ? 0.55 : 1 }}>
+                <Text style={{ color: '#fff', fontFamily: 'Tajawal_700Bold' }}>{isSubmittingReview ? 'جارٍ الحفظ...' : 'إرسال التقييم'}</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+
           {/* Items breakdown */}
           <View style={styles.itemsCard}>
             <Text style={styles.timelineTitle}>الأصناف المطلوبة</Text>
@@ -363,8 +407,7 @@ export const TrackingScreen: React.FC = () => {
             <Text style={styles.detailsTitle}>تفاصيل الطلب والعنوان</Text>
             <View style={styles.detailItem}>
               <Text style={styles.detailVal}>
-                {selectedOrder.address.city}، {selectedOrder.address.district} -{' '}
-                {selectedOrder.address.street}
+                {[selectedOrder.address?.city, selectedOrder.address?.district, selectedOrder.address?.street].filter(Boolean).join(' - ') || 'العنوان المحدد'}
               </Text>
               <Text style={styles.detailLbl}>وجهة التوصيل:</Text>
             </View>

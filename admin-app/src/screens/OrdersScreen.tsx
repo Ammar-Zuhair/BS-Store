@@ -98,7 +98,7 @@ export const OrdersScreen: React.FC = () => {
 
   const handleApproveOrder = async (order: AdminOrder) => {
     await approveOrder(order.id);
-    Alert.alert('تم القبول ✓', `تم قبول الطلب #${order.orderNumber} وإرساله للمندوبين`);
+    Alert.alert('تم القبول ✓', `تم قبول الطلب #${order.orderNumber}. عيّن المندوب من تفاصيل الطلب.`);
     setDetailOrder(null);
   };
 
@@ -326,6 +326,12 @@ export const OrdersScreen: React.FC = () => {
                   </Text>
                 </View>
 
+                {detailOrder.customerRating != null && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.sectionHeading}>⭐ تقييم العميل: {detailOrder.customerRating}/5</Text>
+                    <Text style={{ color: colors.onSurface, textAlign: 'right', fontFamily: 'Tajawal_500Medium' }}>{detailOrder.customerReview}</Text>
+                  </View>
+                )}
                 {/* Customer */}
                 <View style={styles.detailSection}>
                   <Text style={styles.sectionHeading}>👤 بيانات العميل والتوصيل</Text>
@@ -616,48 +622,11 @@ export const OrdersScreen: React.FC = () => {
             <View style={styles.alertCard}>
               <Text style={styles.alertCardTitle}>⚙️ إعدادات سير الطلبات</Text>
               <Text style={styles.alertCardSubtitle}>
-                اختر كيفية معالجة الطلبات الجديدة:
+                السياسة الحالية تجمع بين المراجعة اليدوية والحماية الآلية:
               </Text>
-
-              <TouchableOpacity
-                style={[
-                  styles.workflowOption,
-                  orderWorkflowMode === 'MANUAL_APPROVAL' && styles.workflowOptionActive,
-                ]}
-                onPress={() => setOrderWorkflowMode('MANUAL_APPROVAL')}
-              >
-                <View style={styles.workflowOptionLeft}>
-                  {orderWorkflowMode === 'MANUAL_APPROVAL'
-                    ? <Text style={styles.radioOn}>◉</Text>
-                    : <Text style={styles.radioOff}>○</Text>}
-                </View>
-                <View style={styles.workflowOptionBody}>
-                  <Text style={styles.workflowOptionTitle}>🔵 الوضع اليدوي (موصى به)</Text>
-                  <Text style={styles.workflowOptionDesc}>
-                    الطلبات تصلك أولاً للمراجعة والتأكيد، ثم تعين الكابتن يدوياً بعد التواصل مع العميل
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.workflowOption,
-                  orderWorkflowMode === 'AUTO_ASSIGN' && styles.workflowOptionActive,
-                ]}
-                onPress={() => setOrderWorkflowMode('AUTO_ASSIGN')}
-              >
-                <View style={styles.workflowOptionLeft}>
-                  {orderWorkflowMode === 'AUTO_ASSIGN'
-                    ? <Text style={styles.radioOn}>◉</Text>
-                    : <Text style={styles.radioOff}>○</Text>}
-                </View>
-                <View style={styles.workflowOptionBody}>
-                  <Text style={styles.workflowOptionTitle}>🟢 الوضع التلقائي</Text>
-                  <Text style={styles.workflowOptionDesc}>
-                    يُعيَّن الكابتن الأقرب تلقائياً فور وصول الطلب — مناسب عند الازدحام
-                  </Text>
-                </View>
-              </TouchableOpacity>
+              <Text style={styles.alertCardSubtitle}>
+                الطلبات العشرة الأولى لا تُقبل حتى توافق عليها الإدارة ثم تعيّن المندوب. بعد استلام العميل 10 طلبات، تُقبل الطلبات الجديدة آلياً وتُسند إلى مندوب متاح ذي أقل عدد من الطلبات النشطة.
+              </Text>
 
               <TouchableOpacity
                 style={[styles.alertConfirmRejectBtn, { marginTop: spacing.baseSm }]}
