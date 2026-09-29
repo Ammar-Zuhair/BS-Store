@@ -39,8 +39,7 @@ const buildLeafletHtml = (lat: number, lng: number) => `<!doctype html>
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';"/>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; background: #E8EBEF; overflow: hidden; }
@@ -93,59 +92,101 @@ const buildLeafletHtml = (lat: number, lng: number) => `<!doctype html>
     <div class="pin-tip"></div>
     <div class="gps-shadow"></div>
   </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    var map = L.map('map', {
-      center: [${lat}, ${lng}],
-      zoom: 16,
-      zoomControl: false,
-      attributionControl: false
-    });
-
-    window.map = map;
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      subdomains: ['a', 'b', 'c']
-    }).addTo(map);
-
-    var reportTimer = null;
-    function reportCenter() {
-      if (reportTimer) clearTimeout(reportTimer);
-      reportTimer = setTimeout(function() {
-        try {
-          var center = map.getCenter();
-          var payload = JSON.stringify({
-            latitude: center.lat,
-            longitude: center.lng
-          });
-          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-            window.ReactNativeWebView.postMessage(payload);
-          }
-          if (window.parent && window.parent !== window) {
-            window.parent.postMessage(payload, '*');
-          }
-        } catch(e){}
-      }, 80);
+    function startLeaflet() {
+      if (typeof L === 'undefined') {
+        var s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+        s.onload = initMap;
+        document.head.appendChild(s);
+      } else {
+        initMap();
+      }
     }
 
-    map.on('moveend', reportCenter);
-    map.on('zoomend', reportCenter);
+    function initMap() {
+      if (typeof L === 'undefined') return;
+      var map = L.map('map', {
+        center: [${lat}, ${lng}],
+        zoom: 16,
+        zoomControl: false,
+        attributionControl: false,
+        fadeAnimation: true,
+        zoomAnimation: true
+      });
+      window.map = map;
 
-    window.addEventListener('message', function(event) {
-      try {
-        var data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (data && data.action === 'panTo') {
-          map.setView([data.lat, data.lng], 16, { animate: true });
+      // CartoDB Voyager tiles (Fast, worldwide CDN, high-contrast Arabic labels)
+      var cartoVoyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        subdomains: ['a', 'b', 'c', 'd'],
+        attribution: '© OpenStreetMap, © CartoDB'
+      });
+
+      // OSM standard fallback
+      var osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        subdomains: ['a', 'b', 'c'],
+        attribution: '© OpenStreetMap'
+      });
+
+      cartoVoyager.on('tileerror', function() {
+        if (!map.hasLayer(osmStandard)) {
+          osmStandard.addTo(map);
         }
-      } catch(e){}
-    });
+      });
 
-    setTimeout(function() {
-      map.invalidateSize();
-    }, 250);
-    setTimeout(function() {
-      map.invalidateSize();
-    }, 700);
+      cartoVoyager.addTo(map);
+
+      var reportTimer = null;
+      function reportCenter() {
+        if (reportTimer) clearTimeout(reportTimer);
+        reportTimer = setTimeout(function() {
+          try {
+            var center = map.getCenter();
+            var payload = JSON.stringify({
+              latitude: center.lat,
+              longitude: center.lng
+            });
+            if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+              window.ReactNativeWebView.postMessage(payload);
+            }
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage(payload, '*');
+            }
+          } catch(e){}
+        }, 80);
+      }
+
+      map.on('moveend', reportCenter);
+      map.on('zoomend', reportCenter);
+
+      window.addEventListener('message', function(event) {
+        try {
+          var data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+          if (data && data.action === 'panTo') {
+            map.setView([data.lat, data.lng], 16, { animate: true });
+          }
+        } catch(e){}
+      });
+
+      function triggerResize() {
+        try { map.invalidateSize(); } catch(e){}
+      }
+
+      setTimeout(triggerResize, 150);
+      setTimeout(triggerResize, 400);
+      setTimeout(triggerResize, 900);
+      window.addEventListener('resize', triggerResize);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startLeaflet);
+    } else {
+      startLeaflet();
+    }
   </script>
 </body>
 </html>`;
@@ -441,11 +482,28 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               key={`admin-leaflet-webview-${sessionKey}`}
               ref={webViewRef}
               originWhitelist={['*']}
-              source={{ html: leafletHtml }}
+              source={{
+                html: leafletHtml,
+                baseUrl: 'https://unpkg.com',
+              }}
               onMessage={handleWebViewMessage}
-              style={styles.mapAbsolute}
+              style={[styles.mapAbsolute, { width: '100%', height: '100%', flex: 1 }]}
+              containerStyle={{ width: '100%', height: '100%', flex: 1 }}
               javaScriptEnabled={true}
               domStorageEnabled={true}
+              scalesPageToFit={false}
+              scrollEnabled={false}
+              overScrollMode="never"
+              mixedContentMode="always"
+              allowFileAccess={true}
+              allowUniversalAccessFromFileURLs={true}
+              startInLoadingState={true}
+              renderLoading={() => (
+                <View style={styles.mapLoader}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.mapLoaderText}>جاري تحميل الخريطة...</Text>
+                </View>
+              )}
             />
           )}
 
@@ -611,8 +669,11 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     flex: 1,
+    width: '100%',
+    height: '100%',
     position: 'relative',
     backgroundColor: colors.surfaceContainer,
+    overflow: 'hidden',
   },
   mapAbsolute: {
     position: 'absolute',
@@ -620,6 +681,25 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  mapLoader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.surfaceContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+  },
+  mapLoaderText: {
+    fontFamily: typography.fontFamily.medium,
+    fontSize: 13,
+    color: colors.onSurfaceVariant,
+    marginTop: 8,
   },
   searchFloatingWrap: {
     position: 'absolute',
