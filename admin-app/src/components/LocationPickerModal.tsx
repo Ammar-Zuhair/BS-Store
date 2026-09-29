@@ -43,6 +43,121 @@ const SANAA_PRESETS = [
   { name: 'حي مذبح', lat: 15.3720, lng: 44.1680 },
 ];
 
+const buildLeafletHtml = (lat: number, lng: number) => `<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; background: #E8EBEF; overflow: hidden; }
+    .center-pin-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -100%);
+      pointer-events: none;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .pin-head {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #181A1E;
+      border: 3px solid #F59E0B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+      color: #FFFFFF;
+      font-size: 18px;
+    }
+    .pin-tip {
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 11px solid #181A1E;
+      margin-top: -2px;
+    }
+    .gps-shadow {
+      width: 18px;
+      height: 6px;
+      background: rgba(0,0,0,0.28);
+      border-radius: 50%;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="center-pin-container">
+    <div class="pin-head">🏪</div>
+    <div class="pin-tip"></div>
+    <div class="gps-shadow"></div>
+  </div>
+  <script>
+    var map = L.map('map', {
+      center: [${lat}, ${lng}],
+      zoom: 16,
+      zoomControl: false,
+      attributionControl: false
+    });
+
+    window.map = map;
+
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    var reportTimer = null;
+    function reportCenter() {
+      if (reportTimer) clearTimeout(reportTimer);
+      reportTimer = setTimeout(function() {
+        try {
+          var center = map.getCenter();
+          var payload = JSON.stringify({
+            latitude: center.lat,
+            longitude: center.lng
+          });
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            window.ReactNativeWebView.postMessage(payload);
+          }
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage(payload, '*');
+          }
+        } catch(err){}
+      }, 80);
+    }
+
+    map.on('moveend', reportCenter);
+    map.on('zoomend', reportCenter);
+
+    window.addEventListener('message', function(event) {
+      try {
+        var data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data && data.action === 'panTo') {
+          map.setView([data.lat, data.lng], 16, { animate: true });
+        }
+      } catch(e){}
+    });
+
+    setTimeout(function() {
+      map.invalidateSize();
+    }, 250);
+    setTimeout(function() {
+      map.invalidateSize();
+    }, 700);
+  </script>
+</body>
+</html>`;
+
 export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   visible,
   onClose,
@@ -52,6 +167,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   onConfirm,
   title = 'تحديد موقع المتجر على الخريطة',
 }) => {
+  const [sessionKey, setSessionKey] = useState<number>(0);
+  const initialCoordsRef = useRef({ lat: initialLat, lng: initialLng });
   const [currentLat, setCurrentLat] = useState<number>(initialLat);
   const [currentLng, setCurrentLng] = useState<number>(initialLng);
   const [currentDistrict, setCurrentDistrict] = useState<string>(initialDistrict);
@@ -60,29 +177,26 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const [searchResults, setSearchResults] = useState<Array<{ name: string; lat: number; lng: number }>>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
 
+  const iframeRef = useRef<any>(null);
   const webViewRef = useRef<WebView>(null);
   const searchTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
     if (visible) {
+      initialCoordsRef.current = { lat: initialLat, lng: initialLng };
       setCurrentLat(initialLat);
       setCurrentLng(initialLng);
       setCurrentDistrict(initialDistrict);
       setSearchQuery('');
       setSearchResults([]);
+      setSessionKey((prev) => prev + 1);
     }
   }, [visible, initialLat, initialLng, initialDistrict]);
 
   const panMapTo = (lat: number, lng: number) => {
-    const js = `
-      if (window.map) {
-        window.map.setView([${lat}, ${lng}], 16, { animate: true });
-      }
-      true;
-    `;
     if (Platform.OS === 'web') {
       try {
-        const iframe = document.getElementById('admin-leaflet-iframe') as HTMLIFrameElement;
+        const iframe = iframeRef.current || (document.getElementById('admin-leaflet-iframe') as HTMLIFrameElement);
         if (iframe && iframe.contentWindow) {
           iframe.contentWindow.postMessage(JSON.stringify({ action: 'panTo', lat, lng }), '*');
         }
@@ -90,6 +204,12 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         console.warn('Web panMapTo err:', err);
       }
     } else {
+      const js = `
+        if (window.map) {
+          window.map.setView([${lat}, ${lng}], 16, { animate: true });
+        }
+        true;
+      `;
       webViewRef.current?.injectJavaScript(js);
     }
   };
@@ -249,108 +369,11 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     onClose();
   };
 
-  const leafletHtml = `<!doctype html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #map { width: 100%; height: 100%; background: #E8EBEF; }
-    .center-pin-container {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -100%);
-      pointer-events: none;
-      z-index: 1000;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .pin-head {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: #181A1E;
-      border: 3px solid #F59E0B;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.35);
-      color: #FFFFFF;
-      font-size: 16px;
-    }
-    .pin-tip {
-      width: 0;
-      height: 0;
-      border-left: 7px solid transparent;
-      border-right: 7px solid transparent;
-      border-top: 11px solid #181A1E;
-      margin-top: -2px;
-    }
-    .gps-shadow {
-      width: 18px;
-      height: 6px;
-      background: rgba(0,0,0,0.28);
-      border-radius: 50%;
-      margin-top: 2px;
-    }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <div class="center-pin-container">
-    <div class="pin-head">🏪</div>
-    <div class="pin-tip"></div>
-    <div class="gps-shadow"></div>
-  </div>
-  <script>
-    var initialLat = ${currentLat};
-    var initialLng = ${currentLng};
-
-    var map = L.map('map', {
-      center: [initialLat, initialLng],
-      zoom: 16,
-      zoomControl: false,
-      attributionControl: false
-    });
-
-    window.map = map;
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19
-    }).addTo(map);
-
-    function reportCenter() {
-      var center = map.getCenter();
-      var payload = JSON.stringify({
-        latitude: center.lat,
-        longitude: center.lng
-      });
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(payload);
-      }
-      if (window.parent && window.parent !== window) {
-        window.parent.postMessage(payload, '*');
-      }
-    }
-
-    map.on('moveend', reportCenter);
-
-    window.addEventListener('message', function(event) {
-      try {
-        var data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (data && data.action === 'panTo') {
-          map.setView([data.lat, data.lng], 16, { animate: true });
-        }
-      } catch(e){}
-    });
-  </script>
-</body>
-</html>`;
+  const leafletHtml = React.useMemo(() => {
+    const lat = initialCoordsRef.current.lat || 15.3500;
+    const lng = initialCoordsRef.current.lng || 44.2050;
+    return buildLeafletHtml(lat, lng);
+  }, [sessionKey]);
 
   return (
     <Modal
@@ -376,12 +399,25 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           <View style={styles.mapFrame}>
             {Platform.OS === 'web' ? (
               React.createElement('iframe', {
+                key: `admin-leaflet-iframe-${sessionKey}`,
+                ref: iframeRef,
                 id: 'admin-leaflet-iframe',
                 srcDoc: leafletHtml,
-                style: { width: '100%', height: '100%', border: 'none' },
+                style: {
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  display: 'block',
+                },
               })
             ) : (
               <WebView
+                key={`admin-leaflet-webview-${sessionKey}`}
                 ref={webViewRef}
                 originWhitelist={['*']}
                 source={{ html: leafletHtml }}
