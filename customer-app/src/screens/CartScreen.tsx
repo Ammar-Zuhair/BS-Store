@@ -16,7 +16,9 @@ export const CartScreen: React.FC = () => {
     cartDiscount,
     cartTotal,
     promoCode,
+    promoMessage: contextPromoMessage,
     applyPromoCode,
+    clearPromoCode,
     navigateTo,
     isAuthenticated,
     colors: themeColors,
@@ -25,16 +27,22 @@ export const CartScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [inputCode, setInputCode] = useState(promoCode);
-  const [promoMessage, setPromoMessage] = useState<string | null>(null);
+  const [localPromoMessage, setLocalPromoMessage] = useState<string | null>(null);
 
   const handleApplyPromo = async () => {
     if (!inputCode.trim()) return;
-    const success = await applyPromoCode(inputCode);
+    const success = await applyPromoCode(inputCode.trim());
     if (success) {
-      setPromoMessage('تم التحقق من الكود وتفعيله بنجاح');
+      setLocalPromoMessage(null);
     } else {
-      setPromoMessage('كود الخصم غير صالح أو منتهي');
+      setLocalPromoMessage('كود الخصم أو رمز الاسترداد غير صالح أو منتهي');
     }
+  };
+
+  const handleClearPromo = () => {
+    clearPromoCode();
+    setInputCode('');
+    setLocalPromoMessage(null);
   };
 
   return (
@@ -135,30 +143,45 @@ export const CartScreen: React.FC = () => {
           <View style={styles.promoCard}>
             <Text style={styles.promoTitle}>كوبون الخصم</Text>
             <View style={styles.promoInputRow}>
-              <TouchableOpacity
-                style={styles.applyBtn}
-                onPress={handleApplyPromo}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.applyBtnText}>تطبيق</Text>
-              </TouchableOpacity>
+              {promoCode ? (
+                <TouchableOpacity
+                  style={[styles.applyBtn, { backgroundColor: themeColors.error }]}
+                  onPress={handleClearPromo}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.applyBtnText}>إلغاء</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.applyBtn}
+                  onPress={handleApplyPromo}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.applyBtnText}>تطبيق</Text>
+                </TouchableOpacity>
+              )}
               <TextInput
                 style={styles.promoInput}
-                placeholder="أدخل كود الخصم (مثال: BS_FREE أو BS_2026)"
+                placeholder="أدخل رمز الاسترداد أو كود الخصم"
                 placeholderTextColor={themeColors.outline}
-                value={inputCode}
-                onChangeText={setInputCode}
+                value={promoCode || inputCode}
+                editable={!promoCode}
+                onChangeText={(val) => {
+                  setInputCode(val);
+                  setLocalPromoMessage(null);
+                }}
+                autoCapitalize="characters"
                 textAlign="right"
               />
             </View>
-            {promoMessage && (
+            {(contextPromoMessage || localPromoMessage) && (
               <Text
                 style={[
                   styles.promoMsgText,
                   promoCode ? styles.promoSuccess : styles.promoError,
                 ]}
               >
-                {promoMessage}
+                {contextPromoMessage || localPromoMessage}
               </Text>
             )}
           </View>

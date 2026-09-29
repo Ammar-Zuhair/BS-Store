@@ -256,6 +256,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           addressSummary: o.deliveryAddress || o.addressSummary || 'صنعاء، اليمن',
           customerRating: o.customerRating,
           customerReview: o.customerReview,
+          notes: o.notes,
           subOrders: (o.subOrders || []).map((so: any) => ({
             id: so.id,
             storeId: so.storeId,
@@ -517,6 +518,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isFreeDelivery: d.isFreeDelivery,
           products: Array.isArray(d.products) ? d.products : [],
           couponCode: d.couponCode,
+          discountTiers: Array.isArray(d.discountTiers) ? d.discountTiers : undefined,
           isPublic: d.isPublic !== false,
           expiresAt: d.expiresAt,
         }));

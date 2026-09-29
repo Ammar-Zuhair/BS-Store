@@ -45,7 +45,10 @@ interface AppContextType {
   cartDiscount: number;
   cartTotal: number;
   promoCode: string;
+  promoMessage: string | null;
+  isTieredPromo: boolean;
   applyPromoCode: (code: string) => Promise<boolean>;
+  clearPromoCode: () => void;
   activateDeliveryDeal: (dealId: string, percent: number) => void;
   addresses: Address[];
   selectedAddress: Address | null;
@@ -96,6 +99,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [promoCode, setPromoCode] = useState<string>('');
+  const [promoMessage, setPromoMessage] = useState<string | null>(null);
+  const [isTieredPromo, setIsTieredPromo] = useState<boolean>(false);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [isFreeDeliveryPromo, setIsFreeDeliveryPromo] = useState<boolean>(false);
   const [deliveryDiscountPercent, setDeliveryDiscountPercent] = useState(0);
@@ -536,10 +541,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const applyPromoCode = async (code: string): Promise<boolean> => {
     try {
-      const result = await ordersApi.validateCouponCode(code.trim());
+      const result = await ordersApi.validateCouponCode(code.trim(), cartSubtotal);
       const percent = Math.min(100, Math.max(0, Number(result.discountPercent) || 0));
       setPromoCode(result.code);
       setDeliveryPromoDealId(null);
+      setIsTieredPromo(Boolean(result.isTiered));
+      setPromoMessage(result.message || null);
       if (result.discountKind === 'DELIVERY_DISCOUNT') {
         setDeliveryDiscountPercent(percent);
         setDiscountPercent(0);
@@ -551,9 +558,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return percent > 0;
     } catch {
+      setPromoMessage(null);
       return false;
     }
   };
+
+  const clearPromoCode = () => {
+    setPromoCode('');
+    setDiscountPercent(0);
+    setDeliveryDiscountPercent(0);
+    setIsFreeDeliveryPromo(false);
+    setDeliveryPromoDealId(null);
+    setPromoMessage(null);
+    setIsTieredPromo(false);
+  };
+
+  useEffect(() => {
+    if (promoCode && isTieredPromo && cartSubtotal > 0) {
+      ordersApi.validateCouponCode(promoCode, cartSubtotal)
+        .then((res) => {
+          const pct = Math.min(100, Math.max(0, Number(res.discountPercent) || 0));
+          setDiscountPercent(pct);
+          setPromoMessage(res.message || null);
+        })
+        .catch(() => {});
+    }
+  }, [cartSubtotal, promoCode, isTieredPromo]);
 
   const activateDeliveryDeal = (dealId: string, percent: number) => {
     setDeliveryPromoDealId(dealId);
@@ -561,6 +591,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDiscountPercent(0);
     setIsFreeDeliveryPromo(percent >= 100);
     setPromoCode('');
+    setPromoMessage(null);
+    setIsTieredPromo(false);
   };
 
   const addNewAddress = async (addr: Omit<Address, 'id'>) => {
@@ -793,7 +825,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cartDiscount,
         cartTotal,
         promoCode,
+        promoMessage,
+        isTieredPromo,
         applyPromoCode,
+        clearPromoCode,
         activateDeliveryDeal,
         isFreeDeliveryPromo,
         addresses,

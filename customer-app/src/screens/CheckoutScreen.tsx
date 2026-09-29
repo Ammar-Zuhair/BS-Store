@@ -16,6 +16,10 @@ export const CheckoutScreen: React.FC = () => {
     cartSubtotal,
     cartDiscount,
     cartSubOrders,
+    promoCode,
+    promoMessage,
+    applyPromoCode,
+    clearPromoCode,
     placeOrder,
     navigateTo,
     isAuthenticated,
@@ -30,6 +34,33 @@ export const CheckoutScreen: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [inputCoupon, setInputCoupon] = useState('');
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [couponStatusMsg, setCouponStatusMsg] = useState<string | null>(null);
+
+  const handleApplyCoupon = async () => {
+    if (!inputCoupon.trim()) return;
+    setIsApplyingCoupon(true);
+    setCouponStatusMsg(null);
+    try {
+      const ok = await applyPromoCode(inputCoupon.trim());
+      if (ok) {
+        setCouponStatusMsg('تم تفعيل رمز الخصم بنجاح ✓');
+        setInputCoupon('');
+      } else {
+        setCouponStatusMsg('رمز الاسترداد أو كود الخصم غير صالح أو منتهي');
+      }
+    } catch {
+      setCouponStatusMsg('تعذر التحقق من الكود حالياً');
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleClearPromo = () => {
+    clearPromoCode();
+    setCouponStatusMsg(null);
+  };
 
   const handleSimulateUpload = () => {
     setReceiptAttached(true);
@@ -234,6 +265,70 @@ export const CheckoutScreen: React.FC = () => {
                   {receiptAttached ? '✓ تم إرفاق صورة الإشعار بنجاح' : '📷 إرفاق صورة إشعار التحويل'}
                 </Text>
               </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* Promo / Redemption Code Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View />
+            <View style={styles.headerRight}>
+              <Text style={styles.cardTitle}>كود الخصم / رمز الاسترداد</Text>
+              <Text style={styles.headerIcon}>🏷️</Text>
+            </View>
+          </View>
+
+          {promoCode ? (
+            <View style={styles.activePromoWrap}>
+              <View style={styles.activePromoHeader}>
+                <TouchableOpacity onPress={handleClearPromo} style={styles.removePromoBtn}>
+                  <Text style={styles.removePromoBtnText}>✕ إلغاء الكود</Text>
+                </TouchableOpacity>
+                <View style={styles.promoBadge}>
+                  <Text style={styles.promoBadgeText}>✓ {promoCode}</Text>
+                </View>
+              </View>
+              {!!promoMessage && (
+                <Text style={styles.promoMessageText}>{promoMessage}</Text>
+              )}
+              {cartDiscount > 0 && (
+                <Text style={styles.promoSavingText}>
+                  تم توفير {cartDiscount.toLocaleString()} ر.ي من إجمالي الطلب
+                </Text>
+              )}
+            </View>
+          ) : (
+            <View>
+              <View style={styles.promoInputRow}>
+                <TouchableOpacity
+                  style={[styles.applyPromoBtn, (!inputCoupon.trim() || isApplyingCoupon) && styles.applyPromoBtnDisabled]}
+                  onPress={handleApplyCoupon}
+                  disabled={!inputCoupon.trim() || isApplyingCoupon}
+                  activeOpacity={0.8}
+                >
+                  {isApplyingCoupon ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.applyPromoBtnText}>تطبيق الخصم</Text>
+                  )}
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.textInput, styles.promoTextInput]}
+                  placeholder="أدخل رمز الاسترداد أو كود الخصم"
+                  placeholderTextColor={themeColors.outline}
+                  value={inputCoupon}
+                  onChangeText={(val) => {
+                    setInputCoupon(val);
+                    setCouponStatusMsg(null);
+                  }}
+                  autoCapitalize="characters"
+                  textAlign="right"
+                />
+              </View>
+              {couponStatusMsg && (
+                <Text style={styles.couponStatusMsgText}>{couponStatusMsg}</Text>
+              )}
             </View>
           )}
         </View>
@@ -621,5 +716,84 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.onPrimary,
     fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.bold,
+  },
+  activePromoWrap: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.md,
+    padding: spacing.baseSm,
+    borderWidth: 1,
+    borderColor: '#10B98150',
+  },
+  activePromoHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  promoBadge: {
+    backgroundColor: '#10B981',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  promoBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: typography.fontWeight.bold,
+  },
+  removePromoBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  removePromoBtnText: {
+    color: colors.error,
+    fontSize: 12,
+    fontWeight: typography.fontWeight.medium,
+  },
+  promoMessageText: {
+    fontSize: 12,
+    color: colors.primary,
+    textAlign: 'right',
+    marginTop: 4,
+    fontWeight: typography.fontWeight.medium,
+  },
+  promoSavingText: {
+    fontSize: 12,
+    color: '#10B981',
+    textAlign: 'right',
+    marginTop: 2,
+    fontWeight: typography.fontWeight.bold,
+  },
+  promoInputRow: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+    alignItems: 'center',
+  },
+  promoTextInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  applyPromoBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: 14,
+    height: 42,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  applyPromoBtnDisabled: {
+    opacity: 0.5,
+  },
+  applyPromoBtnText: {
+    color: colors.onPrimary,
+    fontSize: 12,
+    fontWeight: typography.fontWeight.bold,
+  },
+  couponStatusMsgText: {
+    fontSize: 11,
+    color: colors.error,
+    textAlign: 'right',
+    marginTop: 6,
+    paddingRight: 4,
   },
 });

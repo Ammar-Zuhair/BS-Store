@@ -81,6 +81,7 @@ export interface AdminOrder {
   addressSummary: string;
   customerRating?: number;
   customerReview?: string;
+  notes?: string;
 }
 
 export interface BankTransferRequest {
@@ -141,6 +142,12 @@ export interface DeliverySettings {
   isDynamicPricingEnabled: boolean;
 }
 
+export interface DiscountTier {
+  minAmount: number;
+  maxAmount?: number | null;
+  discountPercent: number;
+}
+
 export interface AdminFlashDeal {
   id: string;
   title: string;
@@ -162,6 +169,7 @@ export interface AdminFlashDeal {
   dealKind?: string;
   discountKind?: 'DELIVERY_DISCOUNT' | 'PRODUCT_DISCOUNT';
   deliveryDiscountPercent?: number;
+  discountTiers?: DiscountTier[];
   description?: string;
   badge?: string;
   isFreeDelivery?: boolean;

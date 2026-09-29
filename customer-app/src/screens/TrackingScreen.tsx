@@ -425,6 +425,14 @@ export const TrackingScreen: React.FC = () => {
               </Text>
               <Text style={styles.detailLbl}>إجمالي المبلغ:</Text>
             </View>
+            {!!selectedOrder.notes && (
+              <View style={[styles.detailItem, { flexDirection: 'column', alignItems: 'flex-end', gap: 4, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: themeColors.outlineVariant + '30' }]}>
+                <Text style={styles.detailLbl}>📝 ملاحظاتك المسجلة على الطلب:</Text>
+                <Text style={[styles.detailVal, { color: themeColors.primary, textAlign: 'right', fontFamily: 'Tajawal_500Medium' }]}>
+                  {selectedOrder.notes}
+                </Text>
+              </View>
+            )}
           </View>
 
           <TouchableOpacity
@@ -596,6 +604,14 @@ export const TrackingScreen: React.FC = () => {
                     </Text>
                     <Text style={styles.infoLbl}>العنوان:</Text>
                   </View>
+                  {!!order.notes && (
+                    <View style={styles.infoRow}>
+                      <Text style={[styles.infoVal, { color: themeColors.primary }]} numberOfLines={1}>
+                        {order.notes}
+                      </Text>
+                      <Text style={styles.infoLbl}>ملاحظاتك:</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Footer: Amount & Action Link */}

@@ -48,8 +48,9 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
 
 // ── Deal types ───────────────────────────────────────────────────────────────
 const DEAL_TYPES = [
+  { id: 'delivery', label: 'خصم من رسوم التوصيل', icon: '🚚' },
+  { id: 'order_discount', label: 'خصم من إجمالي الطلب (شرائح / كود)', icon: '🏷️' },
   { id: 'bundle', label: 'باقة منتجات', icon: '📦' },
-  { id: 'delivery', label: 'خصم على التوصيل', icon: '🚚' },
 ];
 
 const DEAL_VISIBILITY = [
@@ -314,6 +315,14 @@ export const InventoryScreen: React.FC = () => {
   const [showDealTimePicker, setShowDealTimePicker] = useState(false);
   const [deliveryDiscountPercent, setDeliveryDiscountPercent] = useState('');
   const [dealIsPublic, setDealIsPublic] = useState(true);
+  const [dealCouponCode, setDealCouponCode] = useState('');
+  const [dealDiscountPercent, setDealDiscountPercent] = useState('');
+  const [isTieredDiscount, setIsTieredDiscount] = useState(false);
+  const [dealTiers, setDealTiers] = useState<Array<{ minAmount: string; maxAmount: string; discountPercent: string }>>([
+    { minAmount: '0', maxAmount: '10000', discountPercent: '20' },
+    { minAmount: '10000', maxAmount: '25000', discountPercent: '15' },
+    { minAmount: '25000', maxAmount: '', discountPercent: '10' },
+  ]);
   // Bundle items
   const [bundleItems, setBundleItems] = useState<{ name: string; price: string; imageUrl?: string }[]>([]);
   const [bundleItemName, setBundleItemName] = useState('');
@@ -435,8 +444,10 @@ export const InventoryScreen: React.FC = () => {
   const handleEditDeal = (deal: AdminFlashDeal) => {
     const expiry = deal.expiresAt ? new Date(deal.expiresAt) : null;
     const validExpiry = expiry && Number.isFinite(expiry.getTime());
+    const isDelivery = deal.dealKind === 'DELIVERY_DISCOUNT' || deal.dealType === 'DELIVERY_DISCOUNT' || deal.discountKind === 'DELIVERY_DISCOUNT';
+    const isOrderDisc = deal.dealKind === 'PRODUCT_DISCOUNT' || deal.dealType === 'PRODUCT_DISCOUNT' || deal.discountKind === 'PRODUCT_DISCOUNT';
     setEditingDeal(deal);
-    setDealType(deal.dealKind === 'DELIVERY_DISCOUNT' || deal.dealType === 'DELIVERY_DISCOUNT' ? 'delivery' : 'bundle');
+    setDealType(isDelivery ? 'delivery' : isOrderDisc ? 'order_discount' : 'bundle');
     setDealVisibility(deal.visibility || 'home');
     setDealTitle(deal.title || '');
     setDealStore(deal.storeId || '');
@@ -447,6 +458,25 @@ export const InventoryScreen: React.FC = () => {
     setDeliveryDiscountPercent(String(deal.deliveryDiscountPercent || 0));
     setDealIsPublic(deal.isPublic !== false);
     setDealImageUrl(deal.imageUrl || '');
+    setDealCouponCode(deal.couponCode || '');
+    setDealDiscountPercent(deal.discountPercent ? String(deal.discountPercent) : '');
+    if (deal.discountTiers && deal.discountTiers.length > 0) {
+      setIsTieredDiscount(true);
+      setDealTiers(
+        deal.discountTiers.map((t) => ({
+          minAmount: String(t.minAmount ?? 0),
+          maxAmount: t.maxAmount != null ? String(t.maxAmount) : '',
+          discountPercent: String(t.discountPercent ?? 0),
+        }))
+      );
+    } else {
+      setIsTieredDiscount(false);
+      setDealTiers([
+        { minAmount: '0', maxAmount: '10000', discountPercent: '20' },
+        { minAmount: '10000', maxAmount: '25000', discountPercent: '15' },
+        { minAmount: '25000', maxAmount: '', discountPercent: '10' },
+      ]);
+    }
     setBundleItems((deal.products?.length ? deal.products : deal.bundleItems || []).map((item) => ({
       name: item.name,
       price: String(item.price ?? 0),
@@ -465,7 +495,39 @@ export const InventoryScreen: React.FC = () => {
       return;
     }
     const isBundle = dealType === 'bundle';
+    const isDelivery = dealType === 'delivery';
+    const isOrderDisc = dealType === 'order_discount';
     const finalPrice = isBundle ? (disc > 0 ? disc : totalBundlePrice) : 0;
+
+    let parsedTiers: Array<{ minAmount: number; maxAmount?: number | null; discountPercent: number }> | undefined;
+    let orderDiscountPct = 0;
+
+    if (isOrderDisc) {
+      if (isTieredDiscount) {
+        if (dealTiers.length === 0) {
+          Alert.alert('تنبيه', 'أضف شريحة خصم واحدة على الأقل');
+          return;
+        }
+        parsedTiers = dealTiers.map((t) => ({
+          minAmount: parseFloat(t.minAmount) || 0,
+          maxAmount: t.maxAmount.trim() ? parseFloat(t.maxAmount) || null : null,
+          discountPercent: Math.round(parseFloat(t.discountPercent) || 0),
+        }));
+        const invalidTier = parsedTiers.find((t) => t.discountPercent <= 0 || t.discountPercent > 100);
+        if (invalidTier) {
+          Alert.alert('تنبيه', 'نسبة الخصم في كل شريحة يجب أن تكون بين 1% و 100%');
+          return;
+        }
+        orderDiscountPct = parsedTiers[0].discountPercent;
+      } else {
+        orderDiscountPct = Math.round(parseFloat(dealDiscountPercent) || 0);
+        if (orderDiscountPct < 1 || orderDiscountPct > 100) {
+          Alert.alert('تنبيه', 'أدخل نسبة خصم من 1 إلى 100');
+          return;
+        }
+      }
+    }
+
     if (isBundle && bundleItems.length === 0) {
       Alert.alert('تنبيه', 'أضف منتجاً واحداً على الأقل إلى الباقة');
       return;
@@ -475,36 +537,60 @@ export const InventoryScreen: React.FC = () => {
       return;
     }
     if (isBundle && !dealStore) { Alert.alert('تنبيه', 'يرجى ربط الباقة بمتجر'); return; }
+
     const deliveryPct = Math.round(Number(deliveryDiscountPercent));
-    if (!isBundle && (!Number.isFinite(deliveryPct) || deliveryPct < 1 || deliveryPct > 100)) {
+    if (isDelivery && (!Number.isFinite(deliveryPct) || deliveryPct < 1 || deliveryPct > 100)) {
       Alert.alert('تنبيه', 'أدخل نسبة خصم توصيل من 1 إلى 100');
       return;
     }
 
+    const codeUpper = dealCouponCode.trim() ? dealCouponCode.trim().toUpperCase() : undefined;
+
     setIsSavingDeal(true);
     try {
       const dealData: Omit<AdminFlashDeal, 'id'> = {
-        title: dealTitle,
+        title: dealTitle.trim(),
         storeName: isBundle ? (stores.find((s) => s.id === dealStore)?.name || 'متجر') : 'منصة متجر بي اس',
         storeId: isBundle ? dealStore : undefined,
         categoryId: dealCatId || undefined,
         visibility: dealVisibility,
-        dealKind: isBundle ? 'BUNDLE' : 'DELIVERY_DISCOUNT',
-        dealType: isBundle ? 'BUNDLE' : 'DELIVERY_DISCOUNT',
-        deliveryDiscountPercent: isBundle ? undefined : deliveryPct,
+        dealKind: isBundle ? 'BUNDLE' : isDelivery ? 'DELIVERY_DISCOUNT' : 'PRODUCT_DISCOUNT',
+        dealType: isBundle ? 'BUNDLE' : isDelivery ? 'DELIVERY_DISCOUNT' : 'PRODUCT_DISCOUNT',
+        discountKind: isDelivery ? 'DELIVERY_DISCOUNT' : isOrderDisc ? 'PRODUCT_DISCOUNT' : undefined,
+        couponCode: codeUpper,
+        deliveryDiscountPercent: isDelivery ? deliveryPct : undefined,
+        discountTiers: isOrderDisc && isTieredDiscount ? parsedTiers : undefined,
         bundleItems: bundleItems.map((item) => ({ name: item.name, price: Number(item.price) || 0, imageUrl: item.imageUrl })),
         originalPrice: isBundle ? totalBundlePrice : 0,
         discountPrice: finalPrice,
-        discountPercent: isBundle && totalBundlePrice > 0 && finalPrice < totalBundlePrice ? Math.round(((totalBundlePrice - finalPrice) / totalBundlePrice) * 100) : 0,
+        discountPercent: isBundle
+          ? (totalBundlePrice > 0 && finalPrice < totalBundlePrice ? Math.round(((totalBundlePrice - finalPrice) / totalBundlePrice) * 100) : 0)
+          : isOrderDisc
+          ? orderDiscountPct
+          : 0,
         imageUrl: dealImageUrl,
         remainingHours: Math.ceil((expiry.getTime() - Date.now()) / 3600000),
         expiresAt: expiry.toISOString(),
         isActive: editingDeal?.isActive ?? true,
-        isPublic: dealType === 'delivery' ? dealIsPublic : true,
-        description: isBundle ? bundleItems.map((i) => i.name).join('، ') : `خصم ${deliveryPct}% على رسوم التوصيل`,
-        badge: isBundle ? (finalPrice < totalBundlePrice ? `باقة • وفر ${Math.round(((totalBundlePrice-finalPrice)/totalBundlePrice)*100)}%` : 'باقة منتجات') : `خصم ${deliveryPct}% على التوصيل`,
-        isFreeDelivery: !isBundle && deliveryPct === 100,
-        products: isBundle ? bundleItems.map((item, index) => ({ id: editingDeal?.products?.[index]?.id || `piece-${Date.now()}-${index}`, name: item.name, price: Number(item.price) || 0, imageUrl: item.imageUrl, description: editingDeal?.products?.[index]?.description || '' })) : [],
+        isPublic: isDelivery ? dealIsPublic : true,
+        description: isBundle
+          ? bundleItems.map((i) => i.name).join('، ')
+          : isDelivery
+          ? `خصم ${deliveryPct}% على رسوم التوصيل`
+          : (isTieredDiscount ? 'خصم بشرائح سلة المشتريات' : `خصم ${orderDiscountPct}% على إجمالي الطلب`),
+        badge: isBundle
+          ? (finalPrice < totalBundlePrice ? `باقة • وفر ${Math.round(((totalBundlePrice - finalPrice) / totalBundlePrice) * 100)}%` : 'باقة منتجات')
+          : isDelivery
+          ? `خصم ${deliveryPct}% على التوصيل`
+          : (isTieredDiscount ? 'شرائح خصم' : `خصم ${orderDiscountPct}%`),
+        isFreeDelivery: isDelivery && deliveryPct === 100,
+        products: isBundle ? bundleItems.map((item, index) => ({
+          id: editingDeal?.products?.[index]?.id || `piece-${Date.now()}-${index}`,
+          name: item.name,
+          price: Number(item.price) || 0,
+          imageUrl: item.imageUrl,
+          description: editingDeal?.products?.[index]?.description || '',
+        })) : [],
       };
       if (editingDeal) await updateFlashDeal(editingDeal.id, dealData);
       else await addFlashDeal(dealData);
@@ -520,6 +606,14 @@ export const InventoryScreen: React.FC = () => {
       setDeliveryDiscountPercent('');
       setDealIsPublic(true);
       setDealImageUrl('');
+      setDealCouponCode('');
+      setDealDiscountPercent('');
+      setIsTieredDiscount(false);
+      setDealTiers([
+        { minAmount: '0', maxAmount: '10000', discountPercent: '20' },
+        { minAmount: '10000', maxAmount: '25000', discountPercent: '15' },
+        { minAmount: '25000', maxAmount: '', discountPercent: '10' },
+      ]);
       setBundleItems([]);
       setDealType('bundle');
       setDealVisibility('home');
@@ -1250,13 +1344,162 @@ export const InventoryScreen: React.FC = () => {
                 </>
               )}
 
-              {dealType === 'delivery' && <>
-                <Text style={s.formLabel}>نسبة خصم رسوم التوصيل (٪)</Text>
-                <TextInput style={s.formInput} placeholder="مثال: 25" placeholderTextColor={colors.outline} value={deliveryDiscountPercent} onChangeText={setDeliveryDiscountPercent} keyboardType="numeric" textAlign="center" />
-                <TouchableOpacity style={s.pickerTrigger} onPress={() => setDealIsPublic((v) => !v)}>
-                  <Text style={s.pickerValue}>ظهور للعملاء: {dealIsPublic ? 'نعم' : 'لا'} (اضغط للتبديل)</Text>
-                </TouchableOpacity>
-              </>}
+              {/* Promo code / redemption code field */}
+              <Text style={s.formLabel}>رمز الاسترداد / كود الخصم (اختياري)</Text>
+              <TextInput
+                style={s.formInput}
+                placeholder="مثال: BS2026 أو DISCOUNT15"
+                placeholderTextColor={colors.outline}
+                value={dealCouponCode}
+                onChangeText={setDealCouponCode}
+                autoCapitalize="characters"
+                textAlign="center"
+              />
+
+              {dealType === 'order_discount' && (
+                <>
+                  <Text style={s.formLabel}>طريقة احتساب الخصم</Text>
+                  <View style={s.tierToggleRow}>
+                    <TouchableOpacity
+                      style={[s.tierToggleBtn, !isTieredDiscount && s.tierToggleBtnActive]}
+                      onPress={() => setIsTieredDiscount(false)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[s.tierToggleText, !isTieredDiscount && s.tierToggleTextActive]}>
+                        نسبة خصم ثابتة (%)
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.tierToggleBtn, isTieredDiscount && s.tierToggleBtnActive]}
+                      onPress={() => setIsTieredDiscount(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[s.tierToggleText, isTieredDiscount && s.tierToggleTextActive]}>
+                        شرائح حسب إجمالي السلة
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {!isTieredDiscount ? (
+                    <>
+                      <Text style={s.formLabel}>نسبة الخصم من إجمالي الطلب (٪) *</Text>
+                      <TextInput
+                        style={s.formInput}
+                        placeholder="مثال: 15"
+                        placeholderTextColor={colors.outline}
+                        value={dealDiscountPercent}
+                        onChangeText={setDealDiscountPercent}
+                        keyboardType="numeric"
+                        textAlign="center"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Text style={s.formLabel}>تحديد شرائح الخصم حسب إجمالي السلة *</Text>
+                      <Text style={s.tierHintText}>
+                        حدد نسبة الخصم لكل شريحة من إجمالي سلة العميل (مثال: سلة أقل من 10,000 تمنح 20%، سلة إلى 25,000 تمنح 15%، أكبر تمنح 10%):
+                      </Text>
+
+                      {dealTiers.map((tier, idx) => (
+                        <View key={idx} style={s.tierCard}>
+                          <View style={s.tierHeader}>
+                            <TouchableOpacity
+                              onPress={() => setDealTiers((prev) => prev.filter((_, i) => i !== idx))}
+                              disabled={dealTiers.length <= 1}
+                            >
+                              <Text style={[s.removeIcon, dealTiers.length <= 1 && { opacity: 0.3 }]}>✕ حذف</Text>
+                            </TouchableOpacity>
+                            <Text style={s.tierTitle}>الشريحة {idx + 1}</Text>
+                          </View>
+
+                          <View style={s.tierInputsRow}>
+                            <View style={s.tierInputCol}>
+                              <Text style={s.tierInputLabel}>نسبة الخصم %</Text>
+                              <TextInput
+                                style={[s.formInput, s.tierInput]}
+                                placeholder="20"
+                                placeholderTextColor={colors.outline}
+                                value={tier.discountPercent}
+                                onChangeText={(val) =>
+                                  setDealTiers((prev) =>
+                                    prev.map((t, i) => (i === idx ? { ...t, discountPercent: val } : t))
+                                  )
+                                }
+                                keyboardType="numeric"
+                                textAlign="center"
+                              />
+                            </View>
+                            <View style={s.tierInputCol}>
+                              <Text style={s.tierInputLabel}>إلى سلة (ر.ي)</Text>
+                              <TextInput
+                                style={[s.formInput, s.tierInput]}
+                                placeholder="بلا حد أقصى"
+                                placeholderTextColor={colors.outline}
+                                value={tier.maxAmount}
+                                onChangeText={(val) =>
+                                  setDealTiers((prev) =>
+                                    prev.map((t, i) => (i === idx ? { ...t, maxAmount: val } : t))
+                                  )
+                                }
+                                keyboardType="numeric"
+                                textAlign="center"
+                              />
+                            </View>
+                            <View style={s.tierInputCol}>
+                              <Text style={s.tierInputLabel}>من سلة (ر.ي)</Text>
+                              <TextInput
+                                style={[s.formInput, s.tierInput]}
+                                placeholder="0"
+                                placeholderTextColor={colors.outline}
+                                value={tier.minAmount}
+                                onChangeText={(val) =>
+                                  setDealTiers((prev) =>
+                                    prev.map((t, i) => (i === idx ? { ...t, minAmount: val } : t))
+                                  )
+                                }
+                                keyboardType="numeric"
+                                textAlign="center"
+                              />
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+
+                      <TouchableOpacity
+                        style={s.addTierBtn}
+                        onPress={() => {
+                          const last = dealTiers[dealTiers.length - 1];
+                          const nextMin = last?.maxAmount?.trim() ? last.maxAmount : '25000';
+                          setDealTiers((prev) => [
+                            ...prev,
+                            { minAmount: nextMin, maxAmount: '', discountPercent: '10' },
+                          ]);
+                        }}
+                      >
+                        <Text style={s.addTierBtnText}>+ إضافة شريحة خصم جديدة</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </>
+              )}
+
+              {dealType === 'delivery' && (
+                <>
+                  <Text style={s.formLabel}>نسبة خصم رسوم التوصيل (٪) *</Text>
+                  <TextInput
+                    style={s.formInput}
+                    placeholder="مثال: 50 أو 100 للتوصيل المجاني"
+                    placeholderTextColor={colors.outline}
+                    value={deliveryDiscountPercent}
+                    onChangeText={setDeliveryDiscountPercent}
+                    keyboardType="numeric"
+                    textAlign="center"
+                  />
+                  <TouchableOpacity style={s.pickerTrigger} onPress={() => setDealIsPublic((v) => !v)}>
+                    <Text style={s.pickerValue}>ظهور للعملاء تلقائياً: {dealIsPublic ? 'نعم' : 'لا'} (اضغط للتبديل)</Text>
+                  </TouchableOpacity>
+                </>
+              )}
 
               <Text style={s.formLabel}>تاريخ انتهاء العرض</Text>
               <TouchableOpacity style={s.pickerTrigger} onPress={() => setShowDealDatePicker(true)}>
@@ -1759,4 +2002,97 @@ const s = StyleSheet.create({
   },
   lbCustomBtn: { backgroundColor: colors.primary, borderRadius: borderRadius.lg, paddingHorizontal: 12, paddingVertical: 10 },
   lbCustomBtnText: { fontFamily: 'Tajawal_700Bold', fontSize: 13, color: colors.onPrimary },
+
+  // Tiered discounts styles
+  tierToggleRow: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+    marginBottom: 12,
+  },
+  tierToggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surfaceContainerLow,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.outlineVariant + '35',
+  },
+  tierToggleBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  tierToggleText: {
+    fontFamily: 'Tajawal_500Medium',
+    fontSize: 12,
+    color: colors.onSurfaceVariant,
+  },
+  tierToggleTextActive: {
+    fontFamily: 'Tajawal_700Bold',
+    color: colors.onPrimary,
+  },
+  tierHintText: {
+    fontFamily: 'Tajawal_400Regular',
+    fontSize: 11,
+    color: colors.onSurfaceVariant,
+    textAlign: 'right',
+    marginBottom: 8,
+    lineHeight: 16,
+  },
+  tierCard: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.lg,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant + '30',
+  },
+  tierHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  tierTitle: {
+    fontFamily: 'Tajawal_700Bold',
+    fontSize: 12,
+    color: colors.primary,
+  },
+  tierInputsRow: {
+    flexDirection: 'row-reverse',
+    gap: 6,
+  },
+  tierInputCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  tierInputLabel: {
+    fontFamily: 'Tajawal_500Medium',
+    fontSize: 10,
+    color: colors.outline,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  tierInput: {
+    width: '100%',
+    marginBottom: 0,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    fontSize: 12,
+  },
+  addTierBtn: {
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: borderRadius.md,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary + '35',
+    borderStyle: 'dashed',
+    marginBottom: 12,
+  },
+  addTierBtnText: {
+    fontFamily: 'Tajawal_700Bold',
+    fontSize: 12,
+    color: colors.primary,
+  },
 });

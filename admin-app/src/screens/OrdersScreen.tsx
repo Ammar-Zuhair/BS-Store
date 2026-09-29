@@ -262,6 +262,15 @@ export const OrdersScreen: React.FC = () => {
                 📍 {ord.addressSummary}
               </Text>
 
+              {/* Customer Notes */}
+              {!!ord.notes && (
+                <View style={styles.orderNoteBadge}>
+                  <Text style={styles.orderNoteText} numberOfLines={2}>
+                    📝 ملاحظة العميل: {ord.notes}
+                  </Text>
+                </View>
+              )}
+
               {/* Stores summary */}
               <View style={styles.subOrdersBox}>
                 <Text style={styles.subOrdersTitle}>
@@ -354,6 +363,14 @@ export const OrdersScreen: React.FC = () => {
                     <Text style={styles.detailLbl}>طريقة الدفع</Text>
                   </View>
                 </View>
+
+                {/* Customer Notes */}
+                {!!detailOrder.notes && (
+                  <View style={styles.detailNotesCard}>
+                    <Text style={styles.detailNotesTitle}>📝 ملاحظات العميل على الطلب:</Text>
+                    <Text style={styles.detailNotesBody}>{detailOrder.notes}</Text>
+                  </View>
+                )}
 
                 {/* Sub-orders */}
                 <View style={styles.detailSection}>
@@ -843,6 +860,43 @@ const styles = StyleSheet.create({
   customerName: { fontFamily: 'Tajawal_700Bold', fontSize: 14, color: colors.onSurface },
   customerPhone: { fontFamily: 'Tajawal_400Regular', fontSize: 14, color: colors.onSurfaceVariant },
   addressLine: { fontSize: 13, color: colors.onSurfaceVariant, textAlign: 'right', marginTop: 2 },
+  orderNoteBadge: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: borderRadius.md,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  orderNoteText: {
+    fontFamily: 'Tajawal_500Medium',
+    fontSize: 12,
+    color: '#92400E',
+    textAlign: 'right',
+  },
+  detailNotesCard: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: borderRadius.lg,
+    padding: spacing.baseSm,
+    marginBottom: spacing.baseSm,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  detailNotesTitle: {
+    fontFamily: 'Tajawal_700Bold',
+    fontSize: 13,
+    color: '#92400E',
+    textAlign: 'right',
+    marginBottom: 4,
+  },
+  detailNotesBody: {
+    fontFamily: 'Tajawal_500Medium',
+    fontSize: 13,
+    color: '#78350F',
+    textAlign: 'right',
+    lineHeight: 18,
+  },
   subOrdersBox: {
     backgroundColor: colors.surfaceContainerLow,
     padding: spacing.baseXs,

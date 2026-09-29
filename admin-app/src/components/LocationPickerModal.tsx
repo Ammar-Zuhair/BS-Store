@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,11 @@ import {
   Platform,
   Alert,
   ScrollView,
-  Image,
   TextInput,
-  PanResponder,
+  ActivityIndicator,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
+import * as Location from 'expo-location';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 
 export interface LocationResult {
@@ -31,24 +32,16 @@ interface LocationPickerModalProps {
   title?: string;
 }
 
-const ZOOM = 15;
-const TILE_SIZE = 256;
-const toTile = (latitude: number, longitude: number) => {
-  const scale = 2 ** ZOOM;
-  const lat = Math.max(-85, Math.min(85, latitude)) * Math.PI / 180;
-  return {
-    x: (longitude + 180) / 360 * scale,
-    y: (1 - Math.asinh(Math.tan(lat)) / Math.PI) / 2 * scale,
-  };
-};
-const fromTile = (x: number, y: number) => {
-  const scale = 2 ** ZOOM;
-  const wrappedX = ((x % scale) + scale) % scale;
-  return {
-    longitude: wrappedX / scale * 360 - 180,
-    latitude: Math.atan(Math.sinh(Math.PI * (1 - 2 * y / scale))) * 180 / Math.PI,
-  };
-};
+const SANAA_PRESETS = [
+  { name: 'شارع الزبيري', lat: 15.3500, lng: 44.2050 },
+  { name: 'شارع حدة', lat: 15.3280, lng: 44.1950 },
+  { name: 'شارع هايل', lat: 15.3620, lng: 44.1920 },
+  { name: 'حي الصافية', lat: 15.3410, lng: 44.2200 },
+  { name: 'منطقة شميلة', lat: 15.3150, lng: 44.2250 },
+  { name: 'منطقة الحصبة', lat: 15.3850, lng: 44.2000 },
+  { name: 'شارع تعز', lat: 15.3200, lng: 44.2150 },
+  { name: 'حي مذبح', lat: 15.3720, lng: 44.1680 },
+];
 
 export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   visible,
@@ -63,11 +56,12 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const [currentLng, setCurrentLng] = useState<number>(initialLng);
   const [currentDistrict, setCurrentDistrict] = useState<string>(initialDistrict);
   const [isLocating, setIsLocating] = useState<boolean>(false);
-  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<Array<{ name: string; lat: number; lng: number }>>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const panOrigin = React.useRef({ latitude: initialLat, longitude: initialLng });
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+
+  const webViewRef = useRef<WebView>(null);
+  const searchTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
     if (visible) {
@@ -79,95 +73,284 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     }
   }, [visible, initialLat, initialLng, initialDistrict]);
 
+  const panMapTo = (lat: number, lng: number) => {
+    const js = `
+      if (window.map) {
+        window.map.setView([${lat}, ${lng}], 16, { animate: true });
+      }
+      true;
+    `;
+    if (Platform.OS === 'web') {
+      try {
+        const iframe = document.getElementById('admin-leaflet-iframe') as HTMLIFrameElement;
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage(JSON.stringify({ action: 'panTo', lat, lng }), '*');
+        }
+      } catch (err) {
+        console.warn('Web panMapTo err:', err);
+      }
+    } else {
+      webViewRef.current?.injectJavaScript(js);
+    }
+  };
+
+  const handleSelectPreset = (preset: typeof SANAA_PRESETS[0]) => {
+    setCurrentLat(preset.lat);
+    setCurrentLng(preset.lng);
+    setCurrentDistrict(preset.name);
+    panMapTo(preset.lat, preset.lng);
+  };
+
   const handleDetectGPS = async () => {
     setIsLocating(true);
     try {
-      // Defer native module initialization until React Native has finished booting
-      // and the user explicitly requests GPS.
-      const Location = await import('expo-location');
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') throw new Error('اسمح للتطبيق بالوصول إلى الموقع من إعدادات الجهاز.');
-      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      const { latitude, longitude } = position.coords;
-      setCurrentLat(latitude);
-      setCurrentLng(longitude);
-      setCurrentDistrict('موقع المتجر الحالي');
-      panOrigin.current = { latitude, longitude };
-      const address = await Location.reverseGeocodeAsync({ latitude, longitude });
-      if (address[0]) setCurrentDistrict([address[0].district, address[0].street, address[0].city].filter(Boolean).join('، ') || 'موقع المتجر الحالي');
+      if (Platform.OS !== 'web') {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            'صلاحية الموقع مطلوبة',
+            'يرجى السماح بالوصول إلى الموقع الجغرافي (GPS) لتحديد موقع المتجر بدقة.'
+          );
+          return;
+        }
+
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+
+        const lat = parseFloat(position.coords.latitude.toFixed(6));
+        const lng = parseFloat(position.coords.longitude.toFixed(6));
+        setCurrentLat(lat);
+        setCurrentLng(lng);
+        panMapTo(lat, lng);
+
+        try {
+          const rev = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+          if (rev && rev.length > 0) {
+            const addr = rev[0];
+            const detected = [addr.district, addr.street, addr.city].filter(Boolean).join('، ');
+            if (detected) setCurrentDistrict(detected);
+          }
+        } catch {
+          // ignore geocode error
+        }
+
+        Alert.alert('تم بنجاح ✓', 'تم تحديد موقع المتجر عبر GPS بنجاح.');
+      } else {
+        if (typeof navigator !== 'undefined' && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const lat = parseFloat(pos.coords.latitude.toFixed(6));
+              const lng = parseFloat(pos.coords.longitude.toFixed(6));
+              setCurrentLat(lat);
+              setCurrentLng(lng);
+              panMapTo(lat, lng);
+              Alert.alert('تم بنجاح ✓', 'تم تحديد الموقع بنجاح.');
+            },
+            () => {
+              Alert.alert('تنبيه GPS', 'تعذر جلب موقع GPS تلقائياً. يمكنك تحريك الخريطة لتحديد الموقع.');
+            },
+            { enableHighAccuracy: true, timeout: 8000 }
+          );
+        }
+      }
     } catch (error: any) {
-      Alert.alert('تعذر تحديد الموقع', error?.message || 'تحقق من صلاحيات الموقع وحاول مرة أخرى.');
+      Alert.alert('تعذر تحديد الموقع', error?.message || 'تحقق من صلاحيات الموقع وحاول مجدداً.');
     } finally {
       setIsLocating(false);
     }
   };
 
-  const adjustCoords = (dLat: number, dLng: number) => {
-    setCurrentLat((prev) => parseFloat((prev + dLat).toFixed(5)));
-    setCurrentLng((prev) => parseFloat((prev + dLng).toFixed(5)));
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (!text.trim() || text.trim().length < 3) {
+      setSearchResults([]);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const query = encodeURIComponent(text.trim());
+        const headers: Record<string, string> =
+          Platform.OS !== 'web' ? { 'User-Agent': 'BSStore-Admin/1.0' } : {};
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5&accept-language=ar`,
+          { headers }
+        );
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setSearchResults(
+            data.map((item: any) => ({
+              name: item.display_name,
+              lat: parseFloat(item.lat),
+              lng: parseFloat(item.lon),
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn('Geocoding search error:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500);
   };
 
-  const mapPanResponder = React.useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: () => { panOrigin.current = { latitude: currentLat, longitude: currentLng }; },
-    onPanResponderMove: (_event, gesture) => {
-      const origin = toTile(panOrigin.current.latitude, panOrigin.current.longitude);
-      const selected = fromTile(origin.x - gesture.dx / TILE_SIZE, origin.y - gesture.dy / TILE_SIZE);
-      setCurrentLat(selected.latitude);
-      setCurrentLng(selected.longitude);
-      setCurrentDistrict('الموقع المحدد على الخريطة');
-    },
-  }), [currentLat, currentLng]);
+  const handleSelectSearchResult = (item: { name: string; lat: number; lng: number }) => {
+    setCurrentLat(item.lat);
+    setCurrentLng(item.lng);
+    setCurrentDistrict(item.name.split(',')[0] || item.name);
+    setSearchQuery('');
+    setSearchResults([]);
+    panMapTo(item.lat, item.lng);
+  };
 
-  const searchAddress = async () => {
-    if (searchQuery.trim().length < 3) return;
-    setIsSearching(true);
+  const handleWebViewMessage = (event: any) => {
     try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.trim())}&limit=5&accept-language=ar`, {
-        headers: { 'User-Agent': 'BSStore-Admin/1.0' },
-      });
-      const rows = await response.json();
-      setSearchResults(Array.isArray(rows) ? rows.map((row: any) => ({ name: row.display_name, lat: Number(row.lat), lng: Number(row.lon) })) : []);
+      const data = typeof event.nativeEvent.data === 'string'
+        ? JSON.parse(event.nativeEvent.data)
+        : event.nativeEvent.data;
+      if (data.latitude && data.longitude) {
+        setCurrentLat(parseFloat(Number(data.latitude).toFixed(6)));
+        setCurrentLng(parseFloat(Number(data.longitude).toFixed(6)));
+      }
     } catch {
-      Alert.alert('تعذر البحث', 'تحقق من الاتصال بالإنترنت ثم حاول مجدداً.');
-    } finally {
-      setIsSearching(false);
+      // ignore
     }
   };
+
+  // Listen to web iframe postMessage
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handler = (evt: MessageEvent) => {
+        try {
+          const data = typeof evt.data === 'string' ? JSON.parse(evt.data) : evt.data;
+          if (data && data.latitude && data.longitude) {
+            setCurrentLat(parseFloat(Number(data.latitude).toFixed(6)));
+            setCurrentLng(parseFloat(Number(data.longitude).toFixed(6)));
+          }
+        } catch {
+          // ignore
+        }
+      };
+      window.addEventListener('message', handler);
+      return () => window.removeEventListener('message', handler);
+    }
+  }, []);
 
   const handleConfirm = () => {
     onConfirm({
       latitude: currentLat,
       longitude: currentLng,
-      district: currentDistrict,
-      city: '',
+      district: currentDistrict || 'موقع محدد على الخريطة',
+      city: 'صنعاء',
     });
     onClose();
   };
 
-  const centerTile = toTile(currentLat, currentLng);
-  const centerTileX = Math.floor(centerTile.x);
-  const centerTileY = Math.floor(centerTile.y);
-  const mapTiles = [];
-  // Request only tiles intersecting the visible map (plus a one-tile margin).
-  // The OSM standard tile service explicitly disallows broad prefetching.
-  const visibleColumns = Math.ceil(mapSize.width / TILE_SIZE / 2) + 1;
-  const visibleRows = Math.ceil(mapSize.height / TILE_SIZE / 2) + 1;
-  for (let y = -visibleRows; y <= visibleRows; y++) {
-    for (let x = -visibleColumns; x <= visibleColumns; x++) {
-      const tileX = centerTileX + x;
-      const tileY = centerTileY + y;
-      const tileCount = 2 ** ZOOM;
-      if (tileY < 0 || tileY >= tileCount) continue;
-      mapTiles.push({
-        key: `${tileX}-${tileY}`,
-        uri: `https://tile.openstreetmap.org/${ZOOM}/${((tileX % tileCount) + tileCount) % tileCount}/${tileY}.png`,
-        left: mapSize.width / 2 + (x - (centerTile.x - centerTileX)) * TILE_SIZE,
-        top: mapSize.height / 2 + (y - (centerTile.y - centerTileY)) * TILE_SIZE,
-      });
+  const leafletHtml = `<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; background: #E8EBEF; }
+    .center-pin-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -100%);
+      pointer-events: none;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-  }
+    .pin-head {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #181A1E;
+      border: 3px solid #F59E0B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+      color: #FFFFFF;
+      font-size: 16px;
+    }
+    .pin-tip {
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 11px solid #181A1E;
+      margin-top: -2px;
+    }
+    .gps-shadow {
+      width: 18px;
+      height: 6px;
+      background: rgba(0,0,0,0.28);
+      border-radius: 50%;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="center-pin-container">
+    <div class="pin-head">🏪</div>
+    <div class="pin-tip"></div>
+    <div class="gps-shadow"></div>
+  </div>
+  <script>
+    var initialLat = ${currentLat};
+    var initialLng = ${currentLng};
+
+    var map = L.map('map', {
+      center: [initialLat, initialLng],
+      zoom: 16,
+      zoomControl: false,
+      attributionControl: false
+    });
+
+    window.map = map;
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    function reportCenter() {
+      var center = map.getCenter();
+      var payload = JSON.stringify({
+        latitude: center.lat,
+        longitude: center.lng
+      });
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(payload);
+      }
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+    }
+
+    map.on('moveend', reportCenter);
+
+    window.addEventListener('message', function(event) {
+      try {
+        var data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data && data.action === 'panTo') {
+          map.setView([data.lat, data.lng], 16, { animate: true });
+        }
+      } catch(e){}
+    });
+  </script>
+</body>
+</html>`;
 
   return (
     <Modal
@@ -185,27 +368,67 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             </TouchableOpacity>
             <View style={styles.headerTitleWrap}>
               <Text style={styles.headerTitle}>{title}</Text>
-              <Text style={styles.headerSubtitle}>حدد نقطة استلام الطلبات وحساب المسافات بدقة</Text>
+              <Text style={styles.headerSubtitle}>حرّك الخريطة أو استخدم GPS لتحديد موقع المتجر بدقة</Text>
             </View>
           </View>
 
-          {/* Map Viewer Container */}
-          <View style={styles.mapFrame} onLayout={(event) => setMapSize({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height })}>
-            <View style={StyleSheet.absoluteFill} {...mapPanResponder.panHandlers}>
-              {mapTiles.map((tile) => <Image key={tile.key} source={{ uri: tile.uri, cache: 'force-cache', headers: { 'User-Agent': 'BSStore-Admin/1.0 (store location picker)' } }} style={{ position: 'absolute', left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE }} resizeMode="cover" />)}
-            </View>
-            <View style={styles.mapAttribution} pointerEvents="none"><Text style={styles.mapAttributionText}>© OpenStreetMap contributors</Text></View>
+          {/* Interactive Map Frame */}
+          <View style={styles.mapFrame}>
+            {Platform.OS === 'web' ? (
+              React.createElement('iframe', {
+                id: 'admin-leaflet-iframe',
+                srcDoc: leafletHtml,
+                style: { width: '100%', height: '100%', border: 'none' },
+              })
+            ) : (
+              <WebView
+                ref={webViewRef}
+                originWhitelist={['*']}
+                source={{ html: leafletHtml }}
+                onMessage={handleWebViewMessage}
+                style={styles.mapAbsolute}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+              />
+            )}
 
-            {/* Central Floating Pin Marker */}
-            <View style={styles.floatingPinBox} pointerEvents="none">
-              <View style={styles.pinBubble}>
-                <Text style={styles.pinBubbleText}>🏪 {currentDistrict}</Text>
+            {/* Search Bar on Map */}
+            <View style={styles.searchFloatingWrap}>
+              <View style={styles.searchBar}>
+                {isSearching ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text style={styles.searchIcon}>🔍</Text>
+                )}
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="ابحث عن اسم الشارع أو المنطقة أو المعلم..."
+                  placeholderTextColor={colors.outline}
+                  value={searchQuery}
+                  onChangeText={handleSearchChange}
+                  textAlign="right"
+                />
               </View>
-              <Text style={styles.pinIcon}>📍</Text>
-              <View style={styles.pinShadow} />
+
+              {searchResults.length > 0 && (
+                <View style={styles.searchResultsDropdown}>
+                  {searchResults.map((item, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={styles.searchResultItem}
+                      onPress={() => handleSelectSearchResult(item)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.searchResultText} numberOfLines={1}>
+                        📍 {item.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
 
-            {/* GPS Detection Button Floating */}
+            {/* GPS Floating Action Button */}
             <TouchableOpacity
               style={styles.gpsFloatingBtn}
               onPress={handleDetectGPS}
@@ -218,98 +441,53 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               </Text>
             </TouchableOpacity>
 
-            {/* Fine Tuning D-Pad */}
-            <View style={styles.dPadContainer}>
-              <TouchableOpacity
-                style={styles.dPadBtn}
-                onPress={() => adjustCoords(0.003, 0)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.dPadText}>▲</Text>
-              </TouchableOpacity>
-              <View style={styles.dPadRow}>
-                <TouchableOpacity
-                  style={styles.dPadBtn}
-                  onPress={() => adjustCoords(0, 0.003)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.dPadText}>◀</Text>
-                </TouchableOpacity>
-                <View style={styles.dPadCenter} />
-                <TouchableOpacity
-                  style={styles.dPadBtn}
-                  onPress={() => adjustCoords(0, -0.003)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.dPadText}>▶</Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity
-                style={styles.dPadBtn}
-                onPress={() => adjustCoords(-0.003, 0)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.dPadText}>▼</Text>
-              </TouchableOpacity>
+            {/* Coordinates Badge */}
+            <View style={styles.coordinatesPill}>
+              <Text style={styles.coordinatesPillText}>
+                {currentLat.toFixed(5)} , {currentLng.toFixed(5)}
+              </Text>
             </View>
           </View>
 
-          <View style={styles.searchRow}>
-            <TouchableOpacity style={styles.searchButton} onPress={searchAddress} disabled={isSearching}>
-              <Text style={styles.searchButtonText}>{isSearching ? '...' : 'بحث'}</Text>
-            </TouchableOpacity>
-            <TextInput style={styles.searchInput} placeholder="ابحث عن مدينة أو شارع" placeholderTextColor={colors.outline} value={searchQuery} onChangeText={setSearchQuery} onSubmitEditing={searchAddress} returnKeyType="search" textAlign="right" />
-          </View>
+          {/* Quick Presets & Confirmation Bottom Sheet */}
+          <View style={styles.bottomCard}>
+            <View style={styles.addressInputRow}>
+              <TextInput
+                style={styles.addressInput}
+                value={currentDistrict}
+                onChangeText={setCurrentDistrict}
+                placeholder="اسم الحي أو الشارع للمتجر..."
+                placeholderTextColor={colors.outline}
+                textAlign="right"
+              />
+              <Text style={styles.addressLabel}>عنوان المتجر:</Text>
+            </View>
 
-          {/* Search results */}
-          {searchResults.length > 0 ? <View style={styles.presetsSection}>
-            <Text style={styles.presetsLabel}>نتائج البحث — اختر موقع المتجر:</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.presetsScroll}
-            >
-              {searchResults.map((p) => {
-                const isSelected = currentDistrict === p.name;
+            {/* Quick Sanaa Presets */}
+            <Text style={styles.presetsLabel}>مناطق سريعة في أمانة العاصمة:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetsScroll}>
+              {SANAA_PRESETS.map((p) => {
+                const isSelected = Math.abs(currentLat - p.lat) < 0.005 && Math.abs(currentLng - p.lng) < 0.005;
                 return (
                   <TouchableOpacity
                     key={p.name}
                     style={[styles.presetChip, isSelected && styles.presetChipActive]}
-                    onPress={() => { setCurrentLat(p.lat); setCurrentLng(p.lng); setCurrentDistrict(p.name); setSearchResults([]); }}
-                    activeOpacity={0.75}
+                    onPress={() => handleSelectPreset(p)}
+                    activeOpacity={0.8}
                   >
                     <Text style={[styles.presetChipText, isSelected && styles.presetChipTextActive]}>
-                      🏪 {p.name}
+                      {p.name}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
-          </View> : null}
 
-          {/* Selected Location Summary Card */}
-          <View style={styles.locationSummaryBox}>
-            <View style={styles.locationSummaryRight}>
-              <Text style={styles.summaryDistrict}>
-                {currentDistrict || 'الموقع المحدد'}
-              </Text>
-              <Text style={styles.summaryCoords}>
-                خط العرض: {currentLat.toFixed(5)} • خط الطول: {currentLng.toFixed(5)}
-              </Text>
-            </View>
-            <View style={styles.verifiedIconBox}>
-              <Text style={{ fontSize: 20 }}>✅</Text>
-            </View>
+            {/* Confirm Button */}
+            <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
+              <Text style={styles.confirmBtnText}>✓ تأكيد موقع المتجر وحفظ الإحداثيات</Text>
+            </TouchableOpacity>
           </View>
-
-          {/* Confirm Button */}
-          <TouchableOpacity
-            style={styles.confirmBtn}
-            onPress={handleConfirm}
-            activeOpacity={0.88}
-          >
-            <Text style={styles.confirmBtnText}>تأكيد واعتماد موقع المتجر ✓</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -319,141 +497,128 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
     backgroundColor: colors.surfaceContainerLowest,
     borderTopLeftRadius: borderRadius.xxl,
     borderTopRightRadius: borderRadius.xxl,
-    padding: spacing.baseMd,
-    maxHeight: '92%',
-    ...shadows.floating,
+    height: '92%',
+    overflow: 'hidden',
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.baseSm,
+    paddingHorizontal: spacing.baseMd,
+    paddingVertical: spacing.baseSm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant + '30',
+  },
+  headerTitleWrap: {
+    flex: 1,
+    alignItems: 'flex-end',
+    marginRight: 8,
+  },
+  headerTitle: {
+    fontFamily: typography.fontFamily.bold,
+    fontSize: typography.fontSize.md,
+    color: colors.onSurface,
+    fontWeight: typography.fontWeight.bold,
+  },
+  headerSubtitle: {
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 11,
+    color: colors.onSurfaceVariant,
+    marginTop: 2,
   },
   closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceContainerHigh,
+    width: 34,
+    height: 34,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceContainerLow,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeBtnText: {
     fontSize: 16,
-    color: colors.onSurface,
-    fontWeight: typography.fontWeight.bold,
-  },
-  headerTitleWrap: {
-    alignItems: 'flex-end',
-  },
-  headerTitle: {
+    color: colors.onSurfaceVariant,
     fontFamily: typography.fontFamily.bold,
-    fontWeight: typography.fontWeight.bold,
-    fontSize: typography.fontSize.md,
-    color: colors.primary,
-  },
-  headerSubtitle: {
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 11,
-    color: colors.outline,
-    marginTop: 2,
   },
   mapFrame: {
-    height: 290,
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
+    flex: 1,
     position: 'relative',
-    borderWidth: 1.5,
-    borderColor: colors.outlineVariant + '40',
-    marginBottom: spacing.baseSm,
+    backgroundColor: '#E8EBEF',
   },
-  mapAttribution: {
+  mapAbsolute: {
+    ...StyleSheet.absoluteFill,
+  },
+  searchFloatingWrap: {
     position: 'absolute',
-    bottom: 2,
-    right: 4,
-    zIndex: 11,
-    paddingHorizontal: 4,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    top: 12,
+    left: 12,
+    right: 12,
+    zIndex: 100,
   },
-  mapAttributionText: { color: '#333', fontSize: 9 },
-  mapFallbackPlaceholder: {
-    flex: 1,
+  searchBar: {
+    flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mapFallbackText: {
-    fontFamily: typography.fontFamily.medium,
-    color: colors.onSurfaceVariant,
-    fontSize: 13,
-    marginTop: 8,
-  },
-  searchRow: { flexDirection: 'row-reverse', gap: 8, marginBottom: spacing.baseSm },
-  searchInput: {
-    flex: 1,
-    minHeight: 42,
-    paddingHorizontal: 12,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.baseSm,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: borderRadius.md,
-    color: colors.onSurface,
-    backgroundColor: colors.surfaceContainerLow,
-  },
-  searchButton: { minWidth: 58, alignItems: 'center', justifyContent: 'center', borderRadius: borderRadius.md, backgroundColor: colors.primary, paddingHorizontal: 10 },
-  searchButtonText: { color: colors.onPrimary, fontFamily: typography.fontFamily.bold },
-  floatingPinBox: {
-    position: 'absolute',
-    top: '38%',
-    left: '40%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  pinBubble: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: borderRadius.full,
-    marginBottom: 2,
+    borderColor: colors.outlineVariant + '40',
     ...shadows.card,
   },
-  pinBubbleText: {
-    color: colors.onPrimary,
-    fontSize: 11,
-    fontFamily: typography.fontFamily.bold,
+  searchIcon: {
+    fontSize: 15,
+    marginLeft: 8,
   },
-  pinIcon: {
-    fontSize: 32,
-    lineHeight: 34,
+  searchInput: {
+    flex: 1,
+    fontFamily: typography.fontFamily.medium,
+    fontSize: typography.fontSize.xs,
+    color: colors.onSurface,
+    paddingVertical: 2,
   },
-  pinShadow: {
-    width: 14,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    marginTop: -2,
+  searchResultsDropdown: {
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.md,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant + '40',
+    maxHeight: 180,
+    ...shadows.card,
+  },
+  searchResultItem: {
+    paddingHorizontal: spacing.baseSm,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant + '20',
+  },
+  searchResultText: {
+    fontFamily: typography.fontFamily.medium,
+    fontSize: 12,
+    color: colors.onSurface,
+    textAlign: 'right',
   },
   gpsFloatingBtn: {
     position: 'absolute',
-    top: 12,
+    bottom: 46,
     right: 12,
-    backgroundColor: colors.surfaceContainerLowest,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: colors.surfaceContainerLowest,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: colors.primary + '30',
-    ...shadows.card,
-    zIndex: 12,
+    borderColor: colors.primary + '40',
+    ...shadows.floating,
+    zIndex: 90,
   },
   gpsFloatingIcon: {
     fontSize: 15,
@@ -463,40 +628,52 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.primary,
   },
-  dPadContainer: {
+  coordinatesPill: {
     position: 'absolute',
     bottom: 12,
     left: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(24, 26, 30, 0.85)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+    zIndex: 90,
+  },
+  coordinatesPillText: {
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 10,
+    color: '#FFFFFF',
+    direction: 'ltr',
+  },
+  bottomCard: {
+    backgroundColor: colors.surfaceContainerLowest,
+    paddingHorizontal: spacing.baseMd,
+    paddingTop: spacing.baseSm,
+    paddingBottom: spacing.baseMd,
+    borderTopWidth: 1,
+    borderTopColor: colors.outlineVariant + '25',
+  },
+  addressInputRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  addressLabel: {
+    fontFamily: typography.fontFamily.bold,
+    fontSize: typography.fontSize.xs,
+    color: colors.onSurface,
+  },
+  addressInput: {
+    flex: 1,
+    backgroundColor: colors.surfaceContainerLow,
     borderRadius: borderRadius.md,
-    padding: 4,
-    alignItems: 'center',
-    ...shadows.card,
-    zIndex: 12,
-  },
-  dPadRow: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  dPadBtn: {
-    width: 26,
-    height: 26,
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dPadCenter: {
-    width: 26,
-    height: 26,
-  },
-  dPadText: {
-    fontSize: 11,
-    color: colors.primary,
-    fontWeight: 'bold',
-  },
-  presetsSection: {
-    marginBottom: spacing.baseSm,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontFamily: typography.fontFamily.medium,
+    fontSize: 12,
+    color: colors.onSurface,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant + '40',
   },
   presetsLabel: {
     fontFamily: typography.fontFamily.medium,
@@ -508,6 +685,7 @@ const styles = StyleSheet.create({
   presetsScroll: {
     flexDirection: 'row-reverse',
     gap: 6,
+    marginBottom: 12,
   },
   presetChip: {
     paddingHorizontal: 10,
@@ -530,40 +708,10 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
     fontFamily: typography.fontFamily.bold,
   },
-  locationSummaryBox: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: borderRadius.lg,
-    padding: spacing.baseSm,
-    borderWidth: 1,
-    borderColor: colors.primary + '20',
-    marginBottom: spacing.baseMd,
-  },
-  locationSummaryRight: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  summaryDistrict: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: typography.fontSize.sm,
-    color: colors.primary,
-    fontWeight: typography.fontWeight.bold,
-  },
-  summaryCoords: {
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 10,
-    color: colors.outline,
-    marginTop: 2,
-  },
-  verifiedIconBox: {
-    marginLeft: 8,
-  },
   confirmBtn: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.xl,
-    paddingVertical: 14,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.floating,

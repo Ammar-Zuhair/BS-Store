@@ -139,6 +139,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       amountToCollect: order.totalAmount,
       paymentMethod: order.paymentMethod === 1 || order.paymentMethod === 'ManualTransfer' ? 'MANUAL_TRANSFER' : 'CASH_ON_DELIVERY',
       isPaymentVerified: order.paymentStatus === 1 || order.paymentStatus === 'Verified',
+      deliveryNotes: order.notes,
       totalDistanceKm: 4.8,
       estimatedMinutes: 25,
       status: order.status === 4 || order.status === 'Purchasing' ? 'PURCHASING' : order.status === 5 || order.status === 'OutForDelivery' ? 'EN_ROUTE_DELIVERY' : 'ASSIGNED',
