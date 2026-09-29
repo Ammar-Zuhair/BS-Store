@@ -112,8 +112,9 @@ const buildCustomerLeafletHtml = (lat: number, lng: number) => `<!doctype html>
 
     window.map = map;
 
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
+      subdomains: ['a', 'b', 'c'],
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
