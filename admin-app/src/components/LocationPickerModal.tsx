@@ -119,7 +119,8 @@ const buildLeafletHtml = (lat: number, lng: number) => `<!doctype html>
       window.map = map;
 
       // CartoDB Voyager tiles (Fast, worldwide CDN, high-contrast Arabic labels)
-      var cartoVoyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      var cartoKey = 'cb1_43q8_1_cdc36f6d519c491796b6ac33';
+      var cartoVoyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + cartoKey, {
         maxZoom: 19,
         subdomains: ['a', 'b', 'c', 'd'],
         attribution: '© OpenStreetMap, © CartoDB'
