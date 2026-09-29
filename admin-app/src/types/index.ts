@@ -53,6 +53,8 @@ export interface AdminSubOrder {
   id: string;
   storeId: string;
   storeName: string;
+  governorateId?: string;
+  governorateName?: string;
   items: AdminOrderItem[];
   subtotal: number;
   expectedCost: number;
@@ -132,6 +134,8 @@ export interface AdminStore {
   isActive: boolean;
   latitude?: number;
   longitude?: number;
+  governorateId?: string;
+  governorateName?: string;
 }
 
 export interface DeliverySettings {
@@ -206,6 +210,9 @@ export interface DriverCustodyAccount {
   driverId: string;
   driverName: string;
   phone: string;
+  governorateId?: string;
+  governorateName?: string;
+  isApproved?: boolean;
   vehiclePlate: string;
   status: 'ONLINE' | 'BUSY' | 'OFFLINE';
   totalCollections: number; // تحصيلات نقدية من العملاء (+)

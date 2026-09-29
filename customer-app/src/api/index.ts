@@ -35,6 +35,7 @@ export const authApi = {
       description?: string;
       latitude: number;
       longitude: number;
+      governorateId?: string;
     }
   ) => {
     const res = await api.post<{ accessToken: string; user: { id: string; name: string; phone: string; role: string } }>(
@@ -53,6 +54,7 @@ export const authApi = {
               latitude: initialAddress.latitude || 0,
               longitude: initialAddress.longitude || 0,
               label: 0,
+              governorateId: initialAddress.governorateId,
             }
           : undefined,
       }
@@ -70,6 +72,12 @@ export const authApi = {
       api.setToken(null);
     }
   },
+};
+
+export const governorateApi = {
+  list: () => api.get<{ id: string; name: string }[]>('/governorates'),
+  mine: () => api.get<{ governorateId: string | null }>('/profile/governorate'),
+  update: (governorateId: string) => api.put('/profile/governorate', { governorateId }),
 };
 
 // ─── Catalog API ─────────────────────────────────────────────────────────────

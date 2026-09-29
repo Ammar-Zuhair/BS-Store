@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal, ScrollView } from 'react-native';
 import { useDriver } from '../context/DriverContext';
 import { colors, spacing, borderRadius, typography } from '../theme';
 
@@ -10,16 +10,20 @@ export const CourierAuthScreen: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [governorates, setGovernorates] = useState<{id:string;name:string}[]>([]);
+  const [governorateId, setGovernorateId] = useState('');
+  const [showGovernorates, setShowGovernorates] = useState(false);
+  React.useEffect(() => { void import('../api').then(({driverApi}) => driverApi.governorates().then(setGovernorates).catch(() => {})); }, []);
 
   const submit = async () => {
-    if (!phone.trim() || password.length < 8 || (mode === 'register' && !name.trim())) {
+    if (!phone.trim() || password.length < 8 || (mode === 'register' && (!name.trim() || !governorateId))) {
       Alert.alert('تحقق من البيانات', 'أدخل الاسم ورقم الهاتف وكلمة مرور من 8 أحرف على الأقل.');
       return;
     }
     setBusy(true);
     try {
       if (mode === 'register') {
-        await signUp(name.trim(), phone.trim(), password);
+        await signUp(name.trim(), phone.trim(), password, governorateId);
         Alert.alert('تم إرسال الطلب', 'سيراجع مدير النظام طلب انضمامك. يمكنك تسجيل الدخول بعد الموافقة.');
         setMode('login');
       } else {
@@ -36,6 +40,7 @@ export const CourierAuthScreen: React.FC = () => {
     <Text style={styles.title}>تطبيق الموصل</Text>
     <Text style={styles.subtitle}>{mode === 'login' ? 'سجّل الدخول لاستقبال الطلبات' : 'أرسل طلب انضمامك للمراجعة'}</Text>
     {mode === 'register' && <TextInput style={styles.input} placeholder="الاسم الكامل" value={name} onChangeText={setName} textAlign="right" />}
+    {mode === 'register' && <TouchableOpacity style={styles.input} onPress={() => setShowGovernorates(true)}><Text style={{textAlign:'right'}}>{governorates.find(g=>g.id===governorateId)?.name || 'اختر محافظة السكن *'}</Text></TouchableOpacity>}
     <TextInput style={styles.input} placeholder="رقم الهاتف" value={phone} onChangeText={setPhone} keyboardType="phone-pad" textAlign="right" />
     <TextInput style={styles.input} placeholder="كلمة المرور (8 أحرف على الأقل)" value={password} onChangeText={setPassword} secureTextEntry textAlign="right" />
     <TouchableOpacity style={styles.submit} onPress={submit} disabled={busy}>
@@ -44,6 +49,7 @@ export const CourierAuthScreen: React.FC = () => {
     <TouchableOpacity onPress={() => setMode(mode === 'login' ? 'register' : 'login')} disabled={busy}>
       <Text style={styles.switch}>{mode === 'login' ? 'ليس لديك حساب؟ أنشئ حساباً' : 'لديك حساب معتمد؟ سجل الدخول'}</Text>
     </TouchableOpacity>
+    <Modal visible={showGovernorates} transparent animationType="slide" onRequestClose={() => setShowGovernorates(false)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:'#0008'}}><View style={{maxHeight:'70%',backgroundColor:'#fff',padding:18,borderTopLeftRadius:20,borderTopRightRadius:20}}><ScrollView>{governorates.map(g=><TouchableOpacity key={g.id} style={{padding:14}} onPress={()=>{setGovernorateId(g.id);setShowGovernorates(false);}}><Text style={{textAlign:'right'}}>{g.name}</Text></TouchableOpacity>)}</ScrollView></View></View></Modal>
   </View>;
 };
 

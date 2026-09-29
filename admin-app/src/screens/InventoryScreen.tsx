@@ -29,6 +29,7 @@ import { ImagePickerModal } from '../components/ImagePickerModal';
 import { DealDatePickerModal, DealTimePickerModal } from '../components/DealDateTimePickers';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
 import { useAdmin } from '../context/AdminContext';
+import { adminApi } from '../api';
 import {
   AdminCategory,
   AdminStore,
@@ -37,13 +38,14 @@ import {
 } from '../types';
 
 // ── Tab definitions ──────────────────────────────────────────────────────────
-type TabId = 'categories' | 'stores' | 'products' | 'deals';
+type TabId = 'categories' | 'stores' | 'products' | 'deals' | 'governorates';
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'categories', label: 'الفئات', icon: '📁' },
   { id: 'stores', label: 'المتاجر', icon: '🏪' },
   { id: 'products', label: 'المنتجات', icon: '📦' },
   { id: 'deals', label: 'العروض', icon: '🏷' },
+  { id: 'governorates', label: 'المحافظات', icon: '🗺️' },
 ];
 
 // ── Deal types ───────────────────────────────────────────────────────────────
@@ -245,6 +247,12 @@ export const InventoryScreen: React.FC = () => {
   const [storeName, setStoreName] = useState('');
   const [storePhone, setStorePhone] = useState('');
   const [storeAddress, setStoreAddress] = useState('');
+  const [governorates, setGovernorates] = useState<{id:string;name:string}[]>([]);
+  const [storeGovernorateId, setStoreGovernorateId] = useState('');
+  const [storeGovernoratePickerVisible, setStoreGovernoratePickerVisible] = useState(false);
+  const [newGovernorateName, setNewGovernorateName] = useState('');
+  const [isAddingGovernorate, setIsAddingGovernorate] = useState(false);
+  useEffect(() => { void adminApi.getGovernorates().then(setGovernorates).catch(() => {}); }, []);
   const [storeLatitude, setStoreLatitude] = useState<number | null>(null);
   const [storeLongitude, setStoreLongitude] = useState<number | null>(null);
   const [showStoreMapPicker, setShowStoreMapPicker] = useState(false);
@@ -364,6 +372,7 @@ export const InventoryScreen: React.FC = () => {
     setStoreName(store.name);
     setStorePhone(store.phone || '');
     setStoreAddress(store.address || '');
+    setStoreGovernorateId(store.governorateId || '');
     setStoreLatitude(Number.isFinite(Number(store.latitude)) ? Number(store.latitude) : null);
     setStoreLongitude(Number.isFinite(Number(store.longitude)) ? Number(store.longitude) : null);
     setStoreImageUrl(store.imageUrl || '');
@@ -376,6 +385,7 @@ export const InventoryScreen: React.FC = () => {
   const handleSaveStore = async () => {
     if (!storeName.trim()) { Alert.alert('تنبيه', 'يرجى إدخال اسم المتجر'); return; }
     if (storeLatitude === null || storeLongitude === null) { Alert.alert('تنبيه', 'يرجى تحديد موقع المتجر من الخريطة قبل الحفظ'); return; }
+    if (!storeGovernorateId) { Alert.alert('تنبيه', 'اختر محافظة المتجر'); return; }
     setIsSavingStore(true);
     try {
       const catObj = categories.find((c) => c.id === storeCatId) || categories[0];
@@ -390,6 +400,7 @@ export const InventoryScreen: React.FC = () => {
           imageUrl: storeImageUrl.trim(),
           latitude: storeLatitude,
           longitude: storeLongitude,
+          governorateId: storeGovernorateId,
         });
         Alert.alert('نجاح ✓', `تم تحديث بيانات متجر ${storeName.trim()}`);
       } else {
@@ -403,6 +414,7 @@ export const InventoryScreen: React.FC = () => {
           imageUrl: storeImageUrl.trim(),
           latitude: storeLatitude,
           longitude: storeLongitude,
+          governorateId: storeGovernorateId,
           rating: 4.8,
           deliveryTime: '30-45 دقيقة',
           deliveryFee: 400,
@@ -416,6 +428,7 @@ export const InventoryScreen: React.FC = () => {
       setStoreName('');
       setStorePhone('');
       setStoreAddress('');
+      setStoreGovernorateId('');
       setStoreLatitude(null);
       setStoreLongitude(null);
       setStoreImageUrl('');
@@ -663,6 +676,24 @@ export const InventoryScreen: React.FC = () => {
           );
         })}
       </View>
+
+      {activeTab === 'governorates' && (
+        <ScrollView contentContainerStyle={s.scrollContent}>
+          <Text style={s.sectionTitle}>محافظات الخدمة وقوائم المواقع</Text>
+          <Text style={s.formLabel}>إضافة محافظة مدعومة</Text>
+          <View style={{ flexDirection: 'row-reverse', gap: 8, alignItems: 'center' }}>
+            <TouchableOpacity style={s.addBtn} disabled={isAddingGovernorate} onPress={async () => {
+              const name = newGovernorateName.trim(); if (!name) return;
+              setIsAddingGovernorate(true);
+              try { await adminApi.addGovernorate(name); setGovernorates(await adminApi.getGovernorates()); setNewGovernorateName(''); Alert.alert('تمت الإضافة', `أصبحت محافظة ${name} متاحة في القوائم.`); }
+              catch (e:any) { Alert.alert('تعذر الإضافة', e?.message || 'تحقق من الاتصال وحاول مجدداً.'); }
+              finally { setIsAddingGovernorate(false); }
+            }}><Text style={s.addBtnText}>{isAddingGovernorate ? 'جارٍ الحفظ…' : 'إضافة'}</Text></TouchableOpacity>
+            <TextInput style={[s.formInput, { flex: 1, marginBottom: 0 }]} value={newGovernorateName} onChangeText={setNewGovernorateName} placeholder="اسم المحافظة" textAlign="right" />
+          </View>
+          {governorates.map(g => <View key={g.id} style={s.listCard}><Text style={s.listTitle}>{g.name}</Text></View>)}
+        </ScrollView>
+      )}
 
       {/* ═══════════════ CATEGORIES ═══════════════ */}
       {activeTab === 'categories' && (
@@ -1072,6 +1103,12 @@ export const InventoryScreen: React.FC = () => {
               <Text style={s.formLabel}>العنوان</Text>
               <TextInput style={s.formInput} placeholder="العنوان التفصيلي (شارع، مبنى...)" placeholderTextColor={colors.outline}
                 value={storeAddress} onChangeText={setStoreAddress} textAlign="right" />
+
+              <Text style={s.formLabel}>محافظة المتجر *</Text>
+              <TouchableOpacity style={s.pickerTrigger} onPress={() => setStoreGovernoratePickerVisible(true)}>
+                <Text style={s.pickerArrow}>▾</Text>
+                <Text style={s.pickerValue}>{governorates.find(g => g.id === storeGovernorateId)?.name || 'اختر المحافظة'}</Text>
+              </TouchableOpacity>
 
               <Text style={s.formLabel}>موقع المتجر على الخريطة *</Text>
               <TouchableOpacity style={s.pickerTrigger} onPress={() => setShowStoreMapPicker(true)}>
@@ -1544,6 +1581,7 @@ export const InventoryScreen: React.FC = () => {
         onSelect={setStoreCatId}
         onClose={() => setStoreCatPickerVisible(false)}
       />
+      <ListBoxModal visible={storeGovernoratePickerVisible} title="محافظة المتجر" options={governorates.map(g=>({id:g.id,label:g.name}))} selectedId={storeGovernorateId} onSelect={setStoreGovernorateId} onClose={() => setStoreGovernoratePickerVisible(false)} />
       <ListBoxModal
         visible={prodCatPickerVisible}
         title="فلترة بالفئة"

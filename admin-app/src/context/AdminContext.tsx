@@ -261,6 +261,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id: so.id,
             storeId: so.storeId,
             storeName: so.storeName,
+            governorateId: so.governorateId,
+            governorateName: so.governorateName,
             status: so.status === 'Purchased' ? 'PURCHASED' : 'PENDING',
             subtotal: Number(so.subTotal || 0),
             expectedCost: so.expectedCost != null ? Number(so.expectedCost) : Number(so.subTotal || 0),
@@ -421,6 +423,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             isActive: isActive,
             latitude: Number(s.latitude ?? 0),
             longitude: Number(s.longitude ?? 0),
+            governorateId: s.governorateId,
+            governorateName: s.governorateName,
           };
         });
         setStores((prev) => {
@@ -459,7 +463,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const mappedDrvs: DriverCustodyAccount[] = drvs.map((d: any) => ({
           driverId: d.id,
           driverName: d.fullName,
-          phone: d.phone,
+        phone: d.phone,
+          governorateId: d.governorateId,
+          governorateName: d.governorateName,
+          isApproved: d.isApproved,
           vehiclePlate: 'صنعاء 1/12345',
           status: d.status === 0 || d.status === 'Online' ? 'ONLINE' : d.status === 2 || d.status === 'Busy' ? 'BUSY' : 'OFFLINE',
           totalCollections: d.outstandingDebt > 0 ? d.outstandingDebt : 0,
@@ -823,6 +830,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         latitude: storeData.latitude!,
         longitude: storeData.longitude!,
         imageUrl: storeData.imageUrl,
+        governorateId: storeData.governorateId,
       });
       await refreshData();
     } catch (e) {
@@ -859,6 +867,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         longitude: data.longitude ?? stores.find((store) => store.id === storeId)?.longitude ?? 0,
         isActive: data.isActive ?? true,
         imageUrl: data.imageUrl,
+        governorateId: data.governorateId ?? stores.find((store) => store.id === storeId)?.governorateId,
       });
       await refreshData();
     } catch (e) {

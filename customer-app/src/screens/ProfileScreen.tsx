@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   TextInput,
   Alert,
   Switch,
+  Modal,
 } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
+import { governorateApi } from '../api';
 
 export const ProfileScreen: React.FC = () => {
   const {
@@ -26,6 +28,7 @@ export const ProfileScreen: React.FC = () => {
     isDarkMode,
     toggleTheme,
     colors: themeColors,
+    refreshCatalog,
   } = useApp();
 
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
@@ -35,6 +38,11 @@ export const ProfileScreen: React.FC = () => {
   const [district, setDistrict] = useState('');
   const [street, setStreet] = useState('');
   const [desc, setDesc] = useState('');
+  const [governorates, setGovernorates] = useState<{id:string;name:string}[]>([]);
+  const [governorateId, setGovernorateId] = useState('');
+  const [showGovernorates, setShowGovernorates] = useState(false);
+  useEffect(() => { if (isAuthenticated) Promise.all([governorateApi.list(), governorateApi.mine()]).then(([list, mine]) => { setGovernorates(list); setGovernorateId(mine.governorateId || ''); }).catch(() => {}); }, [isAuthenticated]);
+  const saveGovernorate = async (id: string) => { try { await governorateApi.update(id); setGovernorateId(id); setShowGovernorates(false); await refreshCatalog(); Alert.alert('تم التحديث', 'تم تغيير محافظة حسابك وتحديث قائمة المتاجر.'); } catch (e:any) { Alert.alert('تعذر التحديث', e?.message || 'حاول مرة أخرى.'); } };
 
   const handleSaveAddress = () => {
     if (!city.trim() || !district.trim() || !street.trim()) {
@@ -105,6 +113,12 @@ export const ProfileScreen: React.FC = () => {
         )}
 
         {/* Appearance & Dark Mode Toggle Card */}
+        {isAuthenticated && <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>محافظة التسوق</Text>
+          <TouchableOpacity style={styles.menuItem} onPress={() => setShowGovernorates(true)}><Text style={styles.menuText}>{governorates.find(g => g.id === governorateId)?.name || 'اختر المحافظة'}</Text><Text>▾</Text></TouchableOpacity>
+        </View>}
+        <Modal visible={showGovernorates} transparent animationType="slide" onRequestClose={() => setShowGovernorates(false)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:'#0008'}}><View style={{maxHeight:'70%',backgroundColor:themeColors.surfaceContainerLowest,borderTopLeftRadius:20,borderTopRightRadius:20,padding:18}}><Text style={{textAlign:'right',fontSize:18,fontWeight:'700',marginBottom:10}}>اختر المحافظة</Text><ScrollView>{governorates.map(g=><TouchableOpacity key={g.id} style={{padding:14,borderBottomWidth:1,borderColor:'#ddd'}} onPress={()=>saveGovernorate(g.id)}><Text style={{textAlign:'right'}}>{g.name}</Text></TouchableOpacity>)}</ScrollView></View></View></Modal>
+
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>المظهر والتفضيلات</Text>
           <View style={styles.themeRow}>

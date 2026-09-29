@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,16 @@ import {
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { DriverHeader } from '../components/DriverHeader';
 import { useDriver } from '../context/DriverContext';
+import { driverApi } from '../api';
 
 export const DriverDashboardScreen: React.FC = () => {
   const { driver, activeTask, wallet, toggleShiftStatus, navigateTo } = useDriver();
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [governorates, setGovernorates] = useState<{id:string;name:string}[]>([]);
+  const [governorateId, setGovernorateId] = useState('');
+  const [showGovernorates, setShowGovernorates] = useState(false);
+  useEffect(() => { void Promise.all([driverApi.governorates(), driverApi.myGovernorate()]).then(([list, mine]) => { setGovernorates(list); setGovernorateId(mine.governorateId || ''); }).catch(() => {}); }, []);
+  const changeGovernorate = async (id:string) => { try { await driverApi.updateGovernorate(id); setGovernorateId(id); setShowGovernorates(false); Alert.alert('تم التحديث','تم تغيير محافظة عملك.'); } catch (e:any) { Alert.alert('تعذر التحديث',e?.message || 'حاول مرة أخرى.'); } };
   const isOnline = driver.shiftStatus === 'ONLINE';
 
   const handleCall = (phone: string, name: string) => {
@@ -108,6 +114,11 @@ export const DriverDashboardScreen: React.FC = () => {
             </View>
           </View>
         </View>
+
+        <TouchableOpacity style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 14, padding: 14, backgroundColor: '#fff', borderRadius: 14, flexDirection: 'row-reverse', justifyContent: 'space-between' }} onPress={() => setShowGovernorates(true)}>
+          <Text style={{ fontWeight: '700' }}>محافظة عملك</Text><Text>{governorates.find(g=>g.id===governorateId)?.name || 'اختر المحافظة ▾'}</Text>
+        </TouchableOpacity>
+        <Modal visible={showGovernorates} transparent animationType="slide" onRequestClose={() => setShowGovernorates(false)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:'#0008'}}><View style={{maxHeight:'70%',backgroundColor:'#fff',padding:18,borderTopLeftRadius:20,borderTopRightRadius:20}}><Text style={{textAlign:'right',fontSize:18,fontWeight:'700',marginBottom:10}}>اختر المحافظة</Text><ScrollView>{governorates.map(g=><TouchableOpacity key={g.id} style={{padding:14,borderBottomWidth:1,borderColor:'#eee'}} onPress={()=>changeGovernorate(g.id)}><Text style={{textAlign:'right'}}>{g.name}</Text></TouchableOpacity>)}</ScrollView></View></View></Modal>
 
         {/* Detailed Active Task Card */}
         {activeTask ? (

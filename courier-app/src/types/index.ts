@@ -28,6 +28,7 @@ export interface TaskStop {
   isExternalPurchase: boolean; // Requires actual purchase recording
   storePhone?: string;
   notes?: string;
+  receiptImageUrl?: string;
 }
 
 export interface TaskPurchasedItem {

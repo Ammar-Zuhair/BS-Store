@@ -13,11 +13,12 @@ import {
   Animated,
   Easing,
   Image,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { typography, borderRadius, spacing } from '../theme';
 import { useApp } from '../context/AppContext';
-import { authApi } from '../api';
+import { authApi, governorateApi } from '../api';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
 import { TermsModal } from '../components/TermsModal';
 
@@ -50,6 +51,9 @@ export const AuthScreen: React.FC = () => {
 
   // Address & GPS Location States
   const [regCity, setRegCity] = useState('');
+  const [governorates, setGovernorates] = useState<{ id: string; name: string }[]>([]);
+  const [governorateId, setGovernorateId] = useState('');
+  const [governoratePickerOpen, setGovernoratePickerOpen] = useState(false);
   const [regDistrict, setRegDistrict] = useState('');
   const [regStreet, setRegStreet] = useState('');
   const [regBuilding, setRegBuilding] = useState('');
@@ -58,6 +62,8 @@ export const AuthScreen: React.FC = () => {
   const [isLocationPicked, setIsLocationPicked] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+
+  useEffect(() => { governorateApi.list().then(setGovernorates).catch(() => setGovernorates([])); }, []);
 
   // ─── Animations ──────────────────────────────────────────────────────────
   const waveAnim = useRef(new Animated.Value(0)).current;
@@ -259,6 +265,7 @@ export const AuthScreen: React.FC = () => {
       Alert.alert('تنبيه', 'يرجى إدخال المدينة والحي');
       return;
     }
+    if (!governorateId) { Alert.alert('تنبيه', 'اختر محافظة السكن من القائمة'); return; }
     if (!agreeTerms) {
       Alert.alert(
         'الشروط والأحكام',
@@ -273,6 +280,7 @@ export const AuthScreen: React.FC = () => {
 
     const initialAddress = {
       city: regCity.trim(),
+      governorateId,
       district: regDistrict.trim(),
       street: regStreet.trim() || 'الشارع الرئيسي',
       building: regBuilding.trim() || undefined,
@@ -709,6 +717,10 @@ export const AuthScreen: React.FC = () => {
                 </TouchableOpacity>
 
                 {/* City & District in One Row */}
+                <Text style={styles.inputLabel}>محافظة السكن *</Text>
+                <TouchableOpacity style={styles.inputWrapper} onPress={() => setGovernoratePickerOpen(true)}>
+                  <Text style={[styles.textInput, { textAlign: 'right', paddingVertical: 12 }]}>{governorates.find((g) => g.id === governorateId)?.name || 'اختر المحافظة'}</Text>
+                </TouchableOpacity>
                 <View style={styles.row2}>
                   <View style={styles.col2}>
                     <Text style={styles.inputLabel}>المدينة</Text>
@@ -816,6 +828,12 @@ export const AuthScreen: React.FC = () => {
         onClose={() => setShowMapPicker(false)}
         onConfirm={handleLocationPicked}
       />
+      <Modal visible={governoratePickerOpen} transparent animationType="slide" onRequestClose={() => setGovernoratePickerOpen(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#0009' }}><View style={{ maxHeight: '70%', backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18 }}>
+          <Text style={{ textAlign: 'right', fontSize: 18, fontWeight: '700', marginBottom: 12 }}>اختر المحافظة</Text>
+          <ScrollView>{governorates.map((g) => <TouchableOpacity key={g.id} style={{ padding: 14, borderBottomWidth: 1, borderColor: '#eee' }} onPress={() => { setGovernorateId(g.id); setRegCity(g.name); setGovernoratePickerOpen(false); }}><Text style={{ textAlign: 'right', fontSize: 16 }}>{g.name}</Text></TouchableOpacity>)}</ScrollView>
+        </View></View>
+      </Modal>
 
       {/* Interactive Terms & Conditions Modal */}
       <TermsModal

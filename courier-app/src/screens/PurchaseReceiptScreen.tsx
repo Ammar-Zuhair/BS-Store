@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, Alert, ActivityIndicator } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { DriverHeader } from '../components/DriverHeader';
 import { useDriver } from '../context/DriverContext';
@@ -8,6 +9,8 @@ export const PurchaseReceiptScreen: React.FC = () => {
   const { activeTask, savePurchaseDocumentation, navigateTo } = useDriver();
 
   const [actualPrices, setActualPrices] = useState<Record<string, string>>({});
+  const [receiptUri, setReceiptUri] = useState('');
+  const [saving, setSaving] = useState(false);
 
   if (!activeTask) {
     return (
@@ -20,23 +23,44 @@ export const PurchaseReceiptScreen: React.FC = () => {
     );
   }
 
-  const currentStoreStop = activeTask.stops.find((stop) => stop.type === 'PICKUP_STORE') || activeTask.stops[activeTask.currentStopIndex];
+  const currentStoreStop = activeTask.stops.find((stop) => stop.type === 'PICKUP_STORE' && stop.status !== 'COMPLETED');
+  const itemsForPurchase = activeTask.itemsToPurchase.filter((item) => currentStoreStop && (item.storeId === currentStoreStop.id.replace('stop-store-', '') || item.storeName === currentStoreStop.name));
 
-  const totalActual = activeTask.itemsToPurchase.reduce((sum, item) => sum + (Number(actualPrices[item.id]) || 0) * item.quantity, 0);
-  const expectedTotal = activeTask.itemsToPurchase.reduce((sum, item) => sum + (Number(item.expectedPrice) || 0) * item.quantity, 0);
+  const totalActual = itemsForPurchase.reduce((sum, item) => sum + (Number(actualPrices[item.id]) || 0) * item.quantity, 0);
+  const expectedTotal = itemsForPurchase.reduce((sum, item) => sum + (Number(item.expectedPrice) || 0) * item.quantity, 0);
   const diff = totalActual - expectedTotal;
 
   const handleConfirmPurchase = async () => {
-    if (!activeTask.itemsToPurchase.length || activeTask.itemsToPurchase.some((item) => !(Number(actualPrices[item.id]) > 0))) {
+    if (!itemsForPurchase.length || itemsForPurchase.some((item) => !(Number(actualPrices[item.id]) > 0))) {
       Alert.alert('بيانات ناقصة', 'أدخل سعر الشراء الفعلي لكل صنف في الطلب.');
       return;
     }
     try {
-      await savePurchaseDocumentation(activeTask.itemsToPurchase.map((item) => ({ id: item.id, actualPrice: Number(actualPrices[item.id]) })), '');
+      if (!receiptUri) { Alert.alert('الصورة مطلوبة', 'اختر صورة فاتورة المتجر أولاً.'); return; }
+      setSaving(true);
+      await savePurchaseDocumentation(itemsForPurchase.map((item) => ({ id: item.id, actualPrice: Number(actualPrices[item.id]) })), receiptUri);
       Alert.alert('تم توثيق المشتريات', `تم تسجيل مشتريات بقيمة ${totalActual.toLocaleString()} ر.ي.`);
     } catch (error: any) {
       Alert.alert('تعذر حفظ المشتريات', error?.message || 'تحقق من اتصال الشبكة وحاول مجدداً.');
-    }
+    } finally { setSaving(false); }
+  };
+
+  const chooseReceipt = async () => {
+    Alert.alert('صورة فاتورة المتجر', 'التقط السند الآن أو اختر صورة محفوظة.', [
+      { text: 'التقاط صورة', onPress: async () => {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) { Alert.alert('صلاحية الكاميرا مطلوبة', 'اسمح للتطبيق باستخدام الكاميرا لتصوير الفاتورة.'); return; }
+        const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.65 });
+        if (!result.canceled) setReceiptUri(result.assets[0].uri);
+      } },
+      { text: 'اختيار من الصور', onPress: async () => {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) { Alert.alert('صلاحية الصور مطلوبة', 'اسمح للتطبيق بالوصول للصور.'); return; }
+        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.65 });
+        if (!result.canceled) setReceiptUri(result.assets[0].uri);
+      } },
+      { text: 'إلغاء', style: 'cancel' },
+    ]);
   };
 
   return (
@@ -47,6 +71,9 @@ export const PurchaseReceiptScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        <TouchableOpacity style={styles.receiptPicker} onPress={chooseReceipt}>
+          {receiptUri ? <Image source={{ uri: receiptUri }} style={styles.receiptThumb} /> : <Text style={styles.receiptPickerText}>📷 اختر صورة فاتورة {currentStoreStop?.name || 'المتجر'} (مطلوبة)</Text>}
+        </TouchableOpacity>
         {/* Step Context Indicator */}
         <View style={styles.contextHeader}>
           <View style={styles.stepPill}>
@@ -93,7 +120,7 @@ export const PurchaseReceiptScreen: React.FC = () => {
         {/* Purchased Items Form */}
         <Text style={styles.formSectionTitle}>قائمة الأصناف المطلوب شراؤها من الكاشير</Text>
 
-        {activeTask.itemsToPurchase.map((item) => {
+        {itemsForPurchase.map((item) => {
           const expectedUnit = Number(item.expectedPrice) || 0;
           const entered = Number(actualPrices[item.id]) || 0;
           return (
@@ -144,9 +171,10 @@ export const PurchaseReceiptScreen: React.FC = () => {
         <TouchableOpacity
           style={styles.submitBtn}
           onPress={handleConfirmPurchase}
+          disabled={saving}
           activeOpacity={0.88}
         >
-          <Text style={styles.submitBtnText}>تأكيد الشراء وقيد سند الصرف بالعهدة ✓</Text>
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>حفظ سند المتجر والتقدم ✓</Text>}
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -522,6 +550,9 @@ const styles = StyleSheet.create({
     ...shadows.floating,
     marginTop: 4,
   },
+  receiptPicker: { minHeight: 96, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.primary, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 18, backgroundColor: '#fff', padding: 10 },
+  receiptPickerText: { color: colors.primary, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  receiptThumb: { width: '100%', height: 170, borderRadius: 12 },
   submitBtnText: {
     color: colors.onPrimary,
     fontSize: typography.fontSize.sm,

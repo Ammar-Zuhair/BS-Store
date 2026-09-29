@@ -1,5 +1,6 @@
 import React from 'react';
-import { StatusBar, StyleSheet, View, Platform, SafeAreaView } from 'react-native';
+import { useFonts, Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold } from '@expo-google-fonts/tajawal';
+import { StatusBar, StyleSheet, View, Platform, SafeAreaView, Text } from 'react-native';
 import { DriverProvider, useDriver } from './src/context/DriverContext';
 import { DriverDashboardScreen } from './src/screens/DriverDashboardScreen';
 import { ActiveTaskRouteScreen } from './src/screens/ActiveTaskRouteScreen';
@@ -11,9 +12,13 @@ import { DriverBottomNav } from './src/components/DriverBottomNav';
 import { colors } from './src/theme';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0;
+(Text as any).defaultProps = { ...(Text as any).defaultProps, style: [{ fontFamily: 'Tajawal_400Regular', fontSize: 16 }, (Text as any).defaultProps?.style] };
 
 const DriverNavigator: React.FC = () => {
   const { currentScreen, authenticated } = useDriver();
+  const [fontsLoaded] = useFonts({ Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold });
+
+  if (!fontsLoaded) return <View style={styles.appContainer} />;
 
   if (!authenticated) return <CourierAuthScreen />;
 

@@ -33,7 +33,7 @@ interface DriverContextType {
   acceptCurrentOrder: () => Promise<void>;
   authenticated: boolean;
   signIn: (phone: string, password: string) => Promise<void>;
-  signUp: (name: string, phone: string, password: string) => Promise<void>;
+  signUp: (name: string, phone: string, password: string, governorateId: string) => Promise<void>;
 }
 
 const DEFAULT_PROFILE: DriverProfile = {
@@ -71,8 +71,8 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setAuthenticated(true);
   };
 
-  const signUp = async (name: string, phone: string, password: string): Promise<void> => {
-    await authApi.register(name, phone, password);
+  const signUp = async (name: string, phone: string, password: string, governorateId: string): Promise<void> => {
+    await authApi.register(name, phone, password, governorateId);
   };
 
   const navigateTo = (screen: CourierScreenName) => {
@@ -95,6 +95,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isExternalPurchase: true,
         storePhone: so.storePhone || '',
         notes: `استلام طلب متجر ${so.storeName}`,
+        receiptImageUrl: so.receiptImageUrl || '',
       });
     });
 
@@ -160,9 +161,9 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }));
         setWallet((w) => ({
           ...w,
-          completedTripsToday: status.todayCompletedOrders,
-          todayEarnings: status.todayCompletedOrders * 800,
-          totalDistanceTodayKm: status.todayCompletedOrders * 4.5,
+          completedTripsToday: Number(status.todayCompletedOrders ?? status.completedTodayCount ?? 0),
+          todayEarnings: Number(status.todayCompletedOrders ?? status.completedTodayCount ?? 0) * 800,
+          totalDistanceTodayKm: Number(status.todayCompletedOrders ?? status.completedTodayCount ?? 0) * 4.5,
         }));
       } catch (e) {
         console.warn('Driver status warning:', e);
@@ -181,7 +182,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const fin = await driverApi.getFinancialSummary();
         setWallet((w) => ({
           ...w,
-          currentCashCustody: fin.outstandingCustodyBalance,
+          currentCashCustody: Number(fin.outstandingCustodyBalance ?? (fin as any).netOutstandingDebt ?? 0),
         }));
       } catch (e) {
         console.warn('Driver financial summary warning:', e);
@@ -195,7 +196,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           type: t.type === 0 ? 'CUSTOMER_COLLECTION' : t.type === 1 ? 'STORE_PURCHASE' : 'COMPANY_SETTLEMENT',
           amount: t.amount,
           direction: t.direction === 0 ? 'DEBIT' : 'CREDIT',
-          referenceNumber: t.reference || `#${t.id.slice(0, 6)}`,
+          referenceNumber: t.reference || `#${String(t.id || '').slice(0, 6)}`,
           description: t.description || 'حركة مالية',
           date: new Date(t.createdAt || Date.now()).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
         }));
@@ -207,17 +208,19 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // 5. Order History / Invoices
       try {
         const hist = await driverApi.getOrderHistory();
-        const mappedInvoices: OrderInvoice[] = hist.map((o: any) => ({
-          id: o.id,
-          orderNumber: o.orderNumber,
-          storeName: o.subOrders?.[0]?.storeName || 'متاجر متعددة',
-          invoiceNumber: `INV-${o.orderNumber}`,
-          amount: o.totalAmount,
-          receiptImageUrl: o.receiptImageUrl || '',
-          status: 'APPROVED',
-          uploadedAt: new Date(o.createdAt || Date.now()).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
-          itemsCount: o.subOrders?.reduce((acc: number, so: any) => acc + (so.items?.length || 0), 0) || 1,
-        }));
+        const mappedInvoices: OrderInvoice[] = hist.flatMap((o: any) => (o.subOrders || [])
+          .filter((so: any) => so.receiptImageUrl)
+          .map((so: any) => ({
+            id: `${o.id}-${so.id}`,
+            orderNumber: o.orderNumber,
+            storeName: so.storeName || 'المتجر',
+            invoiceNumber: `INV-${o.orderNumber}-${String(so.id).slice(0, 5)}`,
+            amount: Number(so.actualPurchaseCost || 0),
+            receiptImageUrl: so.receiptImageUrl,
+            status: 'APPROVED' as const,
+            uploadedAt: new Date(o.createdAt || Date.now()).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
+            itemsCount: so.items?.length || 1,
+          })));
         setInvoices(mappedInvoices);
       } catch (e) {
         console.warn('Driver order history warning:', e);
@@ -277,7 +280,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!activeTask) return;
 
     try {
-      const subOrderId = activeTask.stops[0]?.id.replace('stop-store-', '') || '';
+      const subOrderId = activeTask.stops.find((s) => s.type === 'PICKUP_STORE' && s.status !== 'COMPLETED')?.id.replace('stop-store-', '') || '';
       const totalSpent = items.reduce((acc, it) => {
         const taskItem = activeTask.itemsToPurchase.find((item) => item.id === it.id);
         return acc + it.actualPrice * (taskItem?.quantity || 1);
@@ -286,7 +289,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       await driverApi.recordPurchase(activeTask.id, {
         subOrderId,
         actualPurchasePrice: totalSpent,
-        receiptImageUrl: receiptUrl,
+        receiptImageUrl: await driverApi.uploadReceipt(receiptUrl),
         itemDetails: items.map((it) => ({
           orderItemId: it.id,
           actualPrice: it.actualPrice,

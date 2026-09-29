@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { DriverHeader } from '../components/DriverHeader';
 import { useDriver } from '../context/DriverContext';
@@ -7,6 +7,7 @@ import { useDriver } from '../context/DriverContext';
 export const DriverWalletScreen: React.FC = () => {
   const { wallet, transactions, requestSettlement, navigateTo } = useDriver();
   const [settleModalVisible, setSettleModalVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [settleAmount, setSettleAmount] = useState(String(wallet.currentCashCustody ?? 0));
 
   const handleRequestSettlement = async () => {
@@ -16,12 +17,13 @@ export const DriverWalletScreen: React.FC = () => {
       return;
     }
     try {
+      setSubmitting(true);
       await requestSettlement(amount);
       setSettleModalVisible(false);
       Alert.alert('تم إرسال طلب التوريد', `تم إرسال طلب تصفية مبلغ ${amount.toLocaleString()} ر.ي إلى إدارة المالية.`);
     } catch (error: any) {
       Alert.alert('تعذر إرسال الطلب', error?.message || 'تحقق من الاتصال بالسيرفر.');
-    }
+    } finally { setSubmitting(false); }
   };
 
   return (
@@ -133,8 +135,9 @@ export const DriverWalletScreen: React.FC = () => {
               <TouchableOpacity
                 style={styles.confirmBtn}
                 onPress={handleRequestSettlement}
+                disabled={submitting}
               >
-                <Text style={styles.confirmBtnText}>إرسال طلب التصفية</Text>
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmBtnText}>إرسال طلب التصفية</Text>}
               </TouchableOpacity>
             </View>
           </View>

@@ -28,6 +28,7 @@ export interface Address {
   id: string;
   label: 'المنزل' | 'العمل' | 'أخرى';
   city: string;
+  governorateId?: string;
   district: string;
   street: string;
   building?: string;

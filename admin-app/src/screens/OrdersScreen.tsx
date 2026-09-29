@@ -87,6 +87,9 @@ export const OrdersScreen: React.FC = () => {
     if (selectedStatusTab === 'ALL') return true;
     return o.status === selectedStatusTab;
   });
+  const assignableDrivers = assignModalOrder?.subOrders[0]?.governorateId
+    ? driverCustodies.filter((d) => d.governorateId === assignModalOrder.subOrders[0].governorateId && d.isApproved !== false)
+    : [];
 
   // ── Handlers ──
   const handleAssignDriver = (order: AdminOrder, driverId: string, driverName: string) => {
@@ -516,12 +519,12 @@ export const OrdersScreen: React.FC = () => {
 
               <ScrollView style={styles.modalBody}>
                 <Text style={styles.assignSubtitle}>اختر كابتناً من القائمة أدناه:</Text>
-                {driverCustodies.length === 0 && (
+                {assignableDrivers.length === 0 && (
                   <View style={styles.emptyBox}>
-                    <Text style={styles.emptyText}>لا يوجد كابتن متاح حالياً</Text>
+                    <Text style={styles.emptyText}>لا يوجد موصل مسجل في محافظة متاجر هذا الطلب</Text>
                   </View>
                 )}
-                {driverCustodies.map((driver) => (
+                {assignableDrivers.map((driver) => (
                   <TouchableOpacity
                     key={driver.driverId}
                     style={styles.driverCard}
@@ -540,6 +543,7 @@ export const OrdersScreen: React.FC = () => {
                     <View style={styles.driverInfo}>
                       <Text style={styles.driverName}>{driver.driverName}</Text>
                       <Text style={styles.driverPhone}>{driver.phone}</Text>
+                      <Text style={styles.driverPhone}>{driver.governorateName}</Text>
                     </View>
                     <View style={[
                       styles.driverStatusBadge,
