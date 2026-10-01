@@ -53,14 +53,14 @@ export const colors = {
 
 export const typography = {
   fontSize: {
-    xs: 12,
-    sm: 14,
-    md: 16,
-    lg: 18,
-    xl: 20,
-    xxl: 22,
-    hero: 28,
-    display: 34,
+    xs: 14,
+    sm: 16,
+    md: 18,
+    lg: 20,
+    xl: 22,
+    xxl: 24,
+    hero: 30,
+    display: 36,
   },
   fontWeight: {
     regular: '400' as const,

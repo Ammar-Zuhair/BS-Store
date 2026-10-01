@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, Platform, RefreshControl, ActivityIndicator } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { DriverHeader } from '../components/DriverHeader';
 import { useDriver } from '../context/DriverContext';
@@ -10,7 +10,17 @@ export const ActiveTaskRouteScreen: React.FC = () => {
     completeStop,
     completeDeliveryAndCollect,
     navigateTo,
+    refreshData,
+    isRefreshing,
   } = useDriver();
+  const [isCompletingDelivery, setIsCompletingDelivery] = useState(false);
+  const handleCompleteDelivery = async () => {
+    if (isCompletingDelivery) return;
+    setIsCompletingDelivery(true);
+    try { await completeDeliveryAndCollect(); }
+    catch (error: any) { Alert.alert('تعذر إتمام التسليم', error?.message || 'حاول مرة أخرى'); }
+    finally { setIsCompletingDelivery(false); }
+  };
 
   if (!activeTask) {
     return (
@@ -60,6 +70,7 @@ export const ActiveTaskRouteScreen: React.FC = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshData} colors={[colors.primary]} />}
       >
         {/* Order Header Summary */}
         <View style={styles.topCard}>
@@ -157,7 +168,7 @@ export const ActiveTaskRouteScreen: React.FC = () => {
                     .map((it) => (
                       <View key={it.id} style={styles.stopItemRow}>
                         <Text style={styles.stopItemPrice}>
-                          {(it.expectedPrice * it.quantity).toLocaleString()} ر.ي
+                          {((it.actualPrice ?? it.expectedPrice) * it.quantity).toLocaleString()} ر.ي
                         </Text>
                         <Text style={styles.stopItemName}>
                           {it.name} <Text style={styles.stopItemQty}>× {it.quantity}</Text>
@@ -180,9 +191,9 @@ export const ActiveTaskRouteScreen: React.FC = () => {
                 {stop.isExternalPurchase && !isCompleted && (
                   <TouchableOpacity
                     style={styles.purchaseDocBtn}
-                    onPress={() => navigateTo('invoices')}
+                    onPress={() => navigateTo('purchase')}
                   >
-                    <Text style={styles.purchaseDocBtnText}>🧾 رفع وتوثيق فاتورة المتجر</Text>
+                    <Text style={styles.purchaseDocBtnText}>تسجيل مشتريات هذا المتجر</Text>
                   </TouchableOpacity>
                 )}
 
@@ -197,12 +208,11 @@ export const ActiveTaskRouteScreen: React.FC = () => {
 
                 {stop.type === 'DELIVERY_CUSTOMER' && !isCompleted && (
                   <TouchableOpacity
-                    style={styles.deliverFinalBtn}
-                    onPress={completeDeliveryAndCollect}
+                    style={[styles.deliverFinalBtn, isCompletingDelivery && { opacity: 0.7 }]}
+                    onPress={handleCompleteDelivery}
+                    disabled={isCompletingDelivery}
                   >
-                    <Text style={styles.deliverFinalBtnText}>
-                      إتمام التسليم وتحصيل {activeTask.amountToCollect.toLocaleString()} ر.ي ✓
-                    </Text>
+                    {isCompletingDelivery ? <ActivityIndicator color="#fff" /> : <Text style={styles.deliverFinalBtnText}>إتمام التسليم وتحصيل {activeTask.amountToCollect.toLocaleString()} ر.ي ✓</Text>}
                   </TouchableOpacity>
                 )}
               </View>
@@ -273,7 +283,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   taskStopsCount: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     marginTop: 1,
   },
@@ -284,7 +294,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   statusPillText: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSecondary,
   },
@@ -311,7 +321,7 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   custPhone: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     marginTop: 1,
   },
@@ -325,11 +335,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   callBtnIcon: {
-    fontSize: 12,
+    fontSize: 14,
   },
   callBtnText: {
     color: colors.onPrimary,
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
   },
   customerAddressRow: {
@@ -343,7 +353,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   custAddress: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
     flex: 1,
@@ -355,7 +365,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   openMapPillText: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onPrimary,
   },
@@ -397,7 +407,7 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   stopType: {
-    fontSize: 9,
+    fontSize: 14,
     color: colors.outline,
   },
   stopBadge: {
@@ -413,12 +423,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryFixed,
   },
   stopBadgeText: {
-    fontSize: 9,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurface,
   },
   stopAddress: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 2,
@@ -439,7 +449,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   mapNavBtnText: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurface,
     fontWeight: typography.fontWeight.bold,
   },
@@ -452,7 +462,7 @@ const styles = StyleSheet.create({
   },
   purchaseDocBtnText: {
     color: colors.onSecondary,
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
   },
   pickupConfirmBtn: {
@@ -464,7 +474,7 @@ const styles = StyleSheet.create({
   },
   pickupConfirmBtnText: {
     color: colors.onPrimary,
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
   },
   deliverFinalBtn: {
@@ -476,7 +486,7 @@ const styles = StyleSheet.create({
   },
   deliverFinalBtnText: {
     color: colors.onPrimary,
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
   },
   stopItemsBox: {
@@ -486,7 +496,7 @@ const styles = StyleSheet.create({
     marginVertical: 6,
   },
   stopItemsHeading: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
@@ -499,7 +509,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   stopItemName: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurface,
     textAlign: 'right',
   },
@@ -508,7 +518,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   stopItemPrice: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.outline,
   },
 });

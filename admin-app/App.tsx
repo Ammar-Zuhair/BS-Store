@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { StatusBar, StyleSheet, View, ActivityIndicator, BackHandler, Alert } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -20,10 +20,17 @@ import { FinancialsScreen } from './src/screens/FinancialsScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { AdminBottomNav } from './src/components/AdminBottomNav';
 import { colors } from './src/theme';
+import { usePushNotifications } from './src/notifications';
+import { api } from './src/api';
 
 const AdminNavigator: React.FC = () => {
-  const { currentScreen, navigateTo } = useAdmin();
+  const { currentScreen, navigateTo, isSessionRestoring, currentUser, refreshData } = useAdmin();
   const insets = useSafeAreaInsets();
+  const onNotificationOpen = useCallback((type: string) => {
+    navigateTo(type === 'new_order' ? 'orders' : 'dashboard');
+    void refreshData();
+  }, [navigateTo, refreshData]);
+  usePushNotifications(Boolean(currentUser), 'admin', api, onNotificationOpen);
 
   useEffect(() => {
     const handleBackPress = () => {
@@ -53,6 +60,7 @@ const AdminNavigator: React.FC = () => {
   }, [currentScreen, navigateTo]);
 
   const renderScreen = () => {
+    if (isSessionRestoring) return <View style={styles.loading}><ActivityIndicator size="large" color={colors.primary} /></View>;
     switch (currentScreen) {
       case 'dashboard':
         return <DashboardScreen />;
@@ -128,5 +136,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
-

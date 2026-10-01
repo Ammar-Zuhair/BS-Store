@@ -102,10 +102,7 @@ export const ProfileScreen: React.FC = () => {
             </View>
             <View style={styles.userInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.userName}>{user?.name || 'عميل متجر بي اس'}</Text>
-                <View style={styles.vipBadge}>
-                  <Text style={styles.vipBadgeText}>عميل مميز</Text>
-                </View>
+                {!!user?.name && <Text style={styles.userName}>{user.name}</Text>}
               </View>
               <Text style={styles.userPhone}>{user?.phone || ''}</Text>
             </View>
@@ -269,7 +266,7 @@ export const ProfileScreen: React.FC = () => {
         <View style={styles.sectionCard}>
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => Alert.alert('خدمة العملاء', 'رقم الدعم الفني: 8000000 أو واتساب: 777000000')}
+            onPress={() => Alert.alert('خدمة العملاء', 'بيانات الدعم غير متاحة حالياً.')}
           >
             <Text style={styles.menuArrow}>‹</Text>
             <View style={styles.menuTitleRow}>
@@ -384,17 +381,6 @@ const createStyles = (c: ThemeColors) =>
       fontSize: typography.fontSize.md,
       fontWeight: typography.fontWeight.bold,
       color: c.onSurface,
-    },
-    vipBadge: {
-      backgroundColor: c.secondaryContainer,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: borderRadius.full,
-    },
-    vipBadgeText: {
-      fontSize: 9,
-      fontWeight: typography.fontWeight.bold,
-      color: c.onSecondary,
     },
     userPhone: {
       fontSize: typography.fontSize.xs,

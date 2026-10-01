@@ -1,4 +1,4 @@
-import { api, API_BASE_URL } from './client';
+import { api } from './client';
 
 export { api };
 
@@ -8,22 +8,36 @@ export const authApi = {
     api.post<{ message: string }>('/driver-applications', { fullName, phone, password, governorateId }),
 
   login: async (phone: string, password = 'DriverPassword123!') => {
-    const res = await api.post<{ accessToken: string; user: { id: string; name: string; phone: string; role: string } }>(
+    await api.clearSession();
+    const res = await api.post<{ accessToken: string; refreshToken: string; user: { id: string; fullName?: string; name?: string; phone: string; role: string } }>(
       '/auth/login',
       { phone, password }
     );
     if (res.user?.role !== 'Driver') throw new Error('هذا الحساب غير مسجل كموصل.');
     api.setToken(res.accessToken);
+    api.setRefreshToken(res.refreshToken);
     return res;
   },
 
-  me: () => api.get<{ id: string; name: string; phone: string; role: string }>('/auth/me'),
+  me: () => api.get<{ id: string; fullName?: string; name?: string; phone: string; role: string }>('/auth/me'),
+
+  restoreSession: async () => {
+    if (!await api.initSession()) return null;
+    try {
+      const user = await authApi.me();
+      if (user.role !== 'Driver') { await api.clearSession(); return null; }
+      return user;
+    } catch (error: any) {
+      if (error?.status === 401) await api.clearSession();
+      throw error;
+    }
+  },
 
   logout: async () => {
     try {
       await api.post('/auth/logout');
     } finally {
-      api.setToken(null);
+      await api.clearSession();
     }
   },
 };
@@ -33,14 +47,6 @@ export const driverApi = {
   governorates: () => api.get<{id:string;name:string}[]>('/governorates'),
   myGovernorate: () => api.get<{governorateId:string|null}>('/profile/governorate'),
   updateGovernorate: (governorateId:string) => api.put('/profile/governorate',{governorateId}),
-  uploadReceipt: async (uri: string) => {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const form = new FormData();
-    form.append('file', blob, `receipt-${Date.now()}.jpg`);
-    const uploaded = await api.post<string>('/driver/receipts', form);
-    return `${API_BASE_URL.replace(/\/api\/?$/, '')}${uploaded}`;
-  },
   getStatus: () =>
     api.get<{
       driverId: string;
@@ -50,6 +56,8 @@ export const driverApi = {
       isShiftActive: boolean;
       todayCompletedOrders: number;
       completedTodayCount?: number;
+      todayEarnings?: number;
+      profitSharePercent?: number;
     }>('/driver/status'),
 
   updateStatus: (status: number) =>
@@ -58,9 +66,6 @@ export const driverApi = {
   getCurrentOrder: () =>
     api.get<any | null>('/driver/current-order'),
 
-  getOrderHistory: () =>
-    api.get<any[]>('/driver/orders/history'),
-
   acceptOrder: (orderId: string) =>
     api.put<any>(`/driver/orders/${orderId}/accept`),
 
@@ -68,7 +73,6 @@ export const driverApi = {
     subOrderId: string;
     actualPurchasePrice: number;
     itemDetails?: { orderItemId: string; actualPrice: number }[];
-    receiptImageUrl?: string;
   }) => api.post<any>(`/driver/orders/${orderId}/record-purchase`, data),
 
   confirmDelivered: (orderId: string) =>

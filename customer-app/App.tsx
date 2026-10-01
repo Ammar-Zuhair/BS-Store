@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   StatusBar,
   StyleSheet,
@@ -29,6 +29,8 @@ import { CategoryScreen } from './src/screens/CategoryScreen';
 import { FloatingCartBar } from './src/components/FloatingCartBar';
 import { BottomNav } from './src/components/BottomNav';
 import { colors } from './src/theme';
+import { usePushNotifications } from './src/notifications';
+import { api } from './src/api';
 
 const MainNavigator: React.FC = () => {
   const {
@@ -38,7 +40,13 @@ const MainNavigator: React.FC = () => {
     isAuthLoading,
     isDarkMode,
     colors: themeColors,
+    refreshOrders,
   } = useApp();
+  const onNotificationOpen = useCallback((type: string) => {
+    navigateTo(type === 'order_status' ? 'tracking' : 'home');
+    void refreshOrders();
+  }, [navigateTo, refreshOrders]);
+  usePushNotifications(isAuthenticated, 'customer', api, onNotificationOpen);
 
   useEffect(() => {
     const handleBackPress = () => {
@@ -186,4 +194,3 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
-

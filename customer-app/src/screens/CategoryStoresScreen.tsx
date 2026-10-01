@@ -93,11 +93,7 @@ export const CategoryStoresScreen: React.FC = () => {
       const subcatsMatch =
         store.subcategories &&
         store.subcategories.some((sub) => (sub || '').toLowerCase().includes(q));
-      const tagsMatch =
-        store.tags &&
-        store.tags.some((tag) => (tag || '').toLowerCase().includes(q));
-
-      return nameMatch || addressMatch || subcatsMatch || tagsMatch;
+      return nameMatch || addressMatch || subcatsMatch;
     });
   }, [allStores, activeCat, searchQuery]);
 
@@ -216,7 +212,7 @@ export const CategoryStoresScreen: React.FC = () => {
                     <View style={styles.offerImageWrap}>
                       <CachedImage source={{ uri: deal.imageUrl }} style={styles.offerImage} />
                       <View style={styles.bundleBadge}>
-                        <Text style={styles.bundleBadgeText}>{deal.badge || 'عرض خاص'}</Text>
+                        {!!deal.badge && <Text style={styles.bundleBadgeText}>{deal.badge}</Text>}
                       </View>
                     </View>
 
@@ -272,13 +268,13 @@ export const CategoryStoresScreen: React.FC = () => {
                             onPress={() => {
                               if (deal.products && deal.products.length > 0) {
                                 handleOpenDealModal(deal);
-                              } else {
+                              } else if (deal.storeId) {
                                 addToCart(
                                   {
                                     id: deal.id,
-                                    storeId: deal.storeId || 'store-1',
+                                    storeId: deal.storeId,
                                     storeName: deal.storeName,
-                                    categoryId: deal.categoryId || activeCat,
+                                    categoryId: deal.categoryId || '',
                                     name: deal.title,
                                     description: deal.description,
                                     sellingPrice: deal.originalPrice,

@@ -6,6 +6,7 @@ import { DealItem } from '../components/DealDetailsModal';
 import { api, authApi, catalogApi, cartApi, ordersApi, addressApi, paymentsApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, lightColors, darkColors, ThemeColors, setGlobalThemeMode } from '../theme';
+import { unregisterPushDevice } from '../notifications';
 
 export type ScreenName = 'home' | 'category' | 'category_stores' | 'store_detail' | 'cart' | 'checkout' | 'tracking' | 'profile' | 'auth';
 
@@ -42,6 +43,9 @@ interface AppContextType {
   cartSubtotal: number;
   cartDeliveryFee: number;
   cartFarthestStoreDistanceKm: number;
+  isDeliveryQuoteLoading: boolean;
+  hasDeliveryQuote: boolean;
+  refreshDeliveryQuote: () => void;
   cartDiscount: number;
   cartTotal: number;
   promoCode: string;
@@ -106,6 +110,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [deliveryDiscountPercent, setDeliveryDiscountPercent] = useState(0);
   const [deliveryPromoDealId, setDeliveryPromoDealId] = useState<string | null>(null);
   const [deliveryQuote, setDeliveryQuote] = useState<{ fee: number; farthestDistanceKm: number; storeFees: Record<string, number> } | null>(null);
+  const [isDeliveryQuoteLoading, setIsDeliveryQuoteLoading] = useState(false);
+  const [deliveryQuoteRetryKey, setDeliveryQuoteRetryKey] = useState(0);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -143,7 +149,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return {
           id: p.id,
           storeId: p.storeId,
-          storeName: p.storeName || 'متجر',
+          storeName: p.storeName || '',
           categoryId: p.categoryId,
           subcategoryId: subcategoryName,
           name: p.name,
@@ -152,8 +158,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           imageUrl: p.images?.[0] || '',
           images: Array.isArray(p.images) ? p.images.filter(Boolean) : [],
           sourceType: (p.sourceType === 'ExternalStore' ? 'EXTERNAL_STORE' : 'IN_STOCK'),
-          inStock: true,
-          unit: 'حبة',
+          inStock: Boolean(p.isActive) && (p.availableStock == null || Number(p.availableStock) > 0),
         };
       });
 
@@ -174,46 +179,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           new Set([...(s.categoryIds || []), ...storeProductCategories])
         );
 
-        const primaryCatId = allStoreCatIds[0] || (catsRes[0]?.id ?? '');
+        const primaryCatId = allStoreCatIds[0] || '';
         const primaryCatObj = catsRes.find((c) => c.id === primaryCatId);
 
         return {
           id: s.id,
           name: s.name,
-          category: primaryCatObj ? primaryCatObj.name : 'عام',
+          category: primaryCatObj?.name || '',
           categoryId: primaryCatId,
           categoryIds: allStoreCatIds,
-          subcategories: storeSubcats.length > 0 ? storeSubcats : ['عام'],
+          subcategories: storeSubcats,
           phone: s.phone,
           address: s.address,
           imageUrl: s.imageUrl || '',
-          rating: 4.8,
-          reviewsCount: 24,
-          deliveryTime: '25-35 دقيقة',
-          deliveryFee: 500,
           latitude: Number(s.latitude ?? 0),
           longitude: Number(s.longitude ?? 0),
           isOpen: s.isActive,
-          isVerified: true,
-          tags: ['توصيل فوري', 'متجر معتمد'],
         };
       });
 
-      const mappedDeals: DealItem[] = (Array.isArray(dealsRes) ? dealsRes : []).map((d: any, idx: number) => ({
-        id: String(d.id ?? `deal-${idx}`), title: String(d.title ?? 'عرض'), storeName: String(d.storeName ?? 'متجر'),
-        storeId: d.storeId, categoryId: d.categoryId, description: d.description || '', badge: d.badge || 'عرض خاص',
-        imageUrl: d.imageUrl || '', originalPrice: Number(d.originalPrice ?? 0) || 0,
-        offerPrice: Number(d.offerPrice ?? d.discountPrice ?? 0) || 0,
-        discountPercent: Number(d.discountPercent ?? 0) || 0, couponCode: d.couponCode,
-        isFreeDelivery: d.isFreeDelivery, dealType: d.discountKind || d.dealType || d.dealKind,
-        discountKind: d.discountKind,
-        deliveryDiscountPercent: Number(d.deliveryDiscountPercent ?? d.discountPercent ?? 0) || 0,
-        expiresAt: d.expiresAt, isPublic: d.isActive !== false && d.isPublic !== false, visibility: d.visibility,
-        products: (Array.isArray(d.products) ? d.products : (Array.isArray(d.bundleItems) ? d.bundleItems : [])).map((p: any, pidx: number) => ({
-          id: String(p.id ?? `piece-${pidx}`), name: String(p.name ?? 'منتج'), price: Number(p.price ?? 0) || 0,
-          description: p.description || '', imageUrl: p.imageUrl,
-        })),
-      }));
+      const mappedDeals: DealItem[] = (Array.isArray(dealsRes) ? dealsRes : []).flatMap((d: any) => {
+        if (!d?.id || !d?.title || (!d?.storeId && d?.discountKind !== 'DELIVERY_DISCOUNT' && !d?.couponCode && !d?.isFreeDelivery)) return [];
+        const rawProducts = Array.isArray(d.products)
+          ? d.products
+          : Array.isArray(d.bundleItems)
+            ? d.bundleItems
+            : [];
+        const products = rawProducts
+          .filter((p: any) => p?.id && p?.name)
+          .map((p: any) => ({
+            id: String(p.id),
+            name: String(p.name),
+            price: Number(p.price) || 0,
+            description: p.description || '',
+            imageUrl: p.imageUrl,
+          }));
+
+        return [{
+          id: String(d.id),
+          title: String(d.title),
+          storeName: String(d.storeName || ''),
+          storeId: d.storeId,
+          categoryId: d.categoryId,
+          description: d.description || '',
+          badge: d.badge || '',
+          imageUrl: d.imageUrl || '',
+          originalPrice: Number(d.originalPrice) || 0,
+          offerPrice: Number(d.offerPrice ?? d.discountPrice) || 0,
+          discountPercent: Number(d.discountPercent) || 0,
+          couponCode: d.couponCode,
+          isFreeDelivery: d.isFreeDelivery,
+          dealType: d.discountKind || d.dealType || d.dealKind,
+          discountKind: d.discountKind,
+          deliveryDiscountPercent: Number(d.deliveryDiscountPercent ?? d.discountPercent) || 0,
+          expiresAt: d.expiresAt,
+          isPublic: d.isActive !== false && d.isPublic !== false,
+          visibility: d.visibility,
+          products,
+        }];
+      });
       setDeals(mappedDeals);
 
       setCategories(mappedCats);
@@ -226,39 +250,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const refreshAddresses = async () => {
+    const token = api.getToken() || (await api.initToken());
+    if (!token) {
+      setAddresses([]);
+      setSelectedAddress(null);
+      return;
+    }
+
+    try {
+      const serverAddresses = await addressApi.getAddresses();
+      setAddresses(serverAddresses);
+      setSelectedAddress((current) =>
+        serverAddresses.find((address) => address.id === current?.id) ||
+        serverAddresses.find((address) => address.isDefault) ||
+        serverAddresses[0] ||
+        null
+      );
+    } catch (err) {
+      console.warn('Failed to load addresses from backend:', err);
+      setAddresses([]);
+      setSelectedAddress(null);
+    }
+  };
+
   useEffect(() => {
     const restoreSession = async () => {
       try {
         const token = await api.initToken();
-        const storedUser = await AsyncStorage.getItem('@bs_customer_user');
-        if (token && storedUser) {
-          const parsed = JSON.parse(storedUser);
-          setUser(parsed);
-          setIsAuthenticated(true);
-          setCurrentScreen('home');
+        if (token) {
+          try {
+            const serverUser = await authApi.me();
+            setUser({ name: serverUser.fullName || serverUser.name || '', phone: serverUser.phone });
+            setIsAuthenticated(true);
+            setCurrentScreen('home');
+          } catch {
+            api.setToken(null);
+            setUser(null);
+            setIsAuthenticated(false);
+            setCurrentScreen('auth');
+            await AsyncStorage.removeItem('@bs_customer_user');
+          }
         } else {
+          setUser(null);
           setIsAuthenticated(false);
           setCurrentScreen('auth');
         }
-        const storedAddrs = await AsyncStorage.getItem('@bs_customer_addresses');
-        if (storedAddrs) {
-          const parsedAddrs = JSON.parse(storedAddrs);
-          if (Array.isArray(parsedAddrs) && parsedAddrs.length > 0) {
-            setAddresses(parsedAddrs);
-            setSelectedAddress(parsedAddrs.find((a: Address) => a.isDefault) || parsedAddrs[0]);
-          }
-        }
-
-        const storedOrders = await AsyncStorage.getItem('@bs_customer_orders');
-        if (storedOrders) {
-          try {
-            const parsedOrders = JSON.parse(storedOrders);
-            if (Array.isArray(parsedOrders) && parsedOrders.length > 0) {
-              setOrders(parsedOrders);
-              setCurrentOrder(parsedOrders[0]);
-            }
-          } catch {}
-        }
+        // Discard legacy local snapshots: addresses and orders must come from the API.
+        await AsyncStorage.multiRemove(['@bs_customer_addresses', '@bs_customer_orders']);
 
         const savedTheme = await AsyncStorage.getItem('@bs_theme_mode');
         if (savedTheme === 'dark') {
@@ -320,16 +359,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const refreshOrders = async () => {
     const token = api.getToken() || (await api.initToken());
-    if (!token && !isAuthenticated) return;
+    if (!token) {
+      setOrders([]);
+      setCurrentOrder(null);
+      return;
+    }
     try {
       const ordersRes = await ordersApi.getMyOrders();
-      if (!Array.isArray(ordersRes)) return;
+      if (!Array.isArray(ordersRes)) {
+        setOrders([]);
+        setCurrentOrder(null);
+        return;
+      }
       const mappedOrders: Order[] = ordersRes.map((o: any) => ({
         id: o.id,
         orderNumber: o.orderNumber,
         createdAt: o.createdAt
           ? new Date(o.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })
-          : new Date().toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
+          : '',
         status: mapBackendOrderStatus(o.status),
         items: (o.subOrders || []).flatMap((so: any) =>
           (so.items || []).map((i: any) => ({
@@ -338,12 +385,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               storeId: so.storeId,
               storeName: so.storeName,
               categoryId: '',
-              name: i.productName || 'منتج',
+              name: i.productName || '',
               description: '',
               sellingPrice: i.unitPrice || 0,
               imageUrl: i.imageUrl || '',
               sourceType: 'IN_STOCK' as const,
-              inStock: true,
+              inStock: false,
             },
             quantity: i.quantity || 1,
           }))
@@ -353,13 +400,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         discount: o.discount || 0,
         totalAmount: o.totalAmount || 0,
         address: {
-          id: 'addr-order',
-          label: 'المنزل',
-          city: o.deliveryAddress || 'العنوان المحدد',
+          id: '',
+          label: '',
+          city: o.deliveryAddress || '',
           district: '',
           street: '',
-          latitude: Number(o.customerLatitude ?? 15.34),
-          longitude: Number(o.customerLongitude ?? 44.20),
+          latitude: Number(o.customerLatitude ?? 0),
+          longitude: Number(o.customerLongitude ?? 0),
           isDefault: true,
         },
         paymentMethod: o.paymentMethod === 1 ? 'MANUAL_TRANSFER' : 'CASH_ON_DELIVERY',
@@ -369,25 +416,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         customerReview: o.customerReview,
         driver: o.driverName
           ? {
-              id: 'drv',
+              id: undefined,
               name: o.driverName,
               phone: o.driverPhone || '',
-              rating: 4.9,
-              vehiclePlate: 'مركبة معتمدة',
-              avatarUrl: '',
             }
           : undefined,
       }));
 
       setOrders(mappedOrders);
-      await AsyncStorage.setItem('@bs_customer_orders', JSON.stringify(mappedOrders));
+      await AsyncStorage.removeItem('@bs_customer_orders');
       setCurrentOrder((prev) => {
-        if (!prev) return mappedOrders[0] || null;
-        const matching = mappedOrders.find((m) => m.id === prev.id);
-        return matching || prev;
+        return mappedOrders.find((m) => m.id === prev?.id) || mappedOrders[0] || null;
       });
     } catch (err) {
       console.warn('Failed to load orders from backend:', err);
+      setOrders([]);
+      setCurrentOrder(null);
+      await AsyncStorage.removeItem('@bs_customer_orders');
     }
   };
 
@@ -396,8 +441,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (isAuthenticated) {
       void refreshOrders();
+      void refreshAddresses();
     } else {
       setOrders([]);
+      setAddresses([]);
+      setSelectedAddress(null);
+      setCurrentOrder(null);
     }
   }, [isAuthenticated]);
 
@@ -492,7 +541,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const price = item.selectedPiece ? item.selectedPiece.price : (item.product.discountPrice ?? item.product.sellingPrice);
       return sum + price * item.quantity;
     }, 0);
-    const deliveryFee = Number(stores.find((store) => store.id === storeId)?.deliveryFee) || 500;
+    const deliveryFee = Number(deliveryQuote?.storeFees[storeId]) || 0;
     return {
       storeId,
       storeName: items[0]?.product?.storeName || 'متجر',
@@ -505,25 +554,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const cartSubtotal = cartSubOrders.reduce((sum, so) => sum + so.subtotal, 0);
   const deliveryStoreIds = Array.from(new Set(cartSubOrders.map((subOrder) => subOrder.storeId).filter((id) => /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id))));
   const deliveryStoreIdsKey = deliveryStoreIds.slice().sort().join(',');
+  const refreshDeliveryQuote = () => { setDeliveryQuote(null); setDeliveryQuoteRetryKey((value) => value + 1); };
   useEffect(() => {
     const addressId = selectedAddress?.id;
     if (!isAuthenticated || !addressId || !/^[0-9a-f-]{36}$/i.test(addressId) || deliveryStoreIds.length === 0) {
       setDeliveryQuote(null);
+      setIsDeliveryQuoteLoading(false);
       return;
     }
     let cancelled = false;
     setDeliveryQuote(null);
+    setIsDeliveryQuoteLoading(true);
     ordersApi.getDeliveryQuote(addressId, deliveryStoreIds).then((quote) => {
       if (!cancelled) setDeliveryQuote({
         fee: Number(quote.deliveryFee) || 0,
         farthestDistanceKm: Number(quote.farthestDistanceKm) || 0,
         storeFees: Object.fromEntries((quote.storeFees || []).map((entry) => [entry.storeId, Number(entry.deliveryFee) || 0])),
       });
-    }).catch(() => { if (!cancelled) setDeliveryQuote(null); });
+    }).catch(() => { if (!cancelled) setDeliveryQuote(null); }).finally(() => { if (!cancelled) setIsDeliveryQuoteLoading(false); });
     return () => { cancelled = true; };
-  }, [isAuthenticated, selectedAddress?.id, selectedAddress?.latitude, selectedAddress?.longitude, deliveryStoreIdsKey]);
-  const fallbackDeliveryTotal = cartSubOrders.reduce((sum, group) => sum + group.deliveryFee, 0);
-  const baseDeliveryFee = cartSubOrders.length === 0 ? 0 : deliveryQuote?.fee ?? fallbackDeliveryTotal;
+  }, [isAuthenticated, selectedAddress?.id, selectedAddress?.latitude, selectedAddress?.longitude, deliveryStoreIdsKey, deliveryQuoteRetryKey]);
+  const baseDeliveryFee = cartSubOrders.length === 0 ? 0 : deliveryQuote?.fee ?? 0;
   const cartDeliveryFee = isFreeDeliveryPromo ? 0 : Math.max(0, Math.round(baseDeliveryFee * (1 - deliveryDiscountPercent / 100)));
   const quotedWeightTotal = cartSubOrders.reduce((sum, group) => sum + (deliveryQuote?.storeFees[group.storeId] ?? group.deliveryFee), 0);
   let allocatedDeliveryFee = 0;
@@ -596,21 +647,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addNewAddress = async (addr: Omit<Address, 'id'>) => {
-    let saved: Address;
-    try {
-      if (isAuthenticated) {
-        saved = await addressApi.addAddress(addr);
-      } else {
-        saved = { ...addr, id: `addr-${Date.now()}` };
-      }
-    } catch {
-      saved = { ...addr, id: `addr-${Date.now()}` };
+    if (!isAuthenticated) {
+      Alert.alert('تسجيل الدخول مطلوب', 'سجّل الدخول لحفظ عنوانك في حسابك.');
+      navigateTo('auth');
+      return;
     }
 
-    const updated = [...addresses, saved];
-    setAddresses(updated);
-    setSelectedAddress(saved);
-    await AsyncStorage.setItem('@bs_customer_addresses', JSON.stringify(updated));
+    try {
+      const saved = await addressApi.addAddress(addr);
+      const updated = [...addresses.filter((address) => address.id !== saved.id), saved];
+      setAddresses(updated);
+      setSelectedAddress(saved);
+    } catch (err: any) {
+      Alert.alert('تعذر حفظ العنوان', err?.message || 'تعذر حفظ العنوان في الخادم.');
+    }
   };
 
   const placeOrder = async (
@@ -618,6 +668,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     receiptUrl?: string,
     notes?: string
   ): Promise<Order> => {
+    if (!isAuthenticated) {
+      Alert.alert('تسجيل الدخول مطلوب', 'سجّل الدخول قبل إرسال الطلب.');
+      navigateTo('auth');
+      throw new Error('يجب تسجيل الدخول لإرسال الطلب.');
+    }
+
     if (!selectedAddress) {
       Alert.alert('تنبيه عنوان التوصيل', 'يرجى تسجيل أو اختيار عنوان التوصيل أولاً قبل تأكيد الطلب');
       throw new Error('يرجى تحديد عنوان التوصيل');
@@ -631,8 +687,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         newAddress: {
           label: selectedAddress.label === 'العمل' ? 1 : selectedAddress.label === 'أخرى' ? 2 : 0,
           city: selectedAddress.city,
-          district: selectedAddress.district || 'وسط المدينة',
-          street: selectedAddress.street || 'الشارع العام',
+          district: selectedAddress.district,
+          street: selectedAddress.street,
           latitude: selectedAddress.latitude,
           longitude: selectedAddress.longitude,
         },
@@ -677,7 +733,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       setOrders((prev) => {
         const next = [newOrder, ...prev.filter((o) => o.id !== newOrder.id)];
-        void AsyncStorage.setItem('@bs_customer_orders', JSON.stringify(next));
         return next;
       });
       setCurrentOrder(newOrder);
@@ -685,44 +740,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       navigateTo('tracking');
       return newOrder;
     } catch (err: any) {
-      const isMockItem = cart.some(
-        (c) =>
-          c.product.id.startsWith('prod-') ||
-          c.product.id.startsWith('deal-') ||
-          c.product.id.startsWith('item-')
-      );
-      if (isMockItem || !isAuthenticated) {
-        const fallbackOrder: Order = {
-          id: `order-${Date.now()}`,
-          orderNumber: `WSL-${Math.floor(10000 + Math.random() * 90000)}`,
-          createdAt: new Date().toLocaleTimeString('ar-YE', {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
-          status: isManual ? 'PAYMENT_PENDING_VERIFICATION' : 'CONFIRMED',
-          items: [...cart],
-          subtotal: cartSubtotal,
-          deliveryFee: cartDeliveryFee,
-          discount: cartDiscount,
-          totalAmount: cartTotal,
-          address: selectedAddress,
-          paymentMethod,
-          paymentStatus: isManual ? 'PENDING' : 'PENDING',
-          transferReceiptUrl: receiptUrl,
-          notes,
-        };
-
-        setOrders((prev) => {
-          const next = [fallbackOrder, ...prev.filter((o) => o.id !== fallbackOrder.id)];
-          void AsyncStorage.setItem('@bs_customer_orders', JSON.stringify(next));
-          return next;
-        });
-        setCurrentOrder(fallbackOrder);
-        await clearCart();
-        navigateTo('tracking');
-        return fallbackOrder;
-      }
-
       Alert.alert(
         'خطأ في الطلب',
         err.message || 'فشل إرسال الطلب، تحقق من توفر الكميات وبيانات العنوان'
@@ -734,7 +751,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const login = async (phone: string, password = 'Password123!', name?: string) => {
     try {
       const res = await authApi.login(phone, password);
-      const userData = { name: res.user.name || name || 'عميل BS Store', phone: res.user.phone };
+      const userData = { name: res.user.fullName || res.user.name || name || '', phone: res.user.phone };
       setUser(userData);
       await AsyncStorage.setItem('@bs_customer_user', JSON.stringify(userData));
       setIsAuthenticated(true);
@@ -755,24 +772,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ) => {
     try {
       const res = await authApi.register(name, phone, password, initialAddress);
-      const userData = { name: res.user?.name || name, phone: res.user?.phone || phone, email };
+      const userData = { name: res.user?.fullName || res.user?.name || name, phone: res.user?.phone || phone, email };
       setUser(userData);
       await AsyncStorage.setItem('@bs_customer_user', JSON.stringify(userData));
       setIsAuthenticated(true);
 
       if (initialAddress) {
-        let savedAddr: Address = {
-          ...initialAddress,
-          id: `addr-${Date.now()}`,
-          isDefault: true,
-        };
         try {
-          const apiAddr = await addressApi.addAddress(initialAddress);
-          if (apiAddr) savedAddr = apiAddr;
-        } catch {}
-        setAddresses([savedAddr]);
-        setSelectedAddress(savedAddr);
-        await AsyncStorage.setItem('@bs_customer_addresses', JSON.stringify([savedAddr]));
+          const serverAddresses = await addressApi.getAddresses();
+          setAddresses(serverAddresses);
+          setSelectedAddress(serverAddresses.find((address) => address.isDefault) || serverAddresses[0] || null);
+        } catch (addressError) {
+          console.warn('Failed to load the registered address from backend:', addressError);
+          setAddresses([]);
+          setSelectedAddress(null);
+        }
       }
 
       refreshOrders();
@@ -784,15 +798,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logout = async () => {
+    try { await unregisterPushDevice(api); } catch (e) { console.warn('تعذر إلغاء تسجيل إشعارات العميل:', e); }
     try {
       await authApi.logout();
     } catch {}
     await AsyncStorage.removeItem('@bs_customer_user');
     await AsyncStorage.removeItem('@bs_customer_orders');
+    await AsyncStorage.removeItem('@bs_customer_addresses');
     api.setToken(null);
     setUser(null);
     setIsAuthenticated(false);
     setOrders([]);
+    setAddresses([]);
+    setSelectedAddress(null);
     setCurrentOrder(null);
     navigateTo('auth');
   };
@@ -822,6 +840,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cartSubtotal,
         cartDeliveryFee,
         cartFarthestStoreDistanceKm,
+        isDeliveryQuoteLoading,
+        hasDeliveryQuote: Boolean(deliveryQuote) || cartSubOrders.length === 0,
+        refreshDeliveryQuote,
         cartDiscount,
         cartTotal,
         promoCode,

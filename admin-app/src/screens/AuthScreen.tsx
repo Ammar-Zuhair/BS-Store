@@ -13,25 +13,19 @@ import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { useAdmin } from '../context/AdminContext';
 
 export const AuthScreen: React.FC = () => {
-  const { authMode, setAuthMode, navigateTo, login, registeredUser, setRegisteredUser, setCurrentUser } = useAdmin();
+  const { authMode, setAuthMode, navigateTo, login, registerFirstAdmin } = useAdmin();
 
   // Login Form States
   const [loginPhone, setLoginPhone] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Register Form States
-  const [regName, setRegName] = useState('');
-  const [regPhone, setRegPhone] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regCity, setRegCity] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirmPassword, setRegConfirmPassword] = useState('');
-  const [showRegPassword, setShowRegPassword] = useState(false);
-  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(true);
+  const [registerName, setRegisterName] = useState('');
+  const [registerPhone, setRegisterPhone] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
 
   const isLogin = authMode === 'login';
 
@@ -62,68 +56,38 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
-  const handleRegister = () => {
-    if (!regName.trim()) {
+  const handleRegister = async () => {
+    const name = registerName.trim();
+    const phone = registerPhone.trim();
+    if (name.length < 2) {
       Alert.alert('تنبيه', 'يرجى إدخال الاسم الكامل');
       return;
     }
-    if (!regPhone.trim()) {
-      Alert.alert('تنبيه', 'يرجى إدخال رقم الهاتف المحمول');
+    if (phone.length < 7) {
+      Alert.alert('تنبيه', 'يرجى إدخال رقم هاتف صحيح');
       return;
     }
-    if (!regPassword.trim()) {
-      Alert.alert('تنبيه', 'يرجى إدخال كلمة المرور');
+    if (registerPassword.length < 8) {
+      Alert.alert('تنبيه', 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل');
       return;
     }
-    if (regPassword !== regConfirmPassword) {
-      Alert.alert('خطأ', 'كلمة المرور وتأكيد كلمة المرور غير متطابقين');
-      return;
-    }
-    if (!agreeTerms) {
-      Alert.alert('تنبيه', 'يرجى الموافقة على شروط الاستخدام للمتابعة');
+    if (registerPassword !== registerPasswordConfirm) {
+      Alert.alert('تنبيه', 'كلمتا المرور غير متطابقتين');
       return;
     }
 
-    const newUser = {
-      name: regName.trim(),
-      phone: regPhone.trim(),
-      email: regEmail.trim(),
-      city: regCity,
-      biometricEnabled: true,
-      registeredAt: new Date().toLocaleDateString('ar-YE'),
-    };
-    setRegisteredUser(newUser);
-    setCurrentUser(newUser);
-    setLoginPhone(newUser.phone);
-
-    Alert.alert(
-      'تم إنشاء الحساب بنجاح',
-      `أهلاً بك يا ${newUser.name}! تم حفظ بياناتك وتفعيل الدخول بالبصمة.`,
-      [
-        {
-          text: 'الانتقال للوحة الإدارة',
-          onPress: () => navigateTo('dashboard'),
-        },
-      ]
-    );
+    setIsSubmitting(true);
+    try {
+      await registerFirstAdmin(name, phone, registerPassword);
+      navigateTo('dashboard');
+    } catch (err: any) {
+      Alert.alert('تعذر إنشاء الحساب', err.message || 'لم نتمكن من إنشاء حساب المدير.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleBiometricLogin = () => {
-    if (!registeredUser) {
-      Alert.alert(
-        'البصمة غير مفعّلة',
-        'يرجى إنشاء حساب جديد أولاً لربط بصمة الجهاز ببياناتك.',
-        [
-          { text: 'إلغاء', style: 'cancel' },
-          { text: 'إنشاء حساب جديد', onPress: () => setAuthMode('register') },
-        ]
-      );
-      return;
-    }
 
-    setCurrentUser(registeredUser);
-    navigateTo('dashboard');
-  };
 
   return (
     <View style={styles.screen}>
@@ -215,18 +179,6 @@ export const AuthScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Remember Me */}
-            <TouchableOpacity
-              style={styles.rememberRow}
-              onPress={() => setRememberMe((prev) => !prev)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
-                {rememberMe && <Text style={styles.checkmark}>✓</Text>}
-              </View>
-              <Text style={styles.rememberText}>تذكر بيانات الدخول</Text>
-            </TouchableOpacity>
-
             {/* Login CTA */}
             <TouchableOpacity
               style={[styles.mainCtaBtn, isSubmitting && { opacity: 0.7 }]}
@@ -241,24 +193,6 @@ export const AuthScreen: React.FC = () => {
               )}
             </TouchableOpacity>
 
-            {/* Clean Biometric Login Button */}
-            <TouchableOpacity
-              style={[
-                styles.biometricBtn,
-                registeredUser ? styles.biometricBtnReady : styles.biometricBtnMuted,
-              ]}
-              onPress={handleBiometricLogin}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.biometricBtnIcon}>👆</Text>
-              <Text style={[
-                styles.biometricBtnText,
-                registeredUser ? styles.biometricBtnTextReady : styles.biometricBtnTextMuted,
-              ]}>
-                {registeredUser ? `دخول سريع بالبصمة (${registeredUser.name})` : 'الدخول بالبصمة'}
-              </Text>
-            </TouchableOpacity>
-
             {/* Switch to Register */}
             <View style={styles.switchAuthRow}>
               <Text style={styles.switchPromptText}>ليس لديك حساب؟</Text>
@@ -268,156 +202,47 @@ export const AuthScreen: React.FC = () => {
             </View>
           </View>
         ) : (
-          /* REGISTER FORM */
           <View style={styles.formCard}>
-            {/* Full Name */}
+            <Text style={styles.dbNoticeText}>
+              لإنشاء المدير الأول أدخل الاسم الكامل ورقم الهاتف وكلمة المرور وتأكيدها. لا يلزم اختيار محافظة لهذا الحساب. يُغلق التسجيل تلقائياً بعد نجاحه.
+            </Text>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>الاسم الكامل</Text>
+              <Text style={styles.label}>الاسم الكامل *</Text>
               <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="محمد عبدالله"
-                  placeholderTextColor={colors.outline}
-                  value={regName}
-                  onChangeText={setRegName}
-                  textAlign="right"
-                />
+                <TextInput style={styles.textInput} placeholder="اسم المدير" placeholderTextColor={colors.outline}
+                  value={registerName} onChangeText={setRegisterName} textAlign="right" />
               </View>
             </View>
-
-            {/* Phone Number */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>رقم الهاتف</Text>
+              <Text style={styles.label}>رقم الهاتف *</Text>
               <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="770000000"
-                  placeholderTextColor={colors.outline}
-                  value={regPhone}
-                  onChangeText={setRegPhone}
-                  keyboardType="phone-pad"
-                  textAlign="left"
-                />
-                <View style={styles.countryPill}>
-                  <Text style={styles.countryFlag}>🇾🇪</Text>
-                  <Text style={styles.countryCode}>+967</Text>
-                </View>
+                <TextInput style={styles.textInput} placeholder="770000000" placeholderTextColor={colors.outline}
+                  value={registerPhone} onChangeText={setRegisterPhone} keyboardType="phone-pad" textAlign="left" />
+                <View style={styles.countryPill}><Text style={styles.countryFlag}>🇾🇪</Text><Text style={styles.countryCode}>+967</Text></View>
               </View>
             </View>
-
-            {/* Email Address */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>البريد الإلكتروني (اختياري)</Text>
+              <Text style={styles.label}>كلمة المرور * (8 أحرف على الأقل)</Text>
               <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="name@example.com"
-                  placeholderTextColor={colors.outline}
-                  value={regEmail}
-                  onChangeText={setRegEmail}
-                  keyboardType="email-address"
-                  textAlign="right"
-                  autoCapitalize="none"
-                />
+                <TextInput style={styles.textInput} placeholder="••••••••" placeholderTextColor={colors.outline}
+                  value={registerPassword} onChangeText={setRegisterPassword} secureTextEntry textAlign="right" />
               </View>
             </View>
-
-            {/* City */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>المدينة</Text>
-              <View style={styles.cityPillsRow}>
-                {['صنعاء', 'عدن', 'تعز', 'إب', 'حضرموت'].map((city) => {
-                  const isSelected = regCity === city;
-                  return (
-                    <TouchableOpacity
-                      key={city}
-                      style={[styles.cityPill, isSelected && styles.cityPillActive]}
-                      onPress={() => setRegCity(city)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.cityPillText, isSelected && styles.cityPillTextActive]}>
-                        {city}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Password */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>كلمة المرور</Text>
+              <Text style={styles.label}>تأكيد كلمة المرور *</Text>
               <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.outline}
-                  value={regPassword}
-                  onChangeText={setRegPassword}
-                  secureTextEntry={!showRegPassword}
-                  textAlign="right"
-                />
-                <TouchableOpacity
-                  style={styles.eyeBtn}
-                  onPress={() => setShowRegPassword((prev) => !prev)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.eyeIcon}>{showRegPassword ? '👁️' : '🙈'}</Text>
-                </TouchableOpacity>
+                <TextInput style={styles.textInput} placeholder="••••••••" placeholderTextColor={colors.outline}
+                  value={registerPasswordConfirm} onChangeText={setRegisterPasswordConfirm} secureTextEntry textAlign="right" />
               </View>
             </View>
-
-            {/* Confirm Password */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>تأكيد كلمة المرور</Text>
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.outline}
-                  value={regConfirmPassword}
-                  onChangeText={setRegConfirmPassword}
-                  secureTextEntry={!showRegConfirmPassword}
-                  textAlign="right"
-                />
-                <TouchableOpacity
-                  style={styles.eyeBtn}
-                  onPress={() => setShowRegConfirmPassword((prev) => !prev)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.eyeIcon}>{showRegConfirmPassword ? '👁️' : '🙈'}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Terms Checkbox */}
-            <TouchableOpacity
-              style={styles.rememberRow}
-              onPress={() => setAgreeTerms((prev) => !prev)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.checkbox, agreeTerms && styles.checkboxActive]}>
-                {agreeTerms && <Text style={styles.checkmark}>✓</Text>}
-              </View>
-              <Text style={styles.rememberText}>أوافق على الشروط والأحكام</Text>
+            <TouchableOpacity style={[styles.mainCtaBtn, isSubmitting && { opacity: 0.7 }]}
+              onPress={handleRegister} disabled={isSubmitting} activeOpacity={0.85}>
+              {isSubmitting ? <ActivityIndicator color={colors.onPrimary} size="small" /> :
+                <Text style={styles.mainCtaText}>إنشاء حساب المدير الأول</Text>}
             </TouchableOpacity>
-
-            {/* Register CTA */}
-            <TouchableOpacity
-              style={styles.mainCtaBtn}
-              onPress={handleRegister}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.mainCtaText}>إنشاء الحساب</Text>
+            <TouchableOpacity style={{ marginTop: spacing.baseSm, alignItems: 'center' }} onPress={() => setAuthMode('login')}>
+              <Text style={styles.switchActionLink}>العودة لتسجيل الدخول</Text>
             </TouchableOpacity>
-
-            {/* Switch to Login */}
-            <View style={styles.switchAuthRow}>
-              <Text style={styles.switchPromptText}>لديك حساب بالفعل؟</Text>
-              <TouchableOpacity onPress={() => setAuthMode('login')}>
-                <Text style={styles.switchActionLink}>تسجيل الدخول</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         )}
       </ScrollView>

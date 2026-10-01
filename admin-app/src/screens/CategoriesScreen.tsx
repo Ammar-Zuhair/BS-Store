@@ -319,8 +319,8 @@ export const CategoriesScreen: React.FC = () => {
       setCatOrderInput('5');
       setShowNewCatPanel(false);
       Alert.alert('نجاح', 'تمت إضافة الفئة الرئيسية وتثبيتها بنجاح');
-    } catch {
-      Alert.alert('خطأ', 'تعذر إضافة الفئة، يرجى المحاولة ثانية');
+    } catch (error: any) {
+      Alert.alert('خطأ', error?.message || 'تعذر إضافة الفئة، يرجى المحاولة ثانية');
     } finally {
       setIsSavingCat(false);
     }

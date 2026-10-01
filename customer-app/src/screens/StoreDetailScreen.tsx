@@ -143,12 +143,6 @@ export const StoreDetailScreen: React.FC = () => {
 
             <Text style={styles.storeAddress}>📍 {store.address}</Text>
 
-            <View style={styles.storeMetaRow}>
-              <View style={styles.metaItem}>
-                <Text style={styles.metaLabel}>التقييم العام</Text>
-                <Text style={styles.metaValue}>⭐ {store.rating.toFixed(1)}</Text>
-              </View>
-            </View>
           </View>
         </View>
 

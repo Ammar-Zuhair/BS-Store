@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { DriverHeader } from '../components/DriverHeader';
 import { useDriver } from '../context/DriverContext';
 
 export const DriverWalletScreen: React.FC = () => {
-  const { wallet, transactions, requestSettlement, navigateTo } = useDriver();
+  const { wallet, transactions, requestSettlement, navigateTo, refreshData, isRefreshing } = useDriver();
   const [settleModalVisible, setSettleModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [settleAmount, setSettleAmount] = useState(String(wallet.currentCashCustody ?? 0));
@@ -20,7 +20,7 @@ export const DriverWalletScreen: React.FC = () => {
       setSubmitting(true);
       await requestSettlement(amount);
       setSettleModalVisible(false);
-      Alert.alert('تم إرسال طلب التوريد', `تم إرسال طلب تصفية مبلغ ${amount.toLocaleString()} ر.ي إلى إدارة المالية.`);
+      Alert.alert('تم إرسال طلب التسوية', `أُرسل طلب توريد ${amount.toLocaleString()} ر.ي إلى المدير. لن يتغير رصيد العهدة حتى يعتمد المدير الاستلام.`);
     } catch (error: any) {
       Alert.alert('تعذر إرسال الطلب', error?.message || 'تحقق من الاتصال بالسيرفر.');
     } finally { setSubmitting(false); }
@@ -33,6 +33,7 @@ export const DriverWalletScreen: React.FC = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshData} colors={[colors.primary]} />}
       >
         {/* Main Custody Balance Card */}
         <View style={styles.custodyCard}>
@@ -60,7 +61,7 @@ export const DriverWalletScreen: React.FC = () => {
             }}
             activeOpacity={0.85}
           >
-            <Text style={styles.settleRequestBtnText}>طلب تصفية وتسليم عهدة للإدارة ➔</Text>
+            <Text style={styles.settleRequestBtnText}>إرسال طلب تسوية للمدير ➔</Text>
           </TouchableOpacity>
         </View>
 
@@ -74,7 +75,7 @@ export const DriverWalletScreen: React.FC = () => {
             </View>
           </View>
           <Text style={styles.earningsDesc}>
-            أتعاب {wallet.completedTripsToday} مشاوير تم تنفيذها بنجاح اليوم
+            حصتك {wallet.profitSharePercent}% من هامش ربح الطلبات المكتملة اليوم
           </Text>
         </View>
 
@@ -83,7 +84,7 @@ export const DriverWalletScreen: React.FC = () => {
 
         {transactions.map((tx) => {
           const isCollection = tx.type === 'CUSTOMER_COLLECTION';
-          const isPurchase = tx.type === 'STORE_PURCHASE';
+          const isEarning = tx.type === 'DRIVER_EARNING';
 
           return (
             <View key={tx.id} style={styles.txCard}>
@@ -91,10 +92,10 @@ export const DriverWalletScreen: React.FC = () => {
                 <Text
                   style={[
                     styles.txAmount,
-                    isCollection ? styles.amountGreen : styles.amountOrange,
+                    isCollection || isEarning ? styles.amountGreen : styles.amountOrange,
                   ]}
                 >
-                  {isCollection ? '+' : '-'}
+                  {isCollection || isEarning ? '+' : '-'}
                   {tx.amount.toLocaleString()} ر.ي
                 </Text>
                 <View style={styles.txTypeWrap}>
@@ -112,9 +113,9 @@ export const DriverWalletScreen: React.FC = () => {
       <Modal visible={settleModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>طلب تصفية العهدة النقدية</Text>
+            <Text style={styles.modalTitle}>طلب تسوية العهدة</Text>
             <Text style={styles.modalSubtitle}>
-              حدد المبلغ النقدي الذي ترغب بتوريده وتسليمه لمحاسب الشركة:
+              حدد المبلغ النقدي الذي ستسلمه للمحاسب. سيبقى ضمن العهدة حتى يوافق المدير على استلامه:
             </Text>
 
             <TextInput
@@ -137,7 +138,7 @@ export const DriverWalletScreen: React.FC = () => {
                 onPress={handleRequestSettlement}
                 disabled={submitting}
               >
-                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmBtnText}>إرسال طلب التصفية</Text>}
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmBtnText}>إرسال طلب التسوية</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
   },
   custodyFormula: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onPrimary + 'B0',
     textAlign: 'right',
     marginTop: spacing.baseXs,
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   earningsIcon: {
-    fontSize: 14,
+    fontSize: 15,
   },
   earningsTitle: {
     fontSize: typography.fontSize.xs,
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   earningsDesc: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 2,
@@ -287,7 +288,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   txRef: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.outline,
     marginTop: 1,
   },
@@ -302,7 +303,7 @@ const styles = StyleSheet.create({
     color: colors.secondary,
   },
   txDate: {
-    fontSize: 9,
+    fontSize: 14,
     color: colors.outline,
     textAlign: 'right',
     marginTop: 4,
@@ -325,7 +326,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   modalSubtitle: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 4,

@@ -44,6 +44,7 @@
     "plugins": [
       "expo-asset",
       "expo-font",
+      "expo-notifications",
       [
         "expo-location",
         {

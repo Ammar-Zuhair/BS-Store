@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Image, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
+import { paymentsApi } from '../api';
 import { PaymentMethodType } from '../types';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
 
@@ -13,6 +14,9 @@ export const CheckoutScreen: React.FC = () => {
     cartTotal,
     cartDeliveryFee,
     cartFarthestStoreDistanceKm,
+    isDeliveryQuoteLoading,
+    hasDeliveryQuote,
+    refreshDeliveryQuote,
     cartSubtotal,
     cartDiscount,
     cartSubOrders,
@@ -30,13 +34,21 @@ export const CheckoutScreen: React.FC = () => {
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('CASH_ON_DELIVERY');
   const [transferRef, setTransferRef] = useState('');
-  const [receiptAttached, setReceiptAttached] = useState(false);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [inputCoupon, setInputCoupon] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [couponStatusMsg, setCouponStatusMsg] = useState<string | null>(null);
+  const [paymentSettings, setPaymentSettings] = useState<{
+    transferBankName?: string | null;
+    transferAccountNumber?: string | null;
+    transferAccountName?: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    paymentsApi.getSettings().then(setPaymentSettings).catch(() => setPaymentSettings(null));
+  }, []);
 
   const handleApplyCoupon = async () => {
     if (!inputCoupon.trim()) return;
@@ -62,11 +74,6 @@ export const CheckoutScreen: React.FC = () => {
     setCouponStatusMsg(null);
   };
 
-  const handleSimulateUpload = () => {
-    setReceiptAttached(true);
-    Alert.alert('تم إرفاق الإشعار', 'تم تحميل صورة إشعار التحويل البنكي بنجاح');
-  };
-
   const handleLocationPicked = (loc: LocationResult) => {
     addNewAddress({
       label: 'المنزل',
@@ -88,8 +95,17 @@ export const CheckoutScreen: React.FC = () => {
       return;
     }
 
-    if (paymentMethod === 'MANUAL_TRANSFER' && !receiptAttached && !transferRef.trim()) {
-      Alert.alert('تنبيه التحويل البنكي', 'يرجى إدخال رقم الحوالة أو إرفاق صورة الإشعار للمراجعة');
+    if (!hasDeliveryQuote) {
+      Alert.alert('تعذر حساب رسوم التوصيل', 'انتظر اكتمال حساب المسافة بين عنوانك والمتاجر، ثم حاول مجدداً.');
+      return;
+    }
+
+    if (paymentMethod === 'MANUAL_TRANSFER' && !transferRef.trim()) {
+      Alert.alert('تنبيه التحويل البنكي', 'أدخل رقم الحوالة أو العملية المسجل في بيانات الدفع');
+      return;
+    }
+    if (paymentMethod === 'MANUAL_TRANSFER' && !paymentSettings) {
+      Alert.alert('بيانات الدفع غير متاحة', 'لا توجد بيانات تحويل محفوظة في النظام حاليًا.');
       return;
     }
 
@@ -97,8 +113,10 @@ export const CheckoutScreen: React.FC = () => {
     try {
       await placeOrder(
         paymentMethod,
-        receiptAttached ? 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=400&q=80' : undefined,
-        notes
+        undefined,
+        [notes, paymentMethod === 'MANUAL_TRANSFER' ? `رقم الحوالة: ${transferRef.trim()}` : '']
+          .filter(Boolean)
+          .join('\n')
       );
     } catch {
       // error handled in context
@@ -235,12 +253,15 @@ export const CheckoutScreen: React.FC = () => {
             <View style={styles.transferDetailsWrap}>
               <View style={styles.bankAccountsCard}>
                 <Text style={styles.bankTitle}>بيانات الحسابات المعتمدة للمنصة:</Text>
-                <Text style={styles.bankItem}>
-                  • بنك الكريمي: <Text style={styles.bankBold}>حساب رقم 300123456</Text> (متجر بي اس)
-                </Text>
-                <Text style={styles.bankItem}>
-                  • محفظة جيب: <Text style={styles.bankBold}>777001122</Text>
-                </Text>
+                {paymentSettings ? (
+                  <>
+                    {paymentSettings.transferBankName ? <Text style={styles.bankItem}>البنك: <Text style={styles.bankBold}>{paymentSettings.transferBankName}</Text></Text> : null}
+                    {paymentSettings.transferAccountNumber ? <Text style={styles.bankItem}>رقم الحساب: <Text style={styles.bankBold}>{paymentSettings.transferAccountNumber}</Text></Text> : null}
+                    {paymentSettings.transferAccountName ? <Text style={styles.bankItem}>اسم الحساب: <Text style={styles.bankBold}>{paymentSettings.transferAccountName}</Text></Text> : null}
+                  </>
+                ) : (
+                  <Text style={styles.bankItem}>بيانات التحويل غير مسجلة حاليًا.</Text>
+                )}
               </View>
 
               <Text style={styles.inputLabel}>رقم الحوالة أو العملية:</Text>
@@ -253,18 +274,6 @@ export const CheckoutScreen: React.FC = () => {
                 textAlign="right"
               />
 
-              <TouchableOpacity
-                style={[
-                  styles.uploadBtn,
-                  receiptAttached && styles.uploadBtnAttached,
-                ]}
-                onPress={handleSimulateUpload}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.uploadBtnText}>
-                  {receiptAttached ? '✓ تم إرفاق صورة الإشعار بنجاح' : '📷 إرفاق صورة إشعار التحويل'}
-                </Text>
-              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -351,7 +360,7 @@ export const CheckoutScreen: React.FC = () => {
         {/* Final Payment Breakdown */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>الحساب الإجمالي</Text>
-          <View style={styles.summaryRow}>
+        <View style={styles.summaryRow}>
             <Text style={styles.summaryVal}>{cartSubtotal.toLocaleString()} ر.ي</Text>
             <Text style={styles.summaryLbl}>مجموع السلة</Text>
           </View>
@@ -383,12 +392,14 @@ export const CheckoutScreen: React.FC = () => {
             <Text style={styles.finalTotalLbl}>المبلغ المطلوب دفعه</Text>
           </View>
         </View>
+        {isDeliveryQuoteLoading && <View style={styles.summaryRow}><ActivityIndicator size="small" /><Text style={styles.summaryLbl}>جارٍ حساب المسافة ورسوم التوصيل...</Text></View>}
+        {!isDeliveryQuoteLoading && !hasDeliveryQuote && <TouchableOpacity style={styles.summaryRow} onPress={refreshDeliveryQuote}><Text style={[styles.summaryLbl, { color: themeColors.error }]}>تعذر حساب الرسوم. اضغط لإعادة المحاولة</Text></TouchableOpacity>}
 
         {/* Submit Order Button */}
         <TouchableOpacity
           style={[styles.confirmBtn, isSubmitting && { opacity: 0.7 }]}
           onPress={handleConfirmOrder}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isDeliveryQuoteLoading || !hasDeliveryQuote}
           activeOpacity={0.88}
         >
           {isSubmitting ? (
@@ -403,8 +414,8 @@ export const CheckoutScreen: React.FC = () => {
       <LocationPickerModal
         visible={showMapPicker}
         title="تحديد موقع التوصيل على الخريطة"
-        initialLat={selectedAddress?.latitude ?? 15.34}
-        initialLng={selectedAddress?.longitude ?? 44.20}
+        initialLat={selectedAddress?.latitude}
+        initialLng={selectedAddress?.longitude}
         initialDistrict={selectedAddress?.district || ''}
         onClose={() => setShowMapPicker(false)}
         onConfirm={handleLocationPicked}

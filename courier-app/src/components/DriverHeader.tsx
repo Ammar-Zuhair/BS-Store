@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { useDriver } from '../context/DriverContext';
 
@@ -11,7 +11,9 @@ interface DriverHeaderProps {
 
 export const DriverHeader: React.FC<DriverHeaderProps> = ({ title, showBack = false, onBack }) => {
   const { driver, toggleShiftStatus, navigateTo } = useDriver();
+  const [isToggling, setIsToggling] = useState(false);
   const isOnline = driver.shiftStatus === 'ONLINE';
+  const handleToggle = async () => { if (isToggling) return; setIsToggling(true); try { await toggleShiftStatus(); } finally { setIsToggling(false); } };
 
   return (
     <View style={styles.container}>
@@ -42,13 +44,11 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({ title, showBack = fa
           {/* Shift Status Pill Button */}
           <TouchableOpacity
             style={[styles.statusPill, isOnline ? styles.pillOnline : styles.pillOffline]}
-            onPress={toggleShiftStatus}
+            onPress={handleToggle}
+            disabled={isToggling}
             activeOpacity={0.8}
           >
-            <View style={[styles.statusDot, isOnline ? styles.dotOnline : styles.dotOffline]} />
-            <Text style={[styles.statusText, isOnline ? styles.textOnline : styles.textOffline]}>
-              {isOnline ? 'متصل' : 'غير متصل'}
-            </Text>
+            {isToggling ? <ActivityIndicator size="small" color={isOnline ? colors.primary : colors.onSurfaceVariant} /> : <><View style={[styles.statusDot, isOnline ? styles.dotOnline : styles.dotOffline]} /><Text style={[styles.statusText, isOnline ? styles.textOnline : styles.textOffline]}>{isOnline ? 'متصل' : 'غير متصل'}</Text></>}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   brandSubtitle: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
   },
   titleCenter: {
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.outline,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
   },
   textOnline: {
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   notifIcon: {
-    fontSize: 14,
+    fontSize: 15,
   },
   notifDot: {
     position: 'absolute',

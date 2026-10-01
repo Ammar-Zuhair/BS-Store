@@ -15,7 +15,7 @@ export const authApi = {
   },
 
   login: async (phone: string, password = 'Password123!') => {
-    const res = await api.post<{ accessToken: string; user: { id: string; name: string; phone: string; role: string } }>(
+    const res = await api.post<{ accessToken: string; user: { id: string; name?: string; fullName?: string; phone: string; role: string } }>(
       '/auth/login',
       { phone, password }
     );
@@ -38,7 +38,7 @@ export const authApi = {
       governorateId?: string;
     }
   ) => {
-    const res = await api.post<{ accessToken: string; user: { id: string; name: string; phone: string; role: string } }>(
+    const res = await api.post<{ accessToken: string; user: { id: string; name?: string; fullName?: string; phone: string; role: string } }>(
       '/auth/register',
       {
         fullName,
@@ -63,7 +63,7 @@ export const authApi = {
     return res;
   },
 
-  me: () => api.get<{ id: string; name: string; phone: string; role: string }>('/auth/me'),
+  me: () => api.get<{ id: string; name?: string; fullName?: string; phone: string; role: string }>('/auth/me'),
 
   logout: async () => {
     try {
@@ -193,7 +193,7 @@ export const addressApi = {
           ? 'العمل'
           : a.label === 2 || a.label === 'Other'
           ? 'أخرى'
-          : 'المنزل',
+          : '',
       city: a.city || '',
       district: a.district || '',
       street: a.street || '',
@@ -223,14 +223,14 @@ export const addressApi = {
           ? 'العمل'
           : a.label === 2 || a.label === 'Other'
           ? 'أخرى'
-          : 'المنزل',
+          : '',
       city: a.city || '',
       district: a.district || '',
       street: a.street || '',
       building: a.building || '',
       description: a.description || '',
-      latitude: Number(a.latitude) || 15.35,
-      longitude: Number(a.longitude) || 44.2,
+      latitude: Number(a.latitude) || 0,
+      longitude: Number(a.longitude) || 0,
       isDefault: Boolean(a.isDefault),
     } as Address;
   },
@@ -274,6 +274,11 @@ export const ordersApi = {
 
 // ─── Payments API ────────────────────────────────────────────────────────────
 export const paymentsApi = {
+  getSettings: () => api.get<{
+    transferBankName?: string | null;
+    transferAccountNumber?: string | null;
+    transferAccountName?: string | null;
+  }>('/payments/settings'),
   getTransferInfo: (orderId: string) => api.get<any>(`/payments/${orderId}/transfer-info`),
   uploadReceipt: (orderId: string, fileUri: string, fileName = 'receipt.jpg') => {
     const formData = new FormData();

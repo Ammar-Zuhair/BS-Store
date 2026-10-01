@@ -16,6 +16,7 @@ import {
   FlaggedUser,
 } from '../types';
 import { adminApi, authApi, api } from '../api';
+import { unregisterPushDevice } from '../notifications';
 
 export type AdminScreenName =
   | 'dashboard'
@@ -29,27 +30,22 @@ export type AdminScreenName =
 
 export type AdminInventoryTab = 'categories' | 'stores' | 'products' | 'deals';
 
-export interface CaptainInvoice {
+export interface DriverSettlementRequest {
   id: string;
-  orderNumber: string;
+  driverId: string;
   driverName: string;
   driverPhone: string;
-  storeName: string;
-  invoiceNumber: string;
   amount: number;
-  receiptImageUrl: string;
-  uploadedAt: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  notes: string;
+  note?: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  createdAt: string;
+  reviewNote?: string;
 }
 
 export interface RegisteredUser {
   name: string;
   phone: string;
-  email: string;
-  city?: string;
-  biometricEnabled: boolean;
-  registeredAt: string;
+  email?: string;
 }
 
 const DEFAULT_KPI: AdminKPI = {
@@ -71,26 +67,29 @@ interface AdminContextType {
   navigateTo: (screen: AdminScreenName) => void;
   authMode: 'login' | 'register';
   setAuthMode: (mode: 'login' | 'register') => void;
-  registeredUser: RegisteredUser | null;
-  setRegisteredUser: (user: RegisteredUser | null) => void;
   currentUser: RegisteredUser | null;
-  setCurrentUser: (user: RegisteredUser | null) => void;
-  login: (phone: string, password?: string) => Promise<boolean>;
+  login: (phone: string, password: string) => Promise<boolean>;
+  registerFirstAdmin: (fullName: string, phone: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshData: () => Promise<void>;
   isLoading: boolean;
+  isSessionRestoring: boolean;
   kpi: AdminKPI;
   timeframe: 'today' | 'week' | 'month';
   setTimeframe: (tf: 'today' | 'week' | 'month') => void;
   orders: AdminOrder[];
   selectedOrder: AdminOrder | null;
   setSelectedOrder: (ord: AdminOrder | null) => void;
-  updateOrderStatus: (orderId: string, status: OrderStatus, driverName?: string) => Promise<void>;
+  updateOrderStatus: (orderId: string, status: OrderStatus, driverName?: string, driverId?: string) => Promise<void>;
   bankTransfers: BankTransferRequest[];
   verifyBankTransfer: (id: string, approved: boolean, reason?: string) => Promise<void>;
-  captainInvoices: CaptainInvoice[];
-  approveCaptainInvoice: (id: string) => Promise<void>;
-  rejectCaptainInvoice: (id: string, reason?: string) => Promise<void>;
+  driverSettlementRequests: DriverSettlementRequest[];
+  approveDriverSettlement: (id: string) => Promise<void>;
+  rejectDriverSettlement: (id: string, reason?: string) => Promise<void>;
+  pendingDrivers: any[];
+  approveDriver: (id: string) => Promise<void>;
+  rejectDriver: (id: string) => Promise<void>;
+  createAdmin: (fullName: string, phone: string, password: string) => Promise<void>;
   products: AdminProduct[];
   addProduct: (product: Omit<AdminProduct, 'id'>) => Promise<void>;
   updateProduct: (productId: string, data: Partial<AdminProduct>) => Promise<void>;
@@ -116,6 +115,8 @@ interface AdminContextType {
   deleteStore: (storeId: string) => Promise<void>;
   deliverySettings: DeliverySettings | null;
   updateDeliverySettings: (settings: Partial<DeliverySettings>) => Promise<void>;
+  driverProfitSharePercent: number;
+  updateDriverProfitSharePercent: (percent: number) => Promise<void>;
   flashDeals: AdminFlashDeal[];
   addFlashDeal: (deal: Omit<AdminFlashDeal, 'id'>) => void;
   updateFlashDeal: (dealId: string, deal: Omit<AdminFlashDeal, 'id'>) => Promise<void>;
@@ -139,17 +140,18 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [currentScreen, setCurrentScreen] = useState<AdminScreenName>('auth');
   const [inventoryTabRequest, setInventoryTabRequest] = useState<AdminInventoryTab | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [registeredUser, setRegisteredUser] = useState<RegisteredUser | null>(null);
   const [currentUser, setCurrentUser] = useState<RegisteredUser | null>(null);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month'>('today');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSessionRestoring, setIsSessionRestoring] = useState(true);
 
   const [kpi, setKpi] = useState<AdminKPI>(DEFAULT_KPI);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [bankTransfers, setBankTransfers] = useState<BankTransferRequest[]>([]);
-  const [captainInvoices, setCaptainInvoices] = useState<CaptainInvoice[]>([]);
+  const [driverSettlementRequests, setDriverSettlementRequests] = useState<DriverSettlementRequest[]>([]);
+  const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [deliverySettings, setDeliverySettings] = useState<DeliverySettings | null>({
@@ -159,6 +161,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     perKmFee: 50,
     isDynamicPricingEnabled: true,
   });
+  const [driverProfitSharePercent, setDriverProfitSharePercent] = useState(10);
   const [driverCustodies, setDriverCustodies] = useState<DriverCustodyAccount[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [stores, setStores] = useState<AdminStore[]>([]);
@@ -207,17 +210,12 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const refreshData = async () => {
+    if (!api.getToken()) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
-      // 0. Ensure Admin session exists in development
-      if (!api.getToken()) {
-        try {
-          await authApi.login('777000000', 'AdminPassword123!');
-        } catch (authErr) {
-          console.warn('Admin auto-auth notice:', authErr);
-        }
-      }
-
       // 1. Dashboard KPI
       try {
         const dash = await adminApi.getDashboard();
@@ -242,6 +240,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const mappedOrders: AdminOrder[] = ords.map((o: any) => ({
           id: o.id,
           orderNumber: o.orderNumber,
+          customerGovernorateId: o.customerGovernorateId,
           customerName: o.customerName || (o.customer && o.customer.fullName) || 'عميل المنصة',
           customerPhone: o.customerPhone || (o.customer && (o.customer.phone || (o.customer.user && o.customer.user.phone))) || '',
           createdAt: new Date(o.createdAt || Date.now()).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
@@ -320,12 +319,16 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Payments fetch error:', e);
       }
 
-      // 3.1 Captain Invoices (سندات الكباتن)
+      // 3.1 Driver cash custody settlement requests
       try {
-        const invs = await adminApi.getCaptainInvoices();
-        setCaptainInvoices(invs || []);
+        const [settlements, driversPending] = await Promise.all([
+          adminApi.getDriverSettlementRequests(),
+          adminApi.getPendingDrivers(),
+        ]);
+        setDriverSettlementRequests(settlements || []);
+        setPendingDrivers(driversPending || []);
       } catch (e) {
-        console.warn('Invoices fetch error:', e);
+        console.warn('Driver approvals fetch error:', e);
       }
 
       // 4. Products
@@ -457,6 +460,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Delivery settings fetch error:', e);
       }
 
+      try {
+        const share = await adminApi.getDriverProfitShare();
+        setDriverProfitSharePercent(Number(share?.percent ?? 10));
+      } catch (e) {
+        console.warn('Driver profit share fetch error:', e);
+      }
+
       // 7. Drivers
       try {
         const drvs = await adminApi.getDrivers();
@@ -469,9 +479,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isApproved: d.isApproved,
           vehiclePlate: 'صنعاء 1/12345',
           status: d.status === 0 || d.status === 'Online' ? 'ONLINE' : d.status === 2 || d.status === 'Busy' ? 'BUSY' : 'OFFLINE',
-          totalCollections: d.outstandingDebt > 0 ? d.outstandingDebt : 0,
-          totalStorePurchases: 0,
-          totalSettlements: 0,
+          totalCollections: Number(d.totalCollections ?? 0),
+          totalStorePurchases: Number(d.totalStorePurchases ?? 0),
+          totalSettlements: Number(d.totalSettlements ?? 0),
+          totalFundings: Number(d.totalFundings ?? 0),
+          totalEarnings: Number(d.totalEarnings ?? 0),
           expectedCashCustody: d.outstandingDebt || 0,
           lastSettlementDate: 'اليوم',
         }));
@@ -538,7 +550,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const login = async (phone: string, password = 'AdminPassword123!'): Promise<boolean> => {
+  const login = async (phone: string, password: string): Promise<boolean> => {
     const res = await authApi.login(phone, password);
     if (res.user.role !== 'SuperAdmin' && res.user.role !== 'Admin') {
       await authApi.logout();
@@ -548,9 +560,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentUser({
       name: adminName,
       phone: res.user.phone,
-      email: 'admin@bs-store.com',
-      biometricEnabled: true,
-      registeredAt: new Date().toISOString(),
+      email: res.user.email,
     });
     // Authentication should not wait for every dashboard resource. Load them after
     // navigation so slow or unavailable secondary endpoints do not delay sign-in.
@@ -558,7 +568,51 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
+  useEffect(() => {
+    let active = true;
+    const restore = async () => {
+      try {
+        const token = await api.initSession();
+        if (!token || !active) return;
+        try {
+          const user = await authApi.me();
+          if (user.role !== 'Admin' && user.role !== 'SuperAdmin') {
+            await api.clearSession();
+            return;
+          }
+          if (!active) return;
+          setCurrentUser({ name: user.fullName || user.name || 'مدير النظام', phone: user.phone, email: user.email });
+          navigateTo('dashboard');
+          void refreshData();
+        } catch (error: any) {
+          if (error?.status === 401) await api.clearSession();
+          else console.warn('تعذر التحقق من جلسة المدير المحفوظة:', error);
+        }
+      } finally {
+        if (active) setIsSessionRestoring(false);
+      }
+    };
+    void restore();
+    return () => { active = false; };
+  }, []);
+
+  const registerFirstAdmin = async (fullName: string, phone: string, password: string): Promise<boolean> => {
+    const res = await authApi.bootstrapFirstAdmin(fullName, phone, password);
+    if (res.user.role !== 'SuperAdmin' && res.user.role !== 'Admin') {
+      await authApi.logout();
+      throw new Error('تعذر إنشاء حساب إداري.');
+    }
+    setCurrentUser({
+      name: res.user.fullName || res.user.name || fullName,
+      phone: res.user.phone,
+      email: res.user.email,
+    });
+    void refreshData();
+    return true;
+  };
+
   const logout = async () => {
+    try { await unregisterPushDevice(api); } catch (e) { console.warn('تعذر إلغاء تسجيل إشعارات المدير:', e); }
     try {
       await authApi.logout();
     } catch (e) {
@@ -735,11 +789,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const updateOrderStatus = async (orderId: string, status: OrderStatus, driverName?: string) => {
+  const updateOrderStatus = async (orderId: string, status: OrderStatus, driverName?: string, driverId?: string) => {
     try {
       // Find driver if driver assigned
       if (status === 'DRIVER_ASSIGNED' && driverCustodies.length > 0) {
-        const driver = driverCustodies.find(d => d.driverName === driverName) || driverCustodies[0];
+        const driver = driverCustodies.find(d => d.driverId === driverId) || driverCustodies.find(d => d.driverName === driverName) || driverCustodies[0];
         await adminApi.assignDriver(orderId, driver.driverId);
       }
       await refreshData();
@@ -763,24 +817,31 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const approveCaptainInvoice = async (id: string) => {
+  const approveDriverSettlement = async (id: string) => {
     try {
-      await adminApi.approveCaptainInvoice(id);
+      await adminApi.approveDriverSettlement(id);
       await refreshData();
     } catch (e) {
-      console.error('Failed to approve invoice:', e);
+      console.error('Failed to approve driver settlement:', e);
       throw e;
     }
   };
 
-  const rejectCaptainInvoice = async (id: string, reason?: string) => {
+  const rejectDriverSettlement = async (id: string, reason?: string) => {
     try {
-      await adminApi.rejectCaptainInvoice(id, reason);
+      await adminApi.rejectDriverSettlement(id, reason);
       await refreshData();
     } catch (e) {
-      console.error('Failed to reject invoice:', e);
+      console.error('Failed to reject driver settlement:', e);
       throw e;
     }
+  };
+
+  const approveDriver = async (id: string) => { await adminApi.approveDriver(id); await refreshData(); };
+  const rejectDriver = async (id: string) => { await adminApi.rejectDriver(id); await refreshData(); };
+  const createAdmin = async (fullName: string, phone: string, password: string) => {
+    await adminApi.createAdmin(fullName, phone, password);
+    await refreshData();
   };
 
   const adjustInventory = async (productId: string, newAvailable: number) => {
@@ -898,6 +959,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error('Failed to update delivery settings:', e);
       throw e;
     }
+  };
+
+  const updateDriverProfitSharePercent = async (percent: number) => {
+    if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+      throw new Error('أدخل نسبة بين 0 و100.');
+    }
+    const saved = await adminApi.updateDriverProfitShare(percent);
+    setDriverProfitSharePercent(Number(saved.percent));
   };
 
   const toggleStoreStatus = async (storeId: string) => {
@@ -1030,14 +1099,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         navigateTo,
         authMode,
         setAuthMode,
-        registeredUser,
-        setRegisteredUser,
         currentUser,
-        setCurrentUser,
         login,
+        registerFirstAdmin,
         logout,
         refreshData,
         isLoading,
+        isSessionRestoring,
         kpi,
         timeframe,
         setTimeframe,
@@ -1047,9 +1115,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateOrderStatus,
         bankTransfers,
         verifyBankTransfer,
-        captainInvoices,
-        approveCaptainInvoice,
-        rejectCaptainInvoice,
+        driverSettlementRequests,
+        approveDriverSettlement,
+        rejectDriverSettlement,
+        pendingDrivers,
+        approveDriver,
+        rejectDriver,
+        createAdmin,
         products,
         addProduct,
         updateProduct,
@@ -1075,6 +1147,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteStore,
         deliverySettings,
         updateDeliverySettings,
+        driverProfitSharePercent,
+        updateDriverProfitSharePercent,
         flashDeals,
         addFlashDeal,
         updateFlashDeal,

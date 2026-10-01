@@ -252,7 +252,12 @@ export const InventoryScreen: React.FC = () => {
   const [storeGovernoratePickerVisible, setStoreGovernoratePickerVisible] = useState(false);
   const [newGovernorateName, setNewGovernorateName] = useState('');
   const [isAddingGovernorate, setIsAddingGovernorate] = useState(false);
-  useEffect(() => { void adminApi.getGovernorates().then(setGovernorates).catch(() => {}); }, []);
+  const [governorateMessage, setGovernorateMessage] = useState('');
+  useEffect(() => {
+    void adminApi.getGovernorates()
+      .then(setGovernorates)
+      .catch((error: any) => setGovernorateMessage(error?.message || 'تعذر تحميل المحافظات من الخادم.'));
+  }, []);
   const [storeLatitude, setStoreLatitude] = useState<number | null>(null);
   const [storeLongitude, setStoreLongitude] = useState<number | null>(null);
   const [showStoreMapPicker, setShowStoreMapPicker] = useState(false);
@@ -359,8 +364,8 @@ export const InventoryScreen: React.FC = () => {
       setCatName('');
       setCatIcon('📁');
       setEditingCat(null);
-    } catch {
-      Alert.alert('خطأ', 'فشل حفظ الفئة');
+    } catch (error: any) {
+      Alert.alert('خطأ', error?.message || 'فشل حفظ الفئة');
     } finally {
       setIsSavingCat(false);
     }
@@ -683,14 +688,23 @@ export const InventoryScreen: React.FC = () => {
           <Text style={s.formLabel}>إضافة محافظة مدعومة</Text>
           <View style={{ flexDirection: 'row-reverse', gap: 8, alignItems: 'center' }}>
             <TouchableOpacity style={s.addBtn} disabled={isAddingGovernorate} onPress={async () => {
-              const name = newGovernorateName.trim(); if (!name) return;
+              const name = newGovernorateName.trim();
+              if (!name) { setGovernorateMessage('اكتب اسم المحافظة أولاً.'); return; }
+              setGovernorateMessage('');
               setIsAddingGovernorate(true);
-              try { await adminApi.addGovernorate(name); setGovernorates(await adminApi.getGovernorates()); setNewGovernorateName(''); Alert.alert('تمت الإضافة', `أصبحت محافظة ${name} متاحة في القوائم.`); }
-              catch (e:any) { Alert.alert('تعذر الإضافة', e?.message || 'تحقق من الاتصال وحاول مجدداً.'); }
+              try {
+                await adminApi.addGovernorate(name);
+                setGovernorates(await adminApi.getGovernorates());
+                setNewGovernorateName('');
+                setGovernorateMessage(`تمت إضافة ${name} وحفظها.`);
+              }
+              catch (e:any) { setGovernorateMessage(e?.message || 'تعذر الحفظ. تحقق من اتصالك وصلاحيات الحساب.'); }
               finally { setIsAddingGovernorate(false); }
             }}><Text style={s.addBtnText}>{isAddingGovernorate ? 'جارٍ الحفظ…' : 'إضافة'}</Text></TouchableOpacity>
             <TextInput style={[s.formInput, { flex: 1, marginBottom: 0 }]} value={newGovernorateName} onChangeText={setNewGovernorateName} placeholder="اسم المحافظة" textAlign="right" />
           </View>
+          {!!governorateMessage && <Text style={s.formLabel}>{governorateMessage}</Text>}
+          {governorates.length === 0 && !governorateMessage && <EmptyState icon="🗺️" text="لا توجد محافظات مضافة بعد" />}
           {governorates.map(g => <View key={g.id} style={s.listCard}><Text style={s.listTitle}>{g.name}</Text></View>)}
         </ScrollView>
       )}

@@ -4,7 +4,6 @@ import {
   ActiveDeliveryTask,
   DriverWalletSummary,
   DriverTransaction,
-  OrderInvoice,
 } from '../types';
 
 export const mockDriverProfile: DriverProfile = {
@@ -24,9 +23,9 @@ export const mockActiveTask: ActiveDeliveryTask | null = null;
 export const mockDriverWallet: DriverWalletSummary = {
   currentCashCustody: 0,
   todayEarnings: 0,
+  profitSharePercent: 10,
   completedTripsToday: 0,
   totalDistanceTodayKm: 0,
 };
 
 export const mockDriverTransactions: DriverTransaction[] = [];
-export const mockOrderInvoices: OrderInvoice[] = [];

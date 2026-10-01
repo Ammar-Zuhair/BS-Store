@@ -26,7 +26,7 @@ export type OrderStatusType =
 
 export interface Address {
   id: string;
-  label: 'المنزل' | 'العمل' | 'أخرى';
+  label: 'المنزل' | 'العمل' | 'أخرى' | '';
   city: string;
   governorateId?: string;
   district: string;
@@ -50,13 +50,7 @@ export interface Store {
   phone: string;
   address: string;
   imageUrl: string;
-  rating: number;
-  reviewsCount: number;
-  deliveryTime: string;
-  deliveryFee: number;
   isOpen: boolean;
-  isVerified: boolean;
-  tags: string[];
   latitude?: number;
   longitude?: number;
 }
@@ -124,12 +118,12 @@ export interface Order {
   transferReceiptUrl?: string;
   transferReference?: string;
   driver?: {
-    id: string;
+    id?: string;
     name: string;
     phone: string;
-    rating: number;
-    vehiclePlate: string;
-    avatarUrl: string;
+    rating?: number;
+    vehiclePlate?: string;
+    avatarUrl?: string;
     currentLocation?: string;
   };
   notes?: string;

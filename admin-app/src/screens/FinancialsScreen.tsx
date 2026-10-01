@@ -16,7 +16,7 @@ import { useAdmin } from '../context/AdminContext';
 import { DriverCustodyAccount } from '../types';
 
 export const FinancialsScreen: React.FC = () => {
-  const { driverCustodies, settleDriverCash, navigateTo, deliverySettings, updateDeliverySettings } = useAdmin();
+  const { driverCustodies, settleDriverCash, navigateTo, deliverySettings, updateDeliverySettings, driverProfitSharePercent, updateDriverProfitSharePercent, pendingDrivers, approveDriver, rejectDriver, createAdmin } = useAdmin();
   const scrollRef = useRef<ScrollView>(null);
 
   // Delivery Fee Settings State
@@ -33,7 +33,13 @@ export const FinancialsScreen: React.FC = () => {
     deliverySettings?.isEnabled ?? true
   );
   const [isSavingDeliverySettings, setIsSavingDeliverySettings] = useState<boolean>(false);
+  const [profitShareInput, setProfitShareInput] = useState(String(driverProfitSharePercent));
+  const [isSavingProfitShare, setIsSavingProfitShare] = useState(false);
   const [simKm, setSimKm] = useState<number>(5);
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminPhone, setNewAdminPhone] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
 
   useEffect(() => {
     if (deliverySettings) {
@@ -43,6 +49,25 @@ export const FinancialsScreen: React.FC = () => {
       setIsDeliveryEnabled(deliverySettings.isEnabled);
     }
   }, [deliverySettings]);
+
+  useEffect(() => setProfitShareInput(String(driverProfitSharePercent)), [driverProfitSharePercent]);
+
+  const handleSaveProfitShare = async () => {
+    const percent = Number(profitShareInput);
+    if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+      Alert.alert('نسبة غير صحيحة', 'أدخل نسبة من 0 إلى 100.');
+      return;
+    }
+    setIsSavingProfitShare(true);
+    try {
+      await updateDriverProfitSharePercent(percent);
+      Alert.alert('تم الحفظ', `أصبحت حصة الموصل ${percent}% من هامش ربح المنتجات في الطلب.`);
+    } catch (error: any) {
+      Alert.alert('تعذر الحفظ', error?.message || 'فشل حفظ نسبة أرباح الموصل.');
+    } finally {
+      setIsSavingProfitShare(false);
+    }
+  };
 
   const handleSaveDeliverySettings = async () => {
     const bf = parseFloat(baseFeeInput) || 400;
@@ -66,6 +91,20 @@ export const FinancialsScreen: React.FC = () => {
     } finally {
       setIsSavingDeliverySettings(false);
     }
+  };
+
+  const handleCreateAdmin = async () => {
+    if (newAdminName.trim().length < 2 || newAdminPhone.trim().length < 7 || newAdminPassword.length < 8) {
+      Alert.alert('بيانات ناقصة', 'أدخل الاسم ورقم الهاتف وكلمة مرور من 8 أحرف على الأقل.');
+      return;
+    }
+    setIsCreatingAdmin(true);
+    try {
+      await createAdmin(newAdminName.trim(), newAdminPhone.trim(), newAdminPassword);
+      setNewAdminName(''); setNewAdminPhone(''); setNewAdminPassword('');
+      Alert.alert('تم إنشاء الحساب', 'يمكن للمدير الجديد تسجيل الدخول برقم الهاتف وكلمة المرور المحددين.');
+    } catch (error: any) { Alert.alert('تعذر إنشاء الحساب', error?.message || 'تعذر إنشاء حساب المدير.'); }
+    finally { setIsCreatingAdmin(false); }
   };
 
   const simBf = parseFloat(baseFeeInput) || 400;
@@ -182,7 +221,7 @@ export const FinancialsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <AdminHeader title="المالية وعهد المناديب" showBack onBack={() => navigateTo('dashboard')} />
+      <AdminHeader title="الضبط" showBack onBack={() => navigateTo('dashboard')} />
 
       <ScrollView
         ref={scrollRef}
@@ -252,7 +291,7 @@ export const FinancialsScreen: React.FC = () => {
         <View style={styles.deliverySettingsCard}>
           <View style={styles.settingsCardHeader}>
             <View style={styles.settingsBadge}>
-              <Text style={styles.settingsBadgeText}>معادلة المسافات (Google Maps)</Text>
+              <Text style={styles.settingsBadgeText}>المسافة بين إحداثيي العميل والمتجر</Text>
             </View>
             <View style={styles.settingsTitleRow}>
               <Text style={styles.settingsTitle}>إعدادات تسعير ورسوم التوصيل</Text>
@@ -317,7 +356,7 @@ export const FinancialsScreen: React.FC = () => {
           <View style={styles.simCard}>
             <View style={styles.simHeader}>
               <Text style={styles.simFormula}>
-                المعادلة: {simBf} ر.ي + ({simKm} كم × {simPk} ر.ي)
+                المعادلة: {simBf} ر.ي + ⌈max(0، {simKm} − {simBd})⌉ × {simPk} ر.ي
               </Text>
               <Text style={styles.simTitle}>معاينة تجريبية لاحتساب الرسوم:</Text>
             </View>
@@ -358,6 +397,56 @@ export const FinancialsScreen: React.FC = () => {
               {isSavingDeliverySettings ? 'جاري الحفظ...' : 'حفظ وتثبيت إعدادات التوصيل 💾'}
             </Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={{ backgroundColor: colors.surfaceContainerLowest, borderRadius: borderRadius.xl, padding: spacing.baseMd, marginBottom: spacing.baseLg, borderWidth: 1, borderColor: colors.outlineVariant }}>
+          <Text style={{ fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.onSurface, textAlign: 'right' }}>
+            نسبة أرباح الموصل
+          </Text>
+          <Text style={{ fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, color: colors.onSurfaceVariant, textAlign: 'right', marginTop: 4, marginBottom: 12 }}>
+            تُحسب من هامش ربح المنتجات بعد خصم تكلفة الشراء الفعلية والخصم الموزع على الأصناف. النسبة الافتراضية 10%.
+          </Text>
+          <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 10 }}>
+            <TextInput
+              style={{ flex: 1, height: 48, borderWidth: 1, borderColor: colors.outlineVariant, borderRadius: borderRadius.md, paddingHorizontal: 12, color: colors.onSurface, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg }}
+              value={profitShareInput}
+              onChangeText={setProfitShareInput}
+              keyboardType="decimal-pad"
+              textAlign="center"
+              placeholder="10"
+            />
+            <Text style={{ fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.onSurface }}>%</Text>
+            <TouchableOpacity
+              style={{ backgroundColor: colors.primary, paddingHorizontal: 18, paddingVertical: 13, borderRadius: borderRadius.md, opacity: isSavingProfitShare ? 0.6 : 1 }}
+              onPress={handleSaveProfitShare}
+              disabled={isSavingProfitShare}
+              activeOpacity={0.85}
+            >
+              <Text style={{ fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.onPrimary }}>
+                {isSavingProfitShare ? 'جاري الحفظ…' : 'حفظ النسبة'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={{ backgroundColor: colors.surfaceContainerLowest, borderRadius: borderRadius.xl, padding: spacing.baseMd, marginBottom: spacing.baseLg, borderWidth: 1, borderColor: colors.outlineVariant }}>
+          <Text style={{ fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.onSurface, textAlign: 'right' }}>طلبات إنشاء حسابات المناديب ({pendingDrivers.length})</Text>
+          {pendingDrivers.length === 0 ? <Text style={{ marginTop: 8, color: colors.onSurfaceVariant, textAlign: 'right', fontFamily: typography.fontFamily.regular }}>لا توجد طلبات موافقة معلقة.</Text> : pendingDrivers.map((driver: any) => (
+            <View key={driver.id} style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.outlineVariant }}>
+              <View style={{ flex: 1 }}><Text style={{ textAlign: 'right', color: colors.onSurface, fontFamily: typography.fontFamily.bold }}>{driver.fullName}</Text><Text style={{ textAlign: 'right', color: colors.onSurfaceVariant, fontFamily: typography.fontFamily.regular }}>{driver.phone}</Text></View>
+              <TouchableOpacity style={{ backgroundColor: colors.primary, padding: 10, borderRadius: borderRadius.md, marginHorizontal: 4 }} onPress={() => Alert.alert('الموافقة على الموصل', `اعتماد حساب ${driver.fullName}؟`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'موافقة', onPress: () => approveDriver(driver.id).catch((e: any) => Alert.alert('تعذر الاعتماد', e?.message || 'حاول مجدداً')) }])}><Text style={{ color: colors.onPrimary, fontFamily: typography.fontFamily.bold }}>موافقة</Text></TouchableOpacity>
+              <TouchableOpacity style={{ backgroundColor: colors.error, padding: 10, borderRadius: borderRadius.md }} onPress={() => Alert.alert('رفض الطلب', `رفض وحذف طلب ${driver.fullName}؟`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'رفض', style: 'destructive', onPress: () => rejectDriver(driver.id).catch((e: any) => Alert.alert('تعذر الرفض', e?.message || 'حاول مجدداً')) }])}><Text style={{ color: colors.onPrimary, fontFamily: typography.fontFamily.bold }}>رفض</Text></TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
+        <View style={{ backgroundColor: colors.surfaceContainerLowest, borderRadius: borderRadius.xl, padding: spacing.baseMd, marginBottom: spacing.baseLg, borderWidth: 1, borderColor: colors.outlineVariant, gap: 10 }}>
+          <Text style={{ fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.onSurface, textAlign: 'right' }}>إضافة مدير جديد</Text>
+          <Text style={{ fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, color: colors.onSurfaceVariant, textAlign: 'right' }}>يُنشأ الحساب بصلاحية مدير ويستطيع الدخول مباشرة.</Text>
+          <TextInput style={styles.settingTextInput} value={newAdminName} onChangeText={setNewAdminName} placeholder="اسم المدير" textAlign="right" />
+          <TextInput style={styles.settingTextInput} value={newAdminPhone} onChangeText={setNewAdminPhone} placeholder="رقم الهاتف" keyboardType="phone-pad" textAlign="right" />
+          <TextInput style={styles.settingTextInput} value={newAdminPassword} onChangeText={setNewAdminPassword} placeholder="كلمة المرور (8 أحرف على الأقل)" secureTextEntry textAlign="right" />
+          <TouchableOpacity style={[styles.saveSettingsBtn, isCreatingAdmin && { opacity: 0.6 }]} disabled={isCreatingAdmin} onPress={handleCreateAdmin}><Text style={styles.saveSettingsBtnText}>{isCreatingAdmin ? 'جارٍ إنشاء الحساب…' : 'إنشاء حساب المدير'}</Text></TouchableOpacity>
         </View>
 
         {/* Dynamic Interactive Settlement Station (Stitch Screen a7607b93351a4b4d87d692a492ad9475) */}
@@ -614,49 +703,6 @@ export const FinancialsScreen: React.FC = () => {
           </View>
         ))}
 
-        {/* Captain Invoices & Receipts Audit Section (Anti-Embezzlement) */}
-        <View style={styles.invoicesSectionHeader}>
-          <View style={styles.auditBadge}>
-            <Text style={styles.auditBadgeText}>رقابة مالية ومنع اختلاس 🛡️</Text>
-          </View>
-          <Text style={styles.invoicesSectionTitle}>
-            فواتير وسندات مشتريات الكباتن
-          </Text>
-          <Text style={styles.invoicesSectionSub}>
-            تم نقل مراجعة وتدقيق فواتير الكباتن إلى واجهة المدفوعات مع دعم المعاينة والتكبير عالي الدقة
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={{
-            backgroundColor: colors.surfaceContainerLowest,
-            borderRadius: borderRadius.lg,
-            padding: spacing.baseMd,
-            borderWidth: 1,
-            borderColor: colors.primary + '30',
-            flexDirection: 'row-reverse',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: spacing.baseLg,
-          }}
-          onPress={() => navigateTo('payments')}
-          activeOpacity={0.85}
-        >
-          <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 12, flex: 1 }}>
-            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 22 }}>🧾</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.onSurface }}>
-                الانتقال لتدقيق فواتير وسندات الكباتن
-              </Text>
-              <Text style={{ fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.onSurfaceVariant, marginTop: 2 }}>
-                فحص صور الفواتير، التكبير والتصغير، والاعتماد أو الرفض في واجهة المدفوعات
-              </Text>
-            </View>
-          </View>
-          <Text style={{ fontFamily: typography.fontFamily.bold, fontSize: 18, color: colors.primary }}>←</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );

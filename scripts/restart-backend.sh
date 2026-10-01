@@ -1,8 +1,16 @@
 #!/bin/bash
 set -e
 
+export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-${TMPDIR:-/tmp}/bsstore-dotnet-cli}"
+export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+
 echo "Building BS Store Backend in Release mode..."
-dotnet publish /workspace/backend/src/BSStore.API/BSStore.API.csproj -c Release -o /workspace/backend/publish /p:UseAppHost=false
+BUILD_TEMP_ROOT="${TMPDIR:-/tmp}/bsstore-backend-build"
+PUBLISH_ARGS=(-c Release -o /workspace/backend/publish -m:1 /p:UseAppHost=false "/p:IntermediateOutputPath=$BUILD_TEMP_ROOT/obj/" "/p:OutputPath=$BUILD_TEMP_ROOT/bin/")
+if [ -n "${BSSTORE_NUGET_CONFIG:-}" ]; then
+  PUBLISH_ARGS+=("/p:RestoreConfigFile=$BSSTORE_NUGET_CONFIG")
+fi
+dotnet publish /workspace/backend/src/BSStore.API/BSStore.API.csproj "${PUBLISH_ARGS[@]}"
 
 echo "Triggering backend restart..."
 # 1. Update the restart trigger file (systemd watcher will automatically restart if active)

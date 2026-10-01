@@ -57,8 +57,8 @@ export const AuthScreen: React.FC = () => {
   const [regDistrict, setRegDistrict] = useState('');
   const [regStreet, setRegStreet] = useState('');
   const [regBuilding, setRegBuilding] = useState('');
-  const [regLat, setRegLat] = useState(15.34);
-  const [regLng, setRegLng] = useState(44.20);
+  const [regLat, setRegLat] = useState(0);
+  const [regLng, setRegLng] = useState(0);
   const [isLocationPicked, setIsLocationPicked] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -261,11 +261,15 @@ export const AuthScreen: React.FC = () => {
       Alert.alert('خطأ', 'كلمة المرور وتأكيد كلمة المرور غير متطابقين');
       return;
     }
-    if (!regCity.trim() || !regDistrict.trim()) {
-      Alert.alert('تنبيه', 'يرجى إدخال المدينة والحي');
+    if (!regCity.trim() || !regDistrict.trim() || !regStreet.trim()) {
+      Alert.alert('تنبيه', 'يرجى إدخال المدينة والحي والشارع');
       return;
     }
     if (!governorateId) { Alert.alert('تنبيه', 'اختر محافظة السكن من القائمة'); return; }
+    if (!isLocationPicked || !regLat || !regLng) {
+      Alert.alert('تنبيه', 'حدد موقعك الفعلي على الخريطة قبل إنشاء الحساب');
+      return;
+    }
     if (!agreeTerms) {
       Alert.alert(
         'الشروط والأحكام',
@@ -282,11 +286,10 @@ export const AuthScreen: React.FC = () => {
       city: regCity.trim(),
       governorateId,
       district: regDistrict.trim(),
-      street: regStreet.trim() || 'الشارع الرئيسي',
+      street: regStreet.trim(),
       building: regBuilding.trim() || undefined,
-      description: 'تم التسجيل عبر تطبيق العميل',
-      latitude: regLat || 15.35,
-      longitude: regLng || 44.20,
+      latitude: regLat,
+      longitude: regLng,
     };
 
     setIsLoading(true);
@@ -294,7 +297,7 @@ export const AuthScreen: React.FC = () => {
       await register(
         cleanName,
         cleanPhone,
-        cleanEmail || `${cleanPhone}@bsstore.app`,
+        cleanEmail,
         cleanPassword,
         {
           label: 'المنزل',

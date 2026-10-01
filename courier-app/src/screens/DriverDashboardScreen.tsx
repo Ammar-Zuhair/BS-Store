@@ -10,6 +10,8 @@ import {
   Linking,
   Alert,
   Platform,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { DriverHeader } from '../components/DriverHeader';
@@ -17,13 +19,16 @@ import { useDriver } from '../context/DriverContext';
 import { driverApi } from '../api';
 
 export const DriverDashboardScreen: React.FC = () => {
-  const { driver, activeTask, wallet, toggleShiftStatus, navigateTo } = useDriver();
+  const { driver, activeTask, wallet, toggleShiftStatus, navigateTo, refreshData, isRefreshing } = useDriver();
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [governorates, setGovernorates] = useState<{id:string;name:string}[]>([]);
   const [governorateId, setGovernorateId] = useState('');
   const [showGovernorates, setShowGovernorates] = useState(false);
+  const [isChangingGovernorate, setIsChangingGovernorate] = useState(false);
+  const [isTogglingShift, setIsTogglingShift] = useState(false);
   useEffect(() => { void Promise.all([driverApi.governorates(), driverApi.myGovernorate()]).then(([list, mine]) => { setGovernorates(list); setGovernorateId(mine.governorateId || ''); }).catch(() => {}); }, []);
-  const changeGovernorate = async (id:string) => { try { await driverApi.updateGovernorate(id); setGovernorateId(id); setShowGovernorates(false); Alert.alert('تم التحديث','تم تغيير محافظة عملك.'); } catch (e:any) { Alert.alert('تعذر التحديث',e?.message || 'حاول مرة أخرى.'); } };
+  const changeGovernorate = async (id:string) => { if (isChangingGovernorate) return; setIsChangingGovernorate(true); try { await driverApi.updateGovernorate(id); setGovernorateId(id); setShowGovernorates(false); Alert.alert('تم التحديث','تم تغيير محافظة عملك.'); } catch (e:any) { Alert.alert('تعذر التحديث',e?.message || 'حاول مرة أخرى.'); } finally { setIsChangingGovernorate(false); } };
+  const handleToggleShift = async () => { if (isTogglingShift) return; setIsTogglingShift(true); try { await toggleShiftStatus(); } finally { setIsTogglingShift(false); } };
   const isOnline = driver.shiftStatus === 'ONLINE';
 
   const handleCall = (phone: string, name: string) => {
@@ -60,6 +65,7 @@ export const DriverDashboardScreen: React.FC = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshData} colors={[colors.primary]} />}
       >
         {/* Driver Profile & Shift Status Card */}
         <View style={styles.profileCard}>
@@ -96,10 +102,11 @@ export const DriverDashboardScreen: React.FC = () => {
           <View style={styles.statusSwitchBox}>
             <TouchableOpacity
               style={[styles.switchTrack, isOnline ? styles.trackOnline : styles.trackOffline]}
-              onPress={toggleShiftStatus}
+              onPress={handleToggleShift}
+              disabled={isTogglingShift}
               activeOpacity={0.8}
             >
-              <View style={[styles.switchKnob, isOnline ? styles.knobOnline : styles.knobOffline]} />
+              {isTogglingShift ? <ActivityIndicator color="#fff" /> : <View style={[styles.switchKnob, isOnline ? styles.knobOnline : styles.knobOffline]} />}
             </TouchableOpacity>
 
             <View style={styles.statusTextBox}>
@@ -115,10 +122,10 @@ export const DriverDashboardScreen: React.FC = () => {
           </View>
         </View>
 
-        <TouchableOpacity style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 14, padding: 14, backgroundColor: '#fff', borderRadius: 14, flexDirection: 'row-reverse', justifyContent: 'space-between' }} onPress={() => setShowGovernorates(true)}>
+        <TouchableOpacity disabled={isChangingGovernorate} style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 14, padding: 14, backgroundColor: '#fff', borderRadius: 14, flexDirection: 'row-reverse', justifyContent: 'space-between', opacity: isChangingGovernorate ? 0.65 : 1 }} onPress={() => setShowGovernorates(true)}>
           <Text style={{ fontWeight: '700' }}>محافظة عملك</Text><Text>{governorates.find(g=>g.id===governorateId)?.name || 'اختر المحافظة ▾'}</Text>
         </TouchableOpacity>
-        <Modal visible={showGovernorates} transparent animationType="slide" onRequestClose={() => setShowGovernorates(false)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:'#0008'}}><View style={{maxHeight:'70%',backgroundColor:'#fff',padding:18,borderTopLeftRadius:20,borderTopRightRadius:20}}><Text style={{textAlign:'right',fontSize:18,fontWeight:'700',marginBottom:10}}>اختر المحافظة</Text><ScrollView>{governorates.map(g=><TouchableOpacity key={g.id} style={{padding:14,borderBottomWidth:1,borderColor:'#eee'}} onPress={()=>changeGovernorate(g.id)}><Text style={{textAlign:'right'}}>{g.name}</Text></TouchableOpacity>)}</ScrollView></View></View></Modal>
+        <Modal visible={showGovernorates} transparent animationType="slide" onRequestClose={() => setShowGovernorates(false)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:'#0008'}}><View style={{maxHeight:'70%',backgroundColor:'#fff',padding:18,borderTopLeftRadius:20,borderTopRightRadius:20}}><Text style={{textAlign:'right',fontSize:18,fontWeight:'700',marginBottom:10}}>اختر المحافظة</Text><ScrollView>{governorates.map(g=><TouchableOpacity key={g.id} disabled={isChangingGovernorate} style={{padding:14,borderBottomWidth:1,borderColor:'#eee',opacity:isChangingGovernorate?0.6:1}} onPress={()=>changeGovernorate(g.id)}>{isChangingGovernorate && governorateId===g.id ? <ActivityIndicator color={colors.primary}/> : <Text style={{textAlign:'right'}}>{g.name}</Text>}</TouchableOpacity>)}</ScrollView></View></View></Modal>
 
         {/* Detailed Active Task Card */}
         {activeTask ? (
@@ -195,15 +202,18 @@ export const DriverDashboardScreen: React.FC = () => {
                     {st.items.map((it) => (
                       <View key={it.id} style={styles.itemRow}>
                         <Text style={styles.itemCost}>
-                          {(it.expectedPrice * it.quantity).toLocaleString()} ر.ي
+                          {((it.actualPrice ?? it.expectedPrice) * it.quantity).toLocaleString()} ر.ي
                         </Text>
                         <View style={styles.itemInfo}>
                           <Text style={styles.itemName}>
                             {it.name} <Text style={styles.itemQty}>× {it.quantity}</Text>
                           </Text>
                           <Text style={styles.itemUnit}>
-                            سعر الوحدة: {it.expectedPrice.toLocaleString()} ر.ي
+                            {it.actualPrice != null
+                              ? `سعر الشراء الفعلي: ${Number(it.actualPrice).toLocaleString()} ر.ي (المتوقع ${it.expectedPrice.toLocaleString()})`
+                              : `سعر الشراء المتوقع للوحدة: ${it.expectedPrice.toLocaleString()} ر.ي`}
                           </Text>
+                          <Text style={styles.itemUnit}>سعر الوحدة على العميل: {it.customerPrice.toLocaleString()} ر.ي</Text>
                         </View>
                         <Image source={{ uri: it.imageUrl }} style={styles.itemThumb} />
                       </View>
@@ -214,7 +224,9 @@ export const DriverDashboardScreen: React.FC = () => {
                     <Text style={styles.storeSubtotalVal}>
                       {st.storeTotal.toLocaleString()} ر.ي
                     </Text>
-                    <Text style={styles.storeSubtotalLabel}>إجمالي المتجر:</Text>
+                    <Text style={styles.storeSubtotalLabel}>
+                      {st.items.some((item) => item.actualPrice != null) ? 'تكلفة الشراء الفعلية:' : 'تكلفة الشراء المتوقعة:'}
+                    </Text>
                   </View>
                 </View>
               ))}
@@ -224,15 +236,15 @@ export const DriverDashboardScreen: React.FC = () => {
             <View style={styles.costSummaryCard}>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryVal}>
-                  {(activeTask.subtotalProducts || 10400).toLocaleString()} ر.ي
+                  {(activeTask.subtotalProducts ?? 0).toLocaleString()} ر.ي
                 </Text>
-                <Text style={styles.summaryLabel}>إجمالي قيمة المشتريات:</Text>
+                <Text style={styles.summaryLabel}>قيمة المنتجات على العميل (قبل التوصيل):</Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryVal, styles.earningsHighlight]}>
-                  +{(activeTask.deliveryFee || 800).toLocaleString()} ر.ي
+                  +{activeTask.driverEstimatedEarnings.toLocaleString()} ر.ي
                 </Text>
-                <Text style={styles.summaryLabel}>رسوم التوصيل المستحقة لك:</Text>
+                <Text style={styles.summaryLabel}>نصيبك التقديري من الربح ({activeTask.driverProfitSharePercent}%):</Text>
               </View>
               <View style={[styles.summaryRow, styles.totalCollectionRow]}>
                 <Text style={styles.totalCollectionVal}>
@@ -292,13 +304,6 @@ export const DriverDashboardScreen: React.FC = () => {
                   <Text style={styles.viewDetailsText}>📋 تفاصيل الطلب كاملة</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.uploadReceiptBtn}
-                  onPress={() => navigateTo('invoices')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.uploadReceiptText}>🧾 رفع ورقة فاتورة</Text>
-                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -396,12 +401,12 @@ export const DriverDashboardScreen: React.FC = () => {
                     {store.items.map((item) => (
                       <View key={item.id} style={styles.modalItemRow}>
                         <Text style={styles.modalItemTotal}>
-                          {(item.expectedPrice * item.quantity).toLocaleString()} ر.ي
+                          {((item.actualPrice ?? item.expectedPrice) * item.quantity).toLocaleString()} ر.ي
                         </Text>
                         <View style={styles.modalItemInfo}>
                           <Text style={styles.modalItemName}>{item.name}</Text>
                           <Text style={styles.modalItemSub}>
-                            الكمية: {item.quantity} | سعر الوحدة: {item.expectedPrice.toLocaleString()} ر.ي
+                          الكمية: {item.quantity} | بيع العميل: {item.customerPrice.toLocaleString()} | {item.actualPrice != null ? `الشراء الفعلي: ${Number(item.actualPrice).toLocaleString()}` : `الشراء المتوقع: ${item.expectedPrice.toLocaleString()}`} ر.ي
                           </Text>
                         </View>
                         <Image source={{ uri: item.imageUrl }} style={styles.modalItemThumb} />
@@ -414,15 +419,15 @@ export const DriverDashboardScreen: React.FC = () => {
                 <View style={styles.modalPricingCard}>
                   <View style={styles.modalPricingRow}>
                     <Text style={styles.modalPricingVal}>
-                      {(activeTask.subtotalProducts || 10400).toLocaleString()} ر.ي
+                      {(activeTask.subtotalProducts ?? 0).toLocaleString()} ر.ي
                     </Text>
-                    <Text style={styles.modalPricingLabel}>إجمالي المشتريات:</Text>
+                    <Text style={styles.modalPricingLabel}>قيمة المنتجات على العميل (قبل التوصيل):</Text>
                   </View>
                   <View style={styles.modalPricingRow}>
                     <Text style={[styles.modalPricingVal, styles.modalEarnings]}>
-                      +{(activeTask.deliveryFee || 800).toLocaleString()} ر.ي
+                      +{activeTask.driverEstimatedEarnings.toLocaleString()} ر.ي
                     </Text>
-                    <Text style={styles.modalPricingLabel}>أجرة التوصيل المستحقة لك:</Text>
+                    <Text style={styles.modalPricingLabel}>نصيبك التقديري من الربح ({activeTask.driverProfitSharePercent}%):</Text>
                   </View>
                   <View style={[styles.modalPricingRow, styles.modalTotalRow]}>
                     <Text style={styles.modalTotalVal}>
@@ -452,14 +457,14 @@ export const DriverDashboardScreen: React.FC = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.modalInvoiceBtn}
+                  style={styles.modalPurchaseBtn}
                   onPress={() => {
                     setDetailsModalVisible(false);
-                    navigateTo('invoices');
+                    navigateTo('purchase');
                   }}
                   activeOpacity={0.88}
                 >
-                  <Text style={styles.modalInvoiceBtnText}>🧾 رفع ورقة فاتورة أو سند لهذا الطلب</Text>
+                  <Text style={styles.modalPurchaseBtnText}>تسجيل تكلفة مشتريات المتجر</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -519,7 +524,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   verifiedIcon: {
-    fontSize: 9,
+    fontSize: 14,
     color: colors.onPrimary,
     fontWeight: typography.fontWeight.bold,
   },
@@ -538,15 +543,15 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   ratingIcon: {
-    fontSize: 10,
+    fontSize: 14,
   },
   ratingScore: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurface,
   },
   reviewsCount: {
-    fontSize: 9,
+    fontSize: 14,
     color: colors.outline,
   },
   vehicleBadge: {
@@ -559,17 +564,17 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   vehicleIcon: {
-    fontSize: 10,
+    fontSize: 14,
   },
   vehicleText: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
   },
   shiftGauge: {
     alignItems: 'flex-start',
   },
   shiftLabel: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.outline,
   },
   shiftValue: {
@@ -596,7 +601,7 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   statusDesc: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     marginTop: 2,
     textAlign: 'right',
@@ -653,7 +658,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   urgentBadgeText: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSecondary,
   },
@@ -669,7 +674,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   dispatchText: {
-    fontSize: 9,
+    fontSize: 14,
     color: colors.outline,
   },
   taskTitle: {
@@ -680,7 +685,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   taskSubtitle: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 2,
@@ -706,7 +711,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   stopHeading: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurface,
   },
@@ -723,15 +728,15 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   storePillText: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurface,
   },
   plusSign: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.outline,
   },
   destinationText: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     marginTop: 1,
   },
@@ -749,7 +754,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   collectionLabel: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
   },
   collectionValue: {
@@ -759,10 +764,10 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   curr: {
-    fontSize: 10,
+    fontSize: 14,
   },
   verifiedPaymentText: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.primary,
     marginTop: 2,
@@ -782,7 +787,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   distanceText: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onPrimary,
   },
@@ -817,7 +822,7 @@ const styles = StyleSheet.create({
   },
   etaPillText: {
     color: colors.onPrimary,
-    fontSize: 10,
+    fontSize: 14,
   },
   noTaskCard: {
     backgroundColor: colors.surfaceContainerLowest,
@@ -837,7 +842,7 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   noTaskSubtitle: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     marginTop: 2,
   },
@@ -872,7 +877,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   metricLabel: {
-    fontSize: 9,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     marginTop: 2,
     textAlign: 'center',
@@ -901,18 +906,18 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   callIcon: {
-    fontSize: 12,
+    fontSize: 14,
   },
   callText: {
     color: colors.onPrimary,
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
   },
   customerNameWrap: {
     alignItems: 'flex-end',
   },
   customerLabel: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
   },
   customerNameVal: {
@@ -927,17 +932,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   addressIcon: {
-    fontSize: 12,
+    fontSize: 14,
     marginTop: 1,
   },
   addressText: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurface,
     flex: 1,
     textAlign: 'right',
   },
   buildingText: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 2,
@@ -951,7 +956,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   notesTagText: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurface,
     textAlign: 'right',
   },
@@ -961,7 +966,7 @@ const styles = StyleSheet.create({
     marginVertical: spacing.baseXs,
   },
   storesSectionTitle: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
@@ -991,7 +996,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   storeTypeBadgeText: {
-    fontSize: 9,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.primary,
   },
@@ -1005,7 +1010,7 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   storeAddressSmall: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     marginTop: 1,
   },
@@ -1032,7 +1037,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   itemName: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.medium,
     color: colors.onSurface,
     textAlign: 'right',
@@ -1042,12 +1047,12 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   itemUnit: {
-    fontSize: 9,
+    fontSize: 14,
     color: colors.outline,
     marginTop: 1,
   },
   itemCost: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurface,
   },
@@ -1061,11 +1066,11 @@ const styles = StyleSheet.create({
     borderTopColor: colors.outlineVariant + '20',
   },
   storeSubtotalLabel: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
   },
   storeSubtotalVal: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.primary,
   },
@@ -1084,11 +1089,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryLabel: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
   },
   summaryVal: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.medium,
     color: colors.onSurface,
   },
@@ -1116,7 +1121,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   currText: {
-    fontSize: 10,
+    fontSize: 14,
   },
   paymentMethodPill: {
     paddingHorizontal: 6,
@@ -1131,7 +1136,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success + '20',
   },
   paymentMethodText: {
-    fontSize: 9,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
   },
   textCod: {
@@ -1160,25 +1165,10 @@ const styles = StyleSheet.create({
     borderColor: colors.outlineVariant + '50',
   },
   viewDetailsText: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurface,
   },
-  uploadReceiptBtn: {
-    flex: 1,
-    backgroundColor: colors.primaryFixed,
-    paddingVertical: 10,
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-  },
-  uploadReceiptText: {
-    fontSize: 11,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
-  },
-
   // Modal Styles
   modalOverlay: {
     flex: 1,
@@ -1214,7 +1204,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalCloseText: {
-    fontSize: 14,
+    fontSize: 15,
     color: colors.onSurface,
   },
   modalScroll: {
@@ -1228,7 +1218,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.baseSm,
   },
   modalSectionHeading: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
@@ -1248,7 +1238,7 @@ const styles = StyleSheet.create({
   },
   modalCallText: {
     color: colors.onPrimary,
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
   },
   modalCustomerInfo: {
@@ -1260,16 +1250,16 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   modalCustomerPhone: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
   },
   modalAddressText: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurface,
     textAlign: 'right',
   },
   modalBuildingText: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 2,
@@ -1281,7 +1271,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   modalNotesText: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurface,
     textAlign: 'right',
   },
@@ -1306,7 +1296,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   modalStoreBadgeText: {
-    fontSize: 9,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.primary,
   },
@@ -1316,7 +1306,7 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   modalStoreAddr: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginBottom: 6,
@@ -1341,18 +1331,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   modalItemName: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.medium,
     color: colors.onSurface,
     textAlign: 'right',
   },
   modalItemSub: {
-    fontSize: 9,
+    fontSize: 14,
     color: colors.outline,
     marginTop: 1,
   },
   modalItemTotal: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurface,
   },
@@ -1370,11 +1360,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalPricingLabel: {
-    fontSize: 11,
+    fontSize: 14,
     color: colors.onSurfaceVariant,
   },
   modalPricingVal: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: typography.fontWeight.medium,
     color: colors.onSurface,
   },
@@ -1397,7 +1387,7 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   modalPaymentType: {
-    fontSize: 10,
+    fontSize: 14,
     color: colors.primary,
     fontWeight: typography.fontWeight.bold,
     marginTop: 1,
@@ -1419,13 +1409,13 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.bold,
     fontSize: typography.fontSize.sm,
   },
-  modalInvoiceBtn: {
+  modalPurchaseBtn: {
     backgroundColor: colors.primaryFixed,
     borderRadius: borderRadius.lg,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  modalInvoiceBtnText: {
+  modalPurchaseBtnText: {
     color: colors.primary,
     fontWeight: typography.fontWeight.bold,
     fontSize: typography.fontSize.xs,

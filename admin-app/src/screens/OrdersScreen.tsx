@@ -9,6 +9,7 @@ import {
   Alert,
   TextInput,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { AdminHeader } from '../components/AdminHeader';
@@ -71,6 +72,8 @@ export const OrdersScreen: React.FC = () => {
   const [rejectReasonInput, setRejectReasonInput] = useState('');
   const [showWorkflowSettings, setShowWorkflowSettings] = useState(false);
   const [showFraudPanel, setShowFraudPanel] = useState(false);
+  const [isApprovingOrder, setIsApprovingOrder] = useState(false);
+  const [assigningDriverId, setAssigningDriverId] = useState<string | null>(null);
 
   // ── Filter tabs ──
   const filterTabs: { id: OrderStatus; label: string }[] = [
@@ -87,22 +90,35 @@ export const OrdersScreen: React.FC = () => {
     if (selectedStatusTab === 'ALL') return true;
     return o.status === selectedStatusTab;
   });
-  const assignableDrivers = assignModalOrder?.subOrders[0]?.governorateId
-    ? driverCustodies.filter((d) => d.governorateId === assignModalOrder.subOrders[0].governorateId && d.isApproved !== false)
+  const assignableDrivers = assignModalOrder?.customerGovernorateId
+    ? driverCustodies.filter((d) => d.governorateId === assignModalOrder.customerGovernorateId && d.isApproved !== false)
     : [];
 
   // ── Handlers ──
-  const handleAssignDriver = (order: AdminOrder, driverId: string, driverName: string) => {
-    updateOrderStatus(order.id, 'DRIVER_ASSIGNED', driverName);
-    Alert.alert('تم الإسناد ✓', `تم إسناد الطلب #${order.orderNumber} للكابتن ${driverName}`);
-    setAssignModalOrder(null);
-    setDetailOrder(null);
+  const handleAssignDriver = async (order: AdminOrder, driverId: string, driverName: string) => {
+    if (assigningDriverId) return;
+    setAssigningDriverId(driverId);
+    try {
+      await updateOrderStatus(order.id, 'DRIVER_ASSIGNED', driverName, driverId);
+      Alert.alert('تم الإسناد ✓', `تم إسناد الطلب #${order.orderNumber} للكابتن ${driverName}`);
+      setAssignModalOrder(null);
+      setDetailOrder(null);
+    } catch (error: any) {
+      Alert.alert('تعذر الإسناد', error?.message || 'تحقق من محافظة الموصل والطلب ثم أعد المحاولة.');
+    } finally { setAssigningDriverId(null); }
   };
 
   const handleApproveOrder = async (order: AdminOrder) => {
-    await approveOrder(order.id);
-    Alert.alert('تم القبول ✓', `تم قبول الطلب #${order.orderNumber}. عيّن المندوب من تفاصيل الطلب.`);
-    setDetailOrder(null);
+    if (isApprovingOrder) return;
+    setIsApprovingOrder(true);
+    try {
+      await approveOrder(order.id);
+      setDetailOrder(null);
+      setAssignModalOrder(order);
+      if (!order.customerGovernorateId) Alert.alert('المحافظة غير محددة', 'لا يمكن تعيين الموصلين حتى يتم تحديد محافظة العميل وتحديث الطلب.');
+    } catch (error: any) {
+      Alert.alert('تعذر قبول الطلب', error?.message || 'حاول مرة أخرى.');
+    } finally { setIsApprovingOrder(false); }
   };
 
   const handleRejectOrder = async () => {
@@ -427,10 +443,11 @@ export const OrdersScreen: React.FC = () => {
                     detailOrder.status === 'PENDING_ADMIN_APPROVAL' && (
                     <>
                       <TouchableOpacity
-                        style={styles.approveBtn}
+                        style={[styles.approveBtn, isApprovingOrder && { opacity: 0.7 }]}
                         onPress={() => handleApproveOrder(detailOrder)}
+                        disabled={isApprovingOrder}
                       >
-                        <Text style={styles.approveBtnText}>✓ قبول الطلب وإرساله للمندوبين</Text>
+                        {isApprovingOrder ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.approveBtnText}>✓ قبول الطلب واختيار الموصل</Text>}
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.rejectBtn}
@@ -518,23 +535,22 @@ export const OrdersScreen: React.FC = () => {
               </View>
 
               <ScrollView style={styles.modalBody}>
-                <Text style={styles.assignSubtitle}>اختر كابتناً من القائمة أدناه:</Text>
+                <Text style={styles.assignSubtitle}>اختر موصلاً من محافظة العميل:</Text>
                 {assignableDrivers.length === 0 && (
                   <View style={styles.emptyBox}>
-                    <Text style={styles.emptyText}>لا يوجد موصل مسجل في محافظة متاجر هذا الطلب</Text>
+                    <Text style={styles.emptyText}>{assignModalOrder.customerGovernorateId ? 'لا يوجد موصل مسجل في محافظة العميل' : 'محافظة العميل غير متاحة لهذا الطلب'}</Text>
                   </View>
                 )}
                 {assignableDrivers.map((driver) => (
                   <TouchableOpacity
                     key={driver.driverId}
-                    style={styles.driverCard}
-                    onPress={() =>
-                      handleAssignDriver(
+                    style={[styles.driverCard, assigningDriverId !== null && { opacity: 0.65 }]}
+                    disabled={assigningDriverId !== null}
+                    onPress={() => void handleAssignDriver(
                         assignModalOrder,
                         driver.driverId,
                         driver.driverName
-                      )
-                    }
+                      )}
                   >
                     <View style={[
                       styles.driverStatusDot,
@@ -549,12 +565,9 @@ export const OrdersScreen: React.FC = () => {
                       styles.driverStatusBadge,
                       { backgroundColor: driver.status === 'ONLINE' ? '#DCFCE7' : driver.status === 'BUSY' ? '#FEF9C3' : '#F3F4F6' },
                     ]}>
-                      <Text style={[
-                        styles.driverStatusText,
-                        { color: driver.status === 'ONLINE' ? '#16A34A' : driver.status === 'BUSY' ? '#B45309' : '#6B7280' },
-                      ]}>
-                        {driver.status === 'ONLINE' ? 'متاح' : driver.status === 'BUSY' ? 'مشغول' : 'غير متاح'}
-                      </Text>
+                      {assigningDriverId === driver.driverId
+                        ? <ActivityIndicator color={colors.primary} />
+                        : <Text style={[styles.driverStatusText, { color: driver.status === 'ONLINE' ? '#16A34A' : driver.status === 'BUSY' ? '#B45309' : '#6B7280' }]}>{driver.status === 'ONLINE' ? 'متاح' : driver.status === 'BUSY' ? 'مشغول' : 'غير متاح'}</Text>}
                     </View>
                   </TouchableOpacity>
                 ))}

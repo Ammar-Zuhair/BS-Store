@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Linking,
   Alert,
   Platform,
@@ -236,33 +235,6 @@ export const TrackingScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Map Simulation if active order */}
-          {selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' && (
-            <View style={styles.mapCard}>
-              <Image
-                source={{
-                  uri: 'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=600&q=80',
-                }}
-                style={styles.mapImage}
-              />
-              <View style={styles.mapOverlay}>
-                <View style={styles.driverPin}>
-                  <Text style={styles.driverPinIcon}>🛵</Text>
-                  <View style={styles.pinBubble}>
-                    <Text style={styles.pinBubbleText}>
-                      {selectedOrder.driver?.name || 'الكابتن'} (يبعد 1.2 كم)
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.etaCard}>
-                  <Text style={styles.etaLabel}>الوقت المقدر للوصول:</Text>
-                  <Text style={styles.etaValue}>15 - 20 دقيقة</Text>
-                </View>
-              </View>
-            </View>
-          )}
-
           {/* Driver Card */}
           {selectedOrder.driver && (
             <View style={styles.driverCard}>
@@ -281,16 +253,8 @@ export const TrackingScreen: React.FC = () => {
                     <Text style={styles.driverName}>
                       {selectedOrder.driver.name}
                     </Text>
-                    <View style={styles.ratingBadge}>
-                      <Text style={styles.ratingStar}>⭐</Text>
-                      <Text style={styles.ratingScore}>
-                        {selectedOrder.driver.rating}
-                      </Text>
-                    </View>
                   </View>
-                  <Text style={styles.vehiclePlate}>
-                    كابتن معتمد • {selectedOrder.driver.vehiclePlate}
-                  </Text>
+                  {!!selectedOrder.driver.phone && <Text style={styles.vehiclePlate}>{selectedOrder.driver.phone}</Text>}
                 </View>
 
                 <View style={styles.driverAvatar}>
@@ -407,7 +371,7 @@ export const TrackingScreen: React.FC = () => {
             <Text style={styles.detailsTitle}>تفاصيل الطلب والعنوان</Text>
             <View style={styles.detailItem}>
               <Text style={styles.detailVal}>
-                {[selectedOrder.address?.city, selectedOrder.address?.district, selectedOrder.address?.street].filter(Boolean).join(' - ') || 'العنوان المحدد'}
+                {[selectedOrder.address?.city, selectedOrder.address?.district, selectedOrder.address?.street].filter(Boolean).join(' - ')}
               </Text>
               <Text style={styles.detailLbl}>وجهة التوصيل:</Text>
             </View>
@@ -588,7 +552,7 @@ export const TrackingScreen: React.FC = () => {
                 <View style={styles.cardBody}>
                   <View style={styles.infoRow}>
                     <Text style={styles.infoVal} numberOfLines={1}>
-                      {storesNames || 'متجر BS Store'}
+                      {storesNames || '—'}
                     </Text>
                     <Text style={styles.infoLbl}>المتاجر:</Text>
                   </View>
@@ -843,70 +807,6 @@ const createStyles = (colors: ThemeColors) =>
     fontSize: 12,
     fontWeight: typography.fontWeight.bold,
   },
-  mapCard: {
-    height: 170,
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    marginBottom: spacing.baseSm,
-    position: 'relative',
-    ...shadows.card,
-  },
-  mapImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  mapOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    justifyContent: 'space-between',
-    padding: spacing.baseSm,
-  },
-  driverPin: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginTop: 16,
-  },
-  driverPinIcon: {
-    fontSize: 26,
-  },
-  pinBubble: {
-    backgroundColor: colors.surfaceContainerLowest,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: borderRadius.full,
-    marginTop: 2,
-    ...shadows.card,
-  },
-  pinBubbleText: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 11,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
-  },
-  etaCard: {
-    backgroundColor: 'rgba(19, 27, 46, 0.88)',
-    borderRadius: borderRadius.lg,
-    padding: spacing.baseSm,
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  etaLabel: {
-    fontFamily: typography.fontFamily.medium,
-    fontSize: typography.fontSize.xs,
-    color: colors.onPrimary + 'CC',
-  },
-  etaValue: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.onPrimary,
-  },
   driverCard: {
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
@@ -946,24 +846,6 @@ const createStyles = (colors: ThemeColors) =>
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurface,
-  },
-  ratingBadge: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    backgroundColor: colors.tertiaryFixedDim + '40',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: borderRadius.sm,
-    gap: 2,
-  },
-  ratingStar: {
-    fontSize: 11,
-  },
-  ratingScore: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 12,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.tertiary,
   },
   vehiclePlate: {
     fontFamily: typography.fontFamily.medium,

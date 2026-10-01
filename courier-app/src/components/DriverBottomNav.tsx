@@ -9,7 +9,6 @@ export const DriverBottomNav: React.FC = () => {
   const tabs: { id: CourierScreenName; label: string; icon: string }[] = [
     { id: 'dashboard', label: 'لوحة المهام', icon: '📋' },
     { id: 'route', label: 'المسار', icon: '🗺️' },
-    { id: 'invoices', label: 'الفواتير والسندات', icon: '🧾' },
     { id: 'wallet', label: 'العهدة والمالية', icon: '💰' },
   ];
 

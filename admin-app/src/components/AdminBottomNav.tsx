@@ -13,7 +13,7 @@ export const AdminBottomNav: React.FC = () => {
     { id: 'orders', label: 'الطلبات', icon: '📋' },
     { id: 'payments', label: 'التحويلات', icon: '💳' },
     { id: 'inventory', label: 'المنتجات', icon: '🏷' },
-    { id: 'financials', label: 'العهد', icon: '💰' },
+    { id: 'financials', label: 'الضبط', icon: '⚙️' },
   ];
 
   const bottomPadding = Math.max(insets.bottom, 8);

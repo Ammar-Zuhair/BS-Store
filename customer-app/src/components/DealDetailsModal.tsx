@@ -72,11 +72,12 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
 
   // Convert deal products to BundlePiece
   const handleAddPiece = (piece: { id: string; name: string; price: number; description?: string; imageUrl?: string }) => {
+    if (!deal.storeId) return;
     const parentProd: Product = {
       id: `${deal.id}_${piece.id}`,
-      storeId: deal.storeId || 'store-1',
+      storeId: deal.storeId,
       storeName: deal.storeName,
-      categoryId: 'cat-all',
+      categoryId: deal.categoryId || '',
       name: piece.name,
       description: piece.description || '',
       sellingPrice: piece.price,
@@ -90,11 +91,12 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
   };
 
   const handleAddWholeDeal = () => {
+    if (!deal.storeId) return;
     const wholeDealProd: Product = {
       id: deal.id,
-      storeId: deal.storeId || 'store-1',
+      storeId: deal.storeId,
       storeName: deal.storeName,
-      categoryId: 'cat-all',
+      categoryId: deal.categoryId || '',
       name: deal.title,
       description: deal.description,
       sellingPrice: deal.originalPrice,

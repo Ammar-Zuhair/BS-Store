@@ -28,7 +28,6 @@ export interface TaskStop {
   isExternalPurchase: boolean; // Requires actual purchase recording
   storePhone?: string;
   notes?: string;
-  receiptImageUrl?: string;
 }
 
 export interface TaskPurchasedItem {
@@ -36,24 +35,11 @@ export interface TaskPurchasedItem {
   name: string;
   quantity: number;
   expectedPrice: number;
+  customerPrice: number;
   actualPrice?: number;
   imageUrl: string;
   storeId?: string;
   storeName?: string;
-}
-
-export interface OrderInvoice {
-  id: string;
-  orderNumber: string;
-  storeName: string;
-  invoiceNumber: string;
-  amount: number;
-  receiptImageUrl: string;
-  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
-  uploadedAt: string;
-  notes?: string;
-  itemsCount: number;
-  rejectionReason?: string;
 }
 
 export interface ActiveDeliveryTask {
@@ -76,12 +62,13 @@ export interface ActiveDeliveryTask {
   totalDistanceKm: number;
   estimatedMinutes: number;
   status: 'ASSIGNED' | 'EN_ROUTE_PICKUP' | 'PURCHASING' | 'EN_ROUTE_DELIVERY' | 'DELIVERED';
-  purchaseReceiptImageUrl?: string;
+  driverProfitSharePercent: number;
+  driverEstimatedEarnings: number;
 }
 
 export interface DriverTransaction {
   id: string;
-  type: 'CUSTOMER_COLLECTION' | 'STORE_PURCHASE' | 'COMPANY_SETTLEMENT';
+  type: 'CUSTOMER_COLLECTION' | 'STORE_PURCHASE' | 'COMPANY_SETTLEMENT' | 'DRIVER_EARNING';
   amount: number;
   direction: 'DEBIT' | 'CREDIT';
   referenceNumber: string;
@@ -92,6 +79,7 @@ export interface DriverTransaction {
 export interface DriverWalletSummary {
   currentCashCustody: number; // العهدة النقدية المتوقعة بحوزة الكابتن
   todayEarnings: number; // أرباح الكابتن المستحقة اليوم
+  profitSharePercent: number;
   completedTripsToday: number; // عدد المشاوير المكتملة
   totalDistanceTodayKm: number;
 }

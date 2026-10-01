@@ -5,13 +5,12 @@ import {
   DriverWalletSummary,
   DriverTransaction,
   ShiftStatus,
-  OrderInvoice,
   TaskStop,
   TaskPurchasedItem,
 } from '../types';
 import { authApi, driverApi } from '../api';
 
-export type CourierScreenName = 'dashboard' | 'route' | 'invoices' | 'purchase_receipt' | 'wallet';
+export type CourierScreenName = 'dashboard' | 'route' | 'purchase' | 'wallet';
 
 interface DriverContextType {
   currentScreen: CourierScreenName;
@@ -20,16 +19,14 @@ interface DriverContextType {
   toggleShiftStatus: () => Promise<void>;
   activeTask: ActiveDeliveryTask | null;
   completeStop: (stopId: string) => void;
-  savePurchaseDocumentation: (
-    items: { id: string; actualPrice: number }[],
-    receiptUrl: string
-  ) => Promise<void>;
+  recordStorePurchase: (items: { id: string; actualPrice: number }[]) => Promise<void>;
   completeDeliveryAndCollect: () => Promise<void>;
   wallet: DriverWalletSummary;
   transactions: DriverTransaction[];
   requestSettlement: (amount: number) => Promise<void>;
-  invoices: OrderInvoice[];
   refreshData: () => Promise<void>;
+  isRefreshing: boolean;
+  isSessionRestoring: boolean;
   acceptCurrentOrder: () => Promise<void>;
   authenticated: boolean;
   signIn: (phone: string, password: string) => Promise<void>;
@@ -53,6 +50,7 @@ const DEFAULT_WALLET: DriverWalletSummary = {
   todayEarnings: 0,
   completedTripsToday: 0,
   totalDistanceTodayKm: 0,
+  profitSharePercent: 10,
 };
 
 const DriverContext = createContext<DriverContextType | undefined>(undefined);
@@ -63,11 +61,13 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [activeTask, setActiveTask] = useState<ActiveDeliveryTask | null>(null);
   const [wallet, setWallet] = useState<DriverWalletSummary>(DEFAULT_WALLET);
   const [transactions, setTransactions] = useState<DriverTransaction[]>([]);
-  const [invoices, setInvoices] = useState<OrderInvoice[]>([]);
   const [authenticated, setAuthenticated] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSessionRestoring, setIsSessionRestoring] = useState(true);
 
   const signIn = async (phone: string, password: string) => {
-    await authApi.login(phone, password);
+    const res = await authApi.login(phone, password);
+    setDriver((prev) => ({ ...prev, id: res.user.id, name: res.user.fullName || res.user.name || '', phone: res.user.phone }));
     setAuthenticated(true);
   };
 
@@ -95,7 +95,6 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isExternalPurchase: true,
         storePhone: so.storePhone || '',
         notes: `استلام طلب متجر ${so.storeName}`,
-        receiptImageUrl: so.receiptImageUrl || '',
       });
     });
 
@@ -117,6 +116,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         name: i.productNameSnapshot,
         quantity: i.quantity,
         expectedPrice: Number(i.expectedPurchasePrice) || 0,
+        customerPrice: Number(i.unitPrice) || 0,
         actualPrice: i.actualPurchasePrice,
         imageUrl: i.imageUrl || '',
         storeId: so.storeId,
@@ -137,6 +137,8 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       itemsToPurchase,
       subtotalProducts: order.subTotal,
       deliveryFee: order.deliveryFee,
+      driverProfitSharePercent: Number(order.driverProfitSharePercent ?? 10),
+      driverEstimatedEarnings: Number(order.driverEstimatedEarnings ?? 0),
       amountToCollect: order.totalAmount,
       paymentMethod: order.paymentMethod === 1 || order.paymentMethod === 'ManualTransfer' ? 'MANUAL_TRANSFER' : 'CASH_ON_DELIVERY',
       isPaymentVerified: order.paymentStatus === 1 || order.paymentStatus === 'Verified',
@@ -148,6 +150,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const refreshData = async () => {
+    setIsRefreshing(true);
     try {
       // 1. Status
       try {
@@ -162,8 +165,9 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setWallet((w) => ({
           ...w,
           completedTripsToday: Number(status.todayCompletedOrders ?? status.completedTodayCount ?? 0),
-          todayEarnings: Number(status.todayCompletedOrders ?? status.completedTodayCount ?? 0) * 800,
+          todayEarnings: Number(status.todayEarnings ?? 0),
           totalDistanceTodayKm: Number(status.todayCompletedOrders ?? status.completedTodayCount ?? 0) * 4.5,
+          profitSharePercent: Number(status.profitSharePercent ?? 10),
         }));
       } catch (e) {
         console.warn('Driver status warning:', e);
@@ -193,7 +197,9 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const txs = await driverApi.getFinancialTransactions();
         const mappedTxs: DriverTransaction[] = txs.map((t: any) => ({
           id: t.id,
-          type: t.type === 0 ? 'CUSTOMER_COLLECTION' : t.type === 1 ? 'STORE_PURCHASE' : 'COMPANY_SETTLEMENT',
+          type: t.type === 0 || t.type === 'CustomerCollection' ? 'CUSTOMER_COLLECTION'
+            : t.type === 1 || t.type === 'StorePurchase' ? 'STORE_PURCHASE'
+              : t.type === 7 || t.type === 'DriverEarning' ? 'DRIVER_EARNING' : 'COMPANY_SETTLEMENT',
           amount: t.amount,
           direction: t.direction === 0 ? 'DEBIT' : 'CREDIT',
           referenceNumber: t.reference || `#${String(t.id || '').slice(0, 6)}`,
@@ -205,30 +211,25 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.warn('Driver transactions warning:', e);
       }
 
-      // 5. Order History / Invoices
-      try {
-        const hist = await driverApi.getOrderHistory();
-        const mappedInvoices: OrderInvoice[] = hist.flatMap((o: any) => (o.subOrders || [])
-          .filter((so: any) => so.receiptImageUrl)
-          .map((so: any) => ({
-            id: `${o.id}-${so.id}`,
-            orderNumber: o.orderNumber,
-            storeName: so.storeName || 'المتجر',
-            invoiceNumber: `INV-${o.orderNumber}-${String(so.id).slice(0, 5)}`,
-            amount: Number(so.actualPurchaseCost || 0),
-            receiptImageUrl: so.receiptImageUrl,
-            status: 'APPROVED' as const,
-            uploadedAt: new Date(o.createdAt || Date.now()).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
-            itemsCount: so.items?.length || 1,
-          })));
-        setInvoices(mappedInvoices);
-      } catch (e) {
-        console.warn('Driver order history warning:', e);
-      }
     } catch (e) {
       console.warn('Driver refreshData error:', e);
+    } finally {
+      setIsRefreshing(false);
     }
   };
+
+  useEffect(() => {
+    let active = true;
+    authApi.restoreSession()
+      .then((user) => {
+        if (!active || !user) return;
+        setDriver((prev) => ({ ...prev, id: user.id, name: user.fullName || user.name || '', phone: user.phone }));
+        setAuthenticated(true);
+      })
+      .catch((error) => console.warn('تعذر التحقق من جلسة الموصل المحفوظة:', error))
+      .finally(() => { if (active) setIsSessionRestoring(false); });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (authenticated) void refreshData();
@@ -273,10 +274,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
-  const savePurchaseDocumentation = async (
-    items: { id: string; actualPrice: number }[],
-    receiptUrl: string
-  ) => {
+  const recordStorePurchase = async (items: { id: string; actualPrice: number }[]) => {
     if (!activeTask) return;
 
     try {
@@ -289,7 +287,6 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       await driverApi.recordPurchase(activeTask.id, {
         subOrderId,
         actualPurchasePrice: totalSpent,
-        receiptImageUrl: await driverApi.uploadReceipt(receiptUrl),
         itemDetails: items.map((it) => ({
           orderItemId: it.id,
           actualPrice: it.actualPrice,
@@ -326,7 +323,9 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <DriverContext.Provider
       value={{
       currentScreen,
-      authenticated,
+        authenticated,
+        isRefreshing,
+        isSessionRestoring,
       signIn,
       signUp,
         navigateTo,
@@ -334,12 +333,11 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         toggleShiftStatus,
         activeTask,
         completeStop,
-        savePurchaseDocumentation,
+        recordStorePurchase,
         completeDeliveryAndCollect,
         wallet,
         transactions,
         requestSettlement,
-        invoices,
         refreshData,
         acceptCurrentOrder,
       }}

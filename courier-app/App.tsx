@@ -1,24 +1,33 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useFonts, Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold } from '@expo-google-fonts/tajawal';
-import { StatusBar, StyleSheet, View, Platform, SafeAreaView, Text } from 'react-native';
+import { ActivityIndicator, StatusBar, StyleSheet, View, Platform, SafeAreaView, Text, TextInput } from 'react-native';
 import { DriverProvider, useDriver } from './src/context/DriverContext';
 import { DriverDashboardScreen } from './src/screens/DriverDashboardScreen';
 import { ActiveTaskRouteScreen } from './src/screens/ActiveTaskRouteScreen';
-import { PurchaseReceiptScreen } from './src/screens/PurchaseReceiptScreen';
-import { InvoicesScreen } from './src/screens/InvoicesScreen';
+import { StorePurchaseScreen } from './src/screens/StorePurchaseScreen';
 import { DriverWalletScreen } from './src/screens/DriverWalletScreen';
 import { CourierAuthScreen } from './src/screens/CourierAuthScreen';
 import { DriverBottomNav } from './src/components/DriverBottomNav';
 import { colors } from './src/theme';
+import { usePushNotifications } from './src/notifications';
+import { api } from './src/api';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0;
 (Text as any).defaultProps = { ...(Text as any).defaultProps, style: [{ fontFamily: 'Tajawal_400Regular', fontSize: 16 }, (Text as any).defaultProps?.style] };
+(TextInput as any).defaultProps = { ...(TextInput as any).defaultProps, style: [{ fontFamily: 'Tajawal_400Regular', fontSize: 16 }, (TextInput as any).defaultProps?.style] };
 
 const DriverNavigator: React.FC = () => {
-  const { currentScreen, authenticated } = useDriver();
+  const { currentScreen, authenticated, isSessionRestoring, refreshData, navigateTo } = useDriver();
+  const onNotificationOpen = useCallback((type: string) => {
+    navigateTo(type === 'order_assigned' ? 'dashboard' : currentScreen);
+    void refreshData();
+  }, [currentScreen, navigateTo, refreshData]);
+  usePushNotifications(authenticated, 'courier', api, onNotificationOpen);
   const [fontsLoaded] = useFonts({ Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold });
 
   if (!fontsLoaded) return <View style={styles.appContainer} />;
+
+  if (isSessionRestoring) return <View style={[styles.appContainer, styles.loading]}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
   if (!authenticated) return <CourierAuthScreen />;
 
@@ -28,10 +37,8 @@ const DriverNavigator: React.FC = () => {
         return <DriverDashboardScreen />;
       case 'route':
         return <ActiveTaskRouteScreen />;
-      case 'invoices':
-        return <InvoicesScreen />;
-      case 'purchase_receipt':
-        return <PurchaseReceiptScreen />;
+      case 'purchase':
+        return <StorePurchaseScreen />;
       case 'wallet':
         return <DriverWalletScreen />;
       default:
@@ -73,4 +80,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     position: 'relative',
   },
+  loading: { alignItems: 'center', justifyContent: 'center' },
 });

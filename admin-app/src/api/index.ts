@@ -15,26 +15,40 @@ export { api };
 
 // ─── Auth API ────────────────────────────────────────────────────────────────
 export const authApi = {
-  login: async (phone: string, password = 'AdminPassword123!') => {
+  bootstrapFirstAdmin: async (fullName: string, phone: string, password: string) => {
+    await api.clearSession();
     const res = await api.post<{
       accessToken: string;
       refreshToken: string;
-      user: { id: string; fullName?: string; name?: string; phone: string; role: string };
+      user: { id: string; fullName?: string; name?: string; phone: string; email?: string; role: string };
+    }>('/auth/bootstrap-admin', { fullName, phone, password });
+    api.setToken(res.accessToken);
+    api.setRefreshToken(res.refreshToken);
+    return res;
+  },
+
+  login: async (phone: string, password: string) => {
+    await api.clearSession();
+    const res = await api.post<{
+      accessToken: string;
+      refreshToken: string;
+      user: { id: string; fullName?: string; name?: string; phone: string; email?: string; role: string };
     }>(
       '/auth/login',
       { phone, password }
     );
     api.setToken(res.accessToken);
+    api.setRefreshToken(res.refreshToken);
     return res;
   },
 
-  me: () => api.get<{ id: string; fullName?: string; name?: string; phone: string; role: string }>('/auth/me'),
+  me: () => api.get<{ id: string; fullName?: string; name?: string; phone: string; email?: string; role: string }>('/auth/me'),
 
   logout: async () => {
     try {
       await api.post('/auth/logout');
     } finally {
-      api.setToken(null);
+      await api.clearSession();
     }
   },
 };
@@ -75,14 +89,9 @@ export const adminApi = {
   rejectPayment: (paymentId: string, reason: string) =>
     api.post<any>(`/admin/payments/${paymentId}/reject`, { reason }),
 
-  getCaptainInvoices: () =>
-    api.get<any[]>('/admin/invoices'),
-
-  approveCaptainInvoice: (invoiceId: string) =>
-    api.post<any>(`/admin/invoices/${invoiceId}/approve`),
-
-  rejectCaptainInvoice: (invoiceId: string, reason?: string) =>
-    api.post<any>(`/admin/invoices/${invoiceId}/reject`, { reason }),
+  getDriverSettlementRequests: () => api.get<any[]>('/admin/driver-settlements'),
+  approveDriverSettlement: (id: string) => api.post<any>(`/admin/driver-settlements/${id}/approve`),
+  rejectDriverSettlement: (id: string, reason?: string) => api.post<any>(`/admin/driver-settlements/${id}/reject`, { reason }),
 
   getDrivers: () =>
     api.get<any[]>('/admin/drivers'),
@@ -90,6 +99,7 @@ export const adminApi = {
   getPendingDrivers: () => api.get<any[]>('/admin/drivers/pending'),
   approveDriver: (driverId: string) => api.post<any>(`/admin/drivers/${driverId}/approve`),
   rejectDriver: (driverId: string) => api.delete<any>(`/admin/drivers/${driverId}/application`),
+  createAdmin: (fullName: string, phone: string, password: string) => api.post<any>('/admin/admins', { fullName, phone, password }),
 
   createSettlement: (driverId: string, amount: number, note?: string) =>
     api.post<any>(`/admin/drivers/${driverId}/settlement`, { amount, note }),
@@ -110,6 +120,12 @@ export const adminApi = {
 
   updateDeliverySettings: (data: any) =>
     api.put<any>('/admin/settings/delivery', data),
+
+  getDriverProfitShare: () =>
+    api.get<{ percent: number }>('/admin/settings/driver-profit-share'),
+
+  updateDriverProfitShare: (percent: number) =>
+    api.put<{ percent: number }>('/admin/settings/driver-profit-share', { percent }),
 
   getPaymentSettings: () =>
     api.get<any>('/admin/settings/payment'),

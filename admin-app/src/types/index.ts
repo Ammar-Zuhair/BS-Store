@@ -65,6 +65,7 @@ export interface AdminSubOrder {
 export interface AdminOrder {
   id: string;
   orderNumber: string;
+  customerGovernorateId?: string;
   customerName: string;
   customerPhone: string;
   createdAt: string;
@@ -218,6 +219,8 @@ export interface DriverCustodyAccount {
   totalCollections: number; // تحصيلات نقدية من العملاء (+)
   totalStorePurchases: number; // مشتريات من المتاجر بالعهدة (-)
   totalSettlements: number; // مبالغ مسلمة للإدارة (-)
+  totalFundings: number;
+  totalEarnings: number; // مستحقات الموصل المكتسبة من هامش أرباح الطلبات
   expectedCashCustody: number; // صافي العهدة المستحقة
   lastSettlementDate: string;
 }

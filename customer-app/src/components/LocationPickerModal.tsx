@@ -155,6 +155,8 @@ const buildCustomerLeafletHtml = (lat: number, lng: number, apiKey: string = '')
       cartoVoyager.addTo(map);
 
       var reportTimer = null;
+      window.userInteractedWithMap = false;
+      map.on('dragstart zoomstart', function() { window.userInteractedWithMap = true; });
       function reportCenter() {
         if (reportTimer) clearTimeout(reportTimer);
         reportTimer = setTimeout(function() {
@@ -162,7 +164,8 @@ const buildCustomerLeafletHtml = (lat: number, lng: number, apiKey: string = '')
             var center = map.getCenter();
             var payload = JSON.stringify({
               latitude: center.lat,
-              longitude: center.lng
+              longitude: center.lng,
+              userInteracted: Boolean(window.userInteractedWithMap)
             });
             if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
               window.ReactNativeWebView.postMessage(payload);
@@ -225,6 +228,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const [searchResults, setSearchResults] = useState<Array<{ name: string; lat: number; lng: number }>>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isLocating, setIsLocating] = useState<boolean>(false);
+  const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
 
   const iframeRef = useRef<any>(null);
   const webViewRef = useRef<WebView>(null);
@@ -237,6 +241,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       setCurrentLng(initialLng);
       setCurrentDistrict(initialDistrict);
       setFullAddress(initialDistrict);
+      setHasSelectedLocation(Boolean(initialDistrict.trim()) && Boolean(initialLat || initialLng));
       setSearchQuery('');
       setSearchResults([]);
       setSessionKey((prev) => prev + 1);
@@ -252,6 +257,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
             setCurrentLat(parseFloat(data.latitude.toFixed(6)));
             setCurrentLng(parseFloat(data.longitude.toFixed(6)));
+            if (data.userInteracted) setHasSelectedLocation(true);
           }
         } catch {
           // ignore
@@ -304,7 +310,10 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const handleSelectSearchResult = (item: { name: string; lat: number; lng: number }) => {
     setCurrentLat(item.lat);
     setCurrentLng(item.lng);
+    setHasSelectedLocation(true);
     setFullAddress(item.name);
+    setCurrentCity('');
+    setCurrentDistrict('');
     setSearchQuery('');
     setSearchResults([]);
     panMapTo(item.lat, item.lng);
@@ -355,6 +364,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         const lng = position.coords.longitude;
         setCurrentLat(lat);
         setCurrentLng(lng);
+        setHasSelectedLocation(true);
         panMapTo(lat, lng);
 
         // Reverse geocode to get actual city / district / street
@@ -387,6 +397,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               const lng = pos.coords.longitude;
               setCurrentLat(lat);
               setCurrentLng(lng);
+              setHasSelectedLocation(true);
               panMapTo(lat, lng);
               Alert.alert('تم بنجاح ✓', 'تم تحديد موقعك الجغرافي بنجاح.');
             },
@@ -414,11 +425,12 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const handleWebViewMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      if (data.latitude && data.longitude) {
+      if (Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude))) {
         const lat = parseFloat(Number(data.latitude).toFixed(6));
         const lng = parseFloat(Number(data.longitude).toFixed(6));
         setCurrentLat(lat);
         setCurrentLng(lng);
+        if (data.userInteracted) setHasSelectedLocation(true);
       }
     } catch {
       // ignore
@@ -426,13 +438,17 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   };
 
   const handleConfirm = () => {
-    const finalAddress = fullAddress.trim() || 'موقع محدد عبر الخريطة';
+    const finalAddress = fullAddress.trim();
+    if (!hasSelectedLocation || !finalAddress || !Number.isFinite(currentLat) || !Number.isFinite(currentLng)) {
+      Alert.alert('بيانات الموقع ناقصة', 'حدد الموقع بتحريك الخريطة أو البحث أو GPS، واكتب العنوان قبل التأكيد.');
+      return;
+    }
 
     onConfirm({
       latitude: currentLat,
       longitude: currentLng,
-      district: currentDistrict || finalAddress,
-      city: currentCity || 'عام',
+      district: currentDistrict,
+      city: currentCity,
       street: finalAddress,
       addressTitle: finalAddress,
     });
