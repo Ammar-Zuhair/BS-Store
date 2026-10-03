@@ -28,12 +28,4 @@ fi
 echo "Cloudflare Tunnel URL: $URL"
 echo "$URL" > "$URL_FILE"
 
-API_URL="${URL}/api"
-
-sed -i "s|EXPO_PUBLIC_API_URL=.*|EXPO_PUBLIC_API_URL=${API_URL}|g" /workspace/admin-app/.env
-sed -i "s|EXPO_PUBLIC_API_URL=.*|EXPO_PUBLIC_API_URL=${API_URL}|g" /workspace/customer-app/.env
-sed -i "s|EXPO_PUBLIC_API_URL=.*|EXPO_PUBLIC_API_URL=${API_URL}|g" /workspace/courier-app/.env
-
-echo "Successfully updated all .env files with: $API_URL"
-
 wait $CF_PID

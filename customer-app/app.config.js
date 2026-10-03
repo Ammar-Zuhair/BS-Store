@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 
-const DEFAULT_API_BASE_URL = 'https://cdt-enlargement-fighting-ide.trycloudflare.com/api';
+const DEFAULT_API_BASE_URL = 'https://implosive-exchange-compacter.ngrok-free.dev/api';
 
 function readEnvFile(name) {
   try {

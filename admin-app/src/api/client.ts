@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-const DEFAULT_API_BASE_URL = 'https://cdt-enlargement-fighting-ide.trycloudflare.com/api';
+const DEFAULT_API_BASE_URL = 'https://implosive-exchange-compacter.ngrok-free.dev/api';
 const isPrivateOrInsecureApiUrl = (value: string) =>
   !/^https:\/\//i.test(value) ||
   /^https:\/\/(?:localhost|127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|169\.254(?:\.\d{1,3}){2}|0\.\d{1,3}(?:\.\d{1,3}){2})(?::\d+)?(?:\/|$)|^https:\/\/[^/]+\.(?:local|internal)(?::\d+)?(?:\/|$)/i.test(value);
