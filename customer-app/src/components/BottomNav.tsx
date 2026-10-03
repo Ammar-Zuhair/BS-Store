@@ -11,7 +11,7 @@ export const BottomNav: React.FC = () => {
 
   const tabs: { id: ScreenName; label: string; icon: AppIconName }[] = [
     { id: 'home', label: 'الرئيسية', icon: 'home' },
-    { id: 'tracking', label: 'طلباتي', icon: 'package' },
+    { id: 'tracking', label: 'طلباتي', icon: 'receipt' },
     { id: 'profile', label: 'حسابي', icon: 'user' },
   ];
 

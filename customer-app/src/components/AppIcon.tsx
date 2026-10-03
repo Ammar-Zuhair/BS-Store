@@ -11,7 +11,7 @@ export type AppIconName =
   | 'phone' | 'bike' | 'star' | 'clock' | 'gift' | 'credit-card'
   | 'cash' | 'bank' | 'tag' | 'filter' | 'sparkles' | 'message'
   | 'eye' | 'eye-off' | 'lock' | 'shirt' | 'soup' | 'smartphone'
-  | 'notebook' | 'truck' | 'navigation' | 'edit' | 'close' | 'grid'
+  | 'notebook' | 'receipt' | 'truck' | 'navigation' | 'edit' | 'close' | 'grid'
   | 'shield' | 'list' | 'alert';
 
 export const categoryIconForName = (name: string): AppIconName => {
@@ -133,6 +133,8 @@ export const AppIcon: React.FC<AppIconProps> = ({
         return <><Path d="M3 12h18M5 12a7 7 0 0 0 14 0M7 19h10M8 5c-1 1 1 2 0 3m4-4c-1 1 1 2 0 3m4-2c-1 1 1 2 0 3" {...stroke} /></>;
       case 'notebook':
         return <><Path d="M6 3h14v18H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3ZM3 7h3m-3 5h3m-3 5h3M10 8h6m-6 4h6" {...stroke} /></>;
+      case 'receipt':
+        return <><Path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" {...stroke} /><Path d="M9 8h6M9 12h6M9 16h4" {...stroke} /></>;
       case 'truck':
         return <><Path d="M3 6h11v11H3zM14 10h4l3 3v4h-7z" {...stroke} /><Circle cx="7" cy="19" r="2" {...stroke} /><Circle cx="18" cy="19" r="2" {...stroke} /></>;
       case 'navigation':
