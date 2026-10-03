@@ -17,6 +17,7 @@ import { DealDetailsModal, DealItem } from '../components/DealDetailsModal';
 import { CategoryStoresSkeleton } from '../components/Shimmer';
 import { governorateApi } from '../api';
 import { AppIcon, categoryIconForName } from '../components/AppIcon';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 
 export const CategoryStoresScreen: React.FC = () => {
   const {
@@ -140,7 +141,7 @@ export const CategoryStoresScreen: React.FC = () => {
       {isLoadingCatalog && stores.length === 0 ? (
         <CategoryStoresSkeleton />
       ) : (
-        <ScrollView
+        <KeyboardAwareScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -418,7 +419,7 @@ export const CategoryStoresScreen: React.FC = () => {
             <Text style={styles.resetSearchText}>عرض المزيد من المتاجر</Text>
           </TouchableOpacity>}
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       )}
 
       {/* Bundle / Deal Breakdown Modal */}

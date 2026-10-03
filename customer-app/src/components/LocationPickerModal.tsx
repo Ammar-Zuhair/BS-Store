@@ -617,11 +617,13 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         </View>
 
         {/* 3. Bottom Sheet Card with SINGLE Comprehensive Address Input (Requirement 3) */}
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView
             style={styles.bottomCard}
             contentContainerStyle={styles.bottomCardScroll}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           >
             <View style={styles.sheetHeaderRow}>
               <View style={styles.pillBadge}>

@@ -21,6 +21,7 @@ import { authApi, governorateApi } from '../api';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
 import { TermsModal } from '../components/TermsModal';
 import { AppIcon, AppIconName } from '../components/AppIcon';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 
 type AuthMode = 'phone' | 'password' | 'register';
 
@@ -326,9 +327,10 @@ export const AuthScreen: React.FC = () => {
     <View style={styles.screen}>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView
+        <KeyboardAwareScrollView
+          avoidKeyboard={false}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -870,7 +872,7 @@ export const AuthScreen: React.FC = () => {
               </View>
             )}
           </Animated.View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
 
       {/* Interactive Map Picker Modal */}

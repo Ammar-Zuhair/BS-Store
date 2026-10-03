@@ -18,6 +18,7 @@ import { useApp } from '../context/AppContext';
 import { Order, OrderStatusType } from '../types';
 import { ordersApi } from '../api';
 import { AppIcon, AppIconName } from '../components/AppIcon';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 
 export const TrackingScreen: React.FC = () => {
   const { orders, navigateTo, currentOrder, setCurrentOrder, refreshOrders, colors: themeColors } = useApp();
@@ -202,7 +203,7 @@ export const TrackingScreen: React.FC = () => {
           }
         />
 
-        <ScrollView
+        <KeyboardAwareScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           refreshControl={
@@ -446,7 +447,7 @@ export const TrackingScreen: React.FC = () => {
               العودة إلى قائمة جميع الطلبات
             </Text>
           </TouchableOpacity>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </View>
     );
   }

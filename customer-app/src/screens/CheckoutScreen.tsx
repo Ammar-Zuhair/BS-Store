@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
@@ -7,6 +7,7 @@ import { governorateApi, paymentsApi } from '../api';
 import { PaymentMethodType } from '../types';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
 import { AppIcon } from '../components/AppIcon';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 
 type CheckoutTextProps = React.ComponentProps<typeof Text>;
 
@@ -167,10 +168,11 @@ export const CheckoutScreen: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <Header title="إتمام الطلب والدفع" showBack onBack={() => navigateTo('cart')} />
 
-      <ScrollView
+      <KeyboardAwareScrollView
+        avoidKeyboard={false}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -478,7 +480,7 @@ export const CheckoutScreen: React.FC = () => {
             </>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* Interactive Map Location Picker */}
       <LocationPickerModal

@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { CachedImage } from '../components/CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { AppIcon } from '../components/AppIcon';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 
 export const CartScreen: React.FC = () => {
   const {
@@ -69,7 +70,7 @@ export const CartScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView
+        <KeyboardAwareScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
@@ -264,7 +265,7 @@ export const CartScreen: React.FC = () => {
             </View>
             <Text style={styles.checkoutBtnText}>متابعة إتمام الطلب والدفع ➔</Text>
           </TouchableOpacity>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
     </View>
   );

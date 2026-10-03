@@ -15,6 +15,7 @@ import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { governorateApi } from '../api';
 import { AppIcon } from '../components/AppIcon';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 
 export const ProfileScreen: React.FC = () => {
   const {
@@ -72,7 +73,7 @@ export const ProfileScreen: React.FC = () => {
     <View style={styles.container}>
       <Header title="حسابي والملف الشخصي" showBack onBack={() => navigateTo('home')} />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
@@ -340,7 +341,7 @@ export const ProfileScreen: React.FC = () => {
             </TouchableOpacity>
           )}
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 };
