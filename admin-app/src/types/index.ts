@@ -123,6 +123,7 @@ export interface AdminStore {
   id: string;
   name: string;
   categoryId: string;
+  categoryIds?: string[];
   categoryName: string;
   subcategories: string[];
   phone: string;

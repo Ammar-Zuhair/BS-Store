@@ -1,17 +1,18 @@
 {
   "expo": {
     "name": "BS Store Admin",
+    "owner": "ultra-horizon",
     "slug": "bs-store-admin",
     "version": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "9e0835f4-81c4-4338-8455-f5a73b529082"
+      }
+    },
     "sdkVersion": "57.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F4F5F7"
-    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -19,23 +20,17 @@
       }
     },
     "android": {
+      "package": "com.bsstore.admin",
+      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
+        "INTERNET",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F4F5F7"
-      },
-      "androidStatusBar": {
-        "barStyle": "dark-content",
-        "backgroundColor": "#00000000",
-        "translucent": true
-      },
-      "androidNavigationBar": {
-        "visible": "sticky-immersive",
-        "barStyle": "dark-content"
       }
     },
     "web": {
@@ -51,6 +46,11 @@
           "locationWhenInUsePermission": "نحتاج إلى موقعك لتحديد موقع المتجر على الخريطة."
         }
       ]
-    ]
+    ],
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#00000000",
+      "translucent": true
+    }
   }
 }

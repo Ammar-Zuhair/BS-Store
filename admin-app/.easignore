@@ -1,0 +1,26 @@
+# Keep EAS archives lean while preserving files ignored by Git for local builds.
+.env
+.env.local
+.env.*.local
+*.env
+node_modules/
+.expo/
+dist/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.metro/
+android/
+ios/
+.DS_Store
+Thumbs.db
+.agents/
+.claude/
+.codex/
+.minimax/
+.secrets/
+.uploads/
+**/*firebase-adminsdk*.json
+**/*service-account*.json
+!.env
+!google-services.json

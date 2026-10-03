@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "873862055702",
+    "project_id": "bs-store-cutomer",
+    "storage_bucket": "bs-store-cutomer.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:873862055702:android:ad73ef040e441e2bd3b237",
+        "android_client_info": {
+          "package_name": "com.bsstore.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkRBU5iKwNkJrGG6UwqmF4PoTb_ln3qOw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

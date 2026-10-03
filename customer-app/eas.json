@@ -1,0 +1,15 @@
+{
+  "build": {
+    "production": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "environment": "production",
+      "autoIncrement": true
+    }
+  },
+  "cli": {
+    "appVersionSource": "remote"
+  }
+}

@@ -399,6 +399,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         const strs = await adminApi.getStores();
         const mappedStores: AdminStore[] = (strs || []).map((s: any) => {
+          const associatedCategoryIds: string[] = Array.isArray(s.categoryIds)
+            ? s.categoryIds.map((id: unknown) => String(id))
+            : [];
           const customTypes =
             storeTypesMapRef.current[s.id] ||
             storeTypesMapRef.current[s.name] ||
@@ -406,7 +409,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const customCat =
             storeCategoryMapRef.current[s.id] ||
             storeCategoryMapRef.current[s.name] || {
-              id: s.categoryId || 'cat-general',
+              id: s.categoryId || associatedCategoryIds[0] || 'cat-general',
               name: s.categoryName || 'عام',
             };
           const isActive = s.isActive !== undefined ? s.isActive : true;
@@ -414,6 +417,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id: s.id,
             name: s.name,
             categoryId: customCat.id,
+            categoryIds: Array.from(new Set([...associatedCategoryIds, customCat.id])).filter((id) => id !== 'cat-general'),
             categoryName: customCat.name,
             subcategories: customTypes,
             phone: s.phone,

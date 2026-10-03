@@ -199,7 +199,8 @@ export const AddEditProductScreen: React.FC = () => {
 
   const [isSavingProduct, setIsSavingProduct] = useState(false);
 
-  // ── Step 1: Selected Store ──────────────────────────────────────────────────
+  // ── Step 1: Category filter and selected store ──────────────────────────────
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(editingProduct?.categoryId || '');
   const [selectedStoreId, setSelectedStoreId] = useState<string>(() => {
     if (editingProduct?.storeId && stores.some((s) => s.id === editingProduct.storeId)) {
       return editingProduct.storeId;
@@ -211,9 +212,18 @@ export const AddEditProductScreen: React.FC = () => {
     return stores[0]?.id || '';
   });
 
+  const filteredStores = useMemo(() => {
+    if (!selectedCategoryId) return stores;
+    return stores.filter((store) =>
+      store.categoryId === selectedCategoryId ||
+      store.categoryIds?.includes(selectedCategoryId) ||
+      (store.id === editingProduct?.storeId && editingProduct.categoryId === selectedCategoryId)
+    );
+  }, [stores, selectedCategoryId, editingProduct?.storeId, editingProduct?.categoryId]);
+
   const selectedStore = useMemo(() => {
-    return stores.find((s) => s.id === selectedStoreId) || stores[0] || null;
-  }, [stores, selectedStoreId]);
+    return filteredStores.find((store) => store.id === selectedStoreId) || filteredStores[0] || null;
+  }, [filteredStores, selectedStoreId]);
 
   // ── Step 2: Product Type in that specific Store ──────────────────────────────
   const [productType, setProductType] = useState<string>(() => {
@@ -256,9 +266,9 @@ export const AddEditProductScreen: React.FC = () => {
 
   // ── Category & Visibility ───────────────────────────────────────────────────
   const currentCategory = useMemo(() => {
-    const catId = selectedStore?.categoryId || editingProduct?.categoryId;
+    const catId = selectedCategoryId || selectedStore?.categoryId || editingProduct?.categoryId;
     return categories.find((c) => c.id === catId) || categories[0] || null;
-  }, [categories, selectedStore, editingProduct]);
+  }, [categories, selectedCategoryId, selectedStore, editingProduct]);
 
   const [isActiveForOrder, setIsActiveForOrder] = useState(
     editingProduct ? editingProduct.isActive : true
@@ -267,6 +277,7 @@ export const AddEditProductScreen: React.FC = () => {
   // Synchronize form fields whenever editingProduct changes or is reset to null
   useEffect(() => {
     if (editingProduct) {
+      setSelectedCategoryId(editingProduct.categoryId || '');
       setProductName(editingProduct.name || '');
       setProductDesc(editingProduct.description || '');
       setPurchaseCost(
@@ -292,6 +303,7 @@ export const AddEditProductScreen: React.FC = () => {
         setImages([]);
       }
     } else {
+      setSelectedCategoryId('');
       setProductName('');
       setProductDesc('');
       setPurchaseCost('');
@@ -307,17 +319,30 @@ export const AddEditProductScreen: React.FC = () => {
 
   // ── ListBox Visibility Modals ───────────────────────────────────────────────
   const [showStoreListBox, setShowStoreListBox] = useState(false);
+  const [showCategoryListBox, setShowCategoryListBox] = useState(false);
   const [showTypeListBox, setShowTypeListBox] = useState(false);
 
   // ── ListBox Options Mapping ─────────────────────────────────────────────────
+  const categoryOptions: ListBoxOption[] = useMemo(() => [
+    { id: '', label: 'جميع الفئات', subLabel: 'عرض المتاجر من كل الفئات', icon: '🗂️' },
+    ...categories.map((category) => ({
+      id: category.id,
+      label: category.name,
+      subLabel: `${category.productCount || 0} منتج`,
+      icon: category.icon || '🗂️',
+    })),
+  ], [categories]);
+
+  const selectedCategoryLabel = categories.find((category) => category.id === selectedCategoryId)?.name || 'جميع الفئات';
+
   const storeOptions: ListBoxOption[] = useMemo(() => {
-    return stores.map((s) => ({
+    return filteredStores.map((s) => ({
       id: s.id,
       label: s.name,
-      subLabel: `${s.address ? s.address + ' · ' : ''}${s.subcategories?.length || 0} أنواع متوفرة`,
+      subLabel: `${s.address ? s.address + ' · ' : ''}${s.categoryIds?.length || (s.categoryId && s.categoryId !== 'cat-general' ? 1 : 0)} فئات · ${s.subcategories?.length || 0} أنواع`,
       icon: '🏪',
     }));
-  }, [stores]);
+  }, [filteredStores]);
 
   const storeTypeOptions: ListBoxOption[] = useMemo(() => {
     return storeAvailableTypes.map((type) => ({
@@ -339,6 +364,26 @@ export const AddEditProductScreen: React.FC = () => {
         setProductType(types.length > 0 ? types[0] : '');
       }
     }
+  };
+
+  const handleSelectCategory = (categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+    const matchesCategory = (store: typeof stores[number]) =>
+      !categoryId ||
+      store.categoryId === categoryId ||
+      store.categoryIds?.includes(categoryId) ||
+      (store.id === editingProduct?.storeId && editingProduct.categoryId === categoryId);
+    const currentStore = stores.find((store) => store.id === selectedStoreId);
+    const nextStore = currentStore && matchesCategory(currentStore)
+      ? currentStore
+      : stores.find(matchesCategory) || null;
+
+    setSelectedStoreId(nextStore?.id || '');
+    setProductType((currentType) =>
+      nextStore?.subcategories?.includes(currentType)
+        ? currentType
+        : nextStore?.subcategories?.[0] || ''
+    );
   };
 
   // ── Handler: Add New Custom Type to Selected Store ──────────────────────────
@@ -467,7 +512,34 @@ export const AddEditProductScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* 1.1 ListBox: تحديد المتجر */}
+          {/* 1.1 ListBox: فلترة المتاجر حسب الفئة */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>فلترة المتاجر حسب الفئة</Text>
+            <TouchableOpacity
+              style={styles.listBoxTrigger}
+              activeOpacity={0.8}
+              onPress={() => setShowCategoryListBox(true)}
+            >
+              <View style={styles.listBoxTriggerRight}>
+                <View style={[styles.listBoxIconWrap, { backgroundColor: colors.secondaryContainer }]}>
+                  <Text style={styles.listBoxEmoji}>🗂️</Text>
+                </View>
+                <View style={styles.listBoxTriggerTexts}>
+                  <Text style={styles.listBoxValueText}>{selectedCategoryLabel}</Text>
+                  <Text style={styles.listBoxHintText} numberOfLines={1}>
+                    {selectedCategoryId
+                      ? `${filteredStores.length} متجر ضمن الفئة`
+                      : `${stores.length} متجر في جميع الفئات`}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.listBoxArrowPill}>
+                <Text style={styles.listBoxArrowText}>اختر ▼</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* 1.2 ListBox: تحديد المتجر */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>
               المتجر التابع له المنتج <Text style={styles.star}>*</Text>
@@ -498,7 +570,7 @@ export const AddEditProductScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          {/* 1.2 ListBox: نوع المنتج الموجود في المتجر المختار */}
+          {/* 1.3 ListBox: نوع المنتج الموجود في المتجر المختار */}
           <View style={styles.fieldGroup}>
             <View style={styles.labelRowBetween}>
               <Text style={styles.fieldLabel}>
@@ -790,16 +862,28 @@ export const AddEditProductScreen: React.FC = () => {
 
       {/* ── Modals: ListBoxes ─────────────────────────────────────────────────── */}
 
-      {/* 1. Store ListBox Modal */}
+      {/* 1. Category filter ListBox Modal */}
+      <ListBoxModal
+        visible={showCategoryListBox}
+        title="اختر فئة المتاجر"
+        subtitle="سيتم عرض المتاجر المرتبطة بالفئة التي تختارها"
+        options={categoryOptions}
+        selectedId={selectedCategoryId}
+        onSelect={handleSelectCategory}
+        onClose={() => setShowCategoryListBox(false)}
+        emptyText="لا توجد فئات مسجلة"
+      />
+
+      {/* 2. Store ListBox Modal */}
       <ListBoxModal
         visible={showStoreListBox}
         title="اختر المتجر التابع له المنتج"
-        subtitle="المنتجات تنتمي دائماً للمتاجر المسجلة في المنصة"
+        subtitle={selectedCategoryId ? `المتاجر التابعة لفئة ${selectedCategoryLabel}` : 'المنتجات تنتمي دائماً للمتاجر المسجلة في المنصة'}
         options={storeOptions}
         selectedId={selectedStoreId}
         onSelect={handleSelectStore}
         onClose={() => setShowStoreListBox(false)}
-        emptyText="لا توجد متاجر مسجلة بعد"
+        emptyText={selectedCategoryId ? 'لا توجد متاجر مرتبطة بهذه الفئة' : 'لا توجد متاجر مسجلة بعد'}
       />
 
       {/* 2. Product Type in Store ListBox Modal */}

@@ -142,8 +142,7 @@ export const uploadImageToSupabase = async (
         const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucketEncoded}/${filePath}`;
         return publicUrl;
       }
-      const errJson = await uploadResponse.json().catch(() => null);
-      throw new Error(errJson?.message || errJson?.error || `Upload failed with status ${uploadResponse.status}`);
+      throw new Error('تعذر رفع الصورة. تحقق من الاتصال وحاول مجدداً.');
     }
 
     // 2. On Native (iOS & Android): try high-speed binary streaming upload from filesystem
@@ -215,15 +214,12 @@ export const uploadImageToSupabase = async (
     });
 
     if (!uploadResponse.ok) {
-      const errJson = await uploadResponse.json().catch(() => null);
-      const errMsg = errJson?.message || errJson?.error || `Upload failed with status ${uploadResponse.status}`;
-      throw new Error(errMsg);
+      throw new Error('تعذر رفع الصورة. تحقق من الاتصال وحاول مجدداً.');
     }
 
     const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucketEncoded}/${filePath}`;
     return publicUrl;
-  } catch (err: any) {
-    console.warn('Supabase upload failed:', err);
-    throw err;
+  } catch {
+    throw new Error('تعذر رفع الصورة. تحقق من الاتصال وحاول مجدداً.');
   }
 };

@@ -3,9 +3,25 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
-import { paymentsApi } from '../api';
+import { governorateApi, paymentsApi } from '../api';
 import { PaymentMethodType } from '../types';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
+
+type CheckoutTextProps = React.ComponentProps<typeof Text>;
+
+const CheckoutText: React.FC<CheckoutTextProps> = ({ style, ...props }) => {
+  const flattenedStyle = StyleSheet.flatten(style);
+  const weight = flattenedStyle?.fontWeight;
+  const fontFamily = flattenedStyle?.fontFamily || (
+    weight === '900' ? typography.fontFamily.black
+      : weight === '800' ? typography.fontFamily.extraBold
+        : weight === 'bold' || weight === '700' ? typography.fontFamily.bold
+          : weight === '600' || weight === '500' || weight === 600 || weight === 500 ? typography.fontFamily.medium
+            : typography.fontFamily.regular
+  );
+
+  return <Text {...props} style={[style, { fontFamily }]} />;
+};
 
 export const CheckoutScreen: React.FC = () => {
   const {
@@ -45,10 +61,23 @@ export const CheckoutScreen: React.FC = () => {
     transferAccountNumber?: string | null;
     transferAccountName?: string | null;
   } | null>(null);
+  const [hasSelectedGovernorate, setHasSelectedGovernorate] = useState<boolean | null>(null);
 
   useEffect(() => {
     paymentsApi.getSettings().then(setPaymentSettings).catch(() => setPaymentSettings(null));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    governorateApi.mine()
+      .then(({ governorateId }) => {
+        if (!cancelled) setHasSelectedGovernorate(Boolean(governorateId));
+      })
+      .catch(() => {
+        if (!cancelled) setHasSelectedGovernorate(null);
+      });
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
 
   const handleApplyCoupon = async () => {
     if (!inputCoupon.trim()) return;
@@ -96,7 +125,18 @@ export const CheckoutScreen: React.FC = () => {
     }
 
     if (!hasDeliveryQuote) {
-      Alert.alert('تعذر حساب رسوم التوصيل', 'انتظر اكتمال حساب المسافة بين عنوانك والمتاجر، ثم حاول مجدداً.');
+      if (hasSelectedGovernorate === false) {
+        Alert.alert(
+          'اختيار المحافظة مطلوب',
+          'اختر محافظة التسوق من الملف الشخصي أولاً، ثم ارجع إلى إتمام الطلب وأعد المحاولة.',
+          [
+            { text: 'لاحقاً', style: 'cancel' },
+            { text: 'فتح الملف الشخصي', onPress: () => navigateTo('profile') },
+          ]
+        );
+      } else {
+        Alert.alert('تعذر حساب رسوم التوصيل', 'تحقق من عنوانك ومحافظة التسوق ثم أعد المحاولة.');
+      }
       return;
     }
 
@@ -140,21 +180,21 @@ export const CheckoutScreen: React.FC = () => {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <TouchableOpacity onPress={() => setShowMapPicker(true)}>
-              <Text style={styles.changeLink}>{selectedAddress ? 'تعديل أو تغيير' : '+ إضافة عنوان'}</Text>
+              <CheckoutText style={styles.changeLink}>{selectedAddress ? 'تعديل أو تغيير' : '+ إضافة عنوان'}</CheckoutText>
             </TouchableOpacity>
             <View style={styles.headerRight}>
-              <Text style={styles.cardTitle}>عنوان التوصيل</Text>
-              <Text style={styles.headerIcon}>📍</Text>
+              <CheckoutText style={styles.cardTitle}>عنوان التوصيل</CheckoutText>
+              <CheckoutText style={styles.headerIcon}>📍</CheckoutText>
             </View>
           </View>
           {selectedAddress ? (
             <View style={styles.addressBox}>
-              <Text style={styles.addressTitle}>
+              <CheckoutText style={styles.addressTitle}>
                 {selectedAddress.label} - {selectedAddress.city}، {selectedAddress.district}
-              </Text>
-              <Text style={styles.addressDetails}>{selectedAddress.street}</Text>
+              </CheckoutText>
+              <CheckoutText style={styles.addressDetails}>{selectedAddress.street}</CheckoutText>
               {selectedAddress.building && (
-                <Text style={styles.addressDetails}>{selectedAddress.building}</Text>
+                <CheckoutText style={styles.addressDetails}>{selectedAddress.building}</CheckoutText>
               )}
             </View>
           ) : (
@@ -163,10 +203,10 @@ export const CheckoutScreen: React.FC = () => {
               onPress={() => setShowMapPicker(true)}
               activeOpacity={0.85}
             >
-              <Text style={styles.missingAddressIcon}>🗺️</Text>
+              <CheckoutText style={styles.missingAddressIcon}>🗺️</CheckoutText>
               <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                <Text style={styles.missingAddressTitle}>لم يتم تحديد موقع التوصيل</Text>
-                <Text style={styles.missingAddressSub}>اضغط هنا لاختيار موقعك بدقة على الخريطة (GPS)</Text>
+                <CheckoutText style={styles.missingAddressTitle}>لم يتم تحديد موقع التوصيل</CheckoutText>
+                <CheckoutText style={styles.missingAddressSub}>اضغط هنا لاختيار موقعك بدقة على الخريطة (GPS)</CheckoutText>
               </View>
             </TouchableOpacity>
           )}
@@ -175,18 +215,18 @@ export const CheckoutScreen: React.FC = () => {
         {/* Multi-store order review summary */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.storesCountBadge}>{cartSubOrders.length} متاجر</Text>
+            <CheckoutText style={styles.storesCountBadge}>{cartSubOrders.length} متاجر</CheckoutText>
             <View style={styles.headerRight}>
-              <Text style={styles.cardTitle}>ملخص محطات الاستلام</Text>
-              <Text style={styles.headerIcon}>🏪</Text>
+              <CheckoutText style={styles.cardTitle}>ملخص محطات الاستلام</CheckoutText>
+              <CheckoutText style={styles.headerIcon}>🏪</CheckoutText>
             </View>
           </View>
           {cartSubOrders.map((so, idx) => (
             <View key={so.storeId} style={styles.stopRow}>
-              <Text style={styles.stopFee}>{so.subtotal.toLocaleString()} ر.ي</Text>
+              <CheckoutText style={styles.stopFee}>{so.subtotal.toLocaleString()} ر.ي</CheckoutText>
               <View style={styles.stopInfo}>
-                <Text style={styles.stopNumber}>محطة {idx + 1}:</Text>
-                <Text style={styles.stopName}>{so.storeName}</Text>
+                <CheckoutText style={styles.stopNumber}>محطة {idx + 1}:</CheckoutText>
+                <CheckoutText style={styles.stopName}>{so.storeName}</CheckoutText>
               </View>
             </View>
           ))}
@@ -197,8 +237,8 @@ export const CheckoutScreen: React.FC = () => {
           <View style={styles.cardHeader}>
             <View />
             <View style={styles.headerRight}>
-              <Text style={styles.cardTitle}>طريقة الدفع</Text>
-              <Text style={styles.headerIcon}>💳</Text>
+              <CheckoutText style={styles.cardTitle}>طريقة الدفع</CheckoutText>
+              <CheckoutText style={styles.headerIcon}>💳</CheckoutText>
             </View>
           </View>
 
@@ -216,12 +256,12 @@ export const CheckoutScreen: React.FC = () => {
             </View>
             <View style={styles.methodInfo}>
               <View style={styles.methodTitleRow}>
-                <Text style={styles.methodTitle}>الدفع نقداً عند الاستلام (COD)</Text>
-                <Text style={styles.methodIcon}>💵</Text>
+                <CheckoutText style={styles.methodTitle}>الدفع نقداً عند الاستلام (COD)</CheckoutText>
+                <CheckoutText style={styles.methodIcon}>💵</CheckoutText>
               </View>
-              <Text style={styles.methodDesc}>
+              <CheckoutText style={styles.methodDesc}>
                 ادفع للكابتن بعد استلام جميع الطلبات ومطابقتها
-              </Text>
+              </CheckoutText>
             </View>
           </TouchableOpacity>
 
@@ -239,12 +279,12 @@ export const CheckoutScreen: React.FC = () => {
             </View>
             <View style={styles.methodInfo}>
               <View style={styles.methodTitleRow}>
-                <Text style={styles.methodTitle}>تحويل بنكي / إشعار سداد</Text>
-                <Text style={styles.methodIcon}>🏦</Text>
+                <CheckoutText style={styles.methodTitle}>تحويل بنكي / إشعار سداد</CheckoutText>
+                <CheckoutText style={styles.methodIcon}>🏦</CheckoutText>
               </View>
-              <Text style={styles.methodDesc}>
+              <CheckoutText style={styles.methodDesc}>
                 تحويل عبر الكريمي جوال أو المحافظ الإلكترونية
-              </Text>
+              </CheckoutText>
             </View>
           </TouchableOpacity>
 
@@ -252,19 +292,19 @@ export const CheckoutScreen: React.FC = () => {
           {paymentMethod === 'MANUAL_TRANSFER' && (
             <View style={styles.transferDetailsWrap}>
               <View style={styles.bankAccountsCard}>
-                <Text style={styles.bankTitle}>بيانات الحسابات المعتمدة للمنصة:</Text>
+                <CheckoutText style={styles.bankTitle}>بيانات الحسابات المعتمدة للمنصة:</CheckoutText>
                 {paymentSettings ? (
                   <>
-                    {paymentSettings.transferBankName ? <Text style={styles.bankItem}>البنك: <Text style={styles.bankBold}>{paymentSettings.transferBankName}</Text></Text> : null}
-                    {paymentSettings.transferAccountNumber ? <Text style={styles.bankItem}>رقم الحساب: <Text style={styles.bankBold}>{paymentSettings.transferAccountNumber}</Text></Text> : null}
-                    {paymentSettings.transferAccountName ? <Text style={styles.bankItem}>اسم الحساب: <Text style={styles.bankBold}>{paymentSettings.transferAccountName}</Text></Text> : null}
+                    {paymentSettings.transferBankName ? <CheckoutText style={styles.bankItem}>البنك: <CheckoutText style={styles.bankBold}>{paymentSettings.transferBankName}</CheckoutText></CheckoutText> : null}
+                    {paymentSettings.transferAccountNumber ? <CheckoutText style={styles.bankItem}>رقم الحساب: <CheckoutText style={styles.bankBold}>{paymentSettings.transferAccountNumber}</CheckoutText></CheckoutText> : null}
+                    {paymentSettings.transferAccountName ? <CheckoutText style={styles.bankItem}>اسم الحساب: <CheckoutText style={styles.bankBold}>{paymentSettings.transferAccountName}</CheckoutText></CheckoutText> : null}
                   </>
                 ) : (
-                  <Text style={styles.bankItem}>بيانات التحويل غير مسجلة حاليًا.</Text>
+                  <CheckoutText style={styles.bankItem}>بيانات التحويل غير مسجلة حاليًا.</CheckoutText>
                 )}
               </View>
 
-              <Text style={styles.inputLabel}>رقم الحوالة أو العملية:</Text>
+              <CheckoutText style={styles.inputLabel}>رقم الحوالة أو العملية:</CheckoutText>
               <TextInput
                 style={styles.textInput}
                 placeholder="أدخل رقم الإشعار / الحوالة"
@@ -283,8 +323,8 @@ export const CheckoutScreen: React.FC = () => {
           <View style={styles.cardHeader}>
             <View />
             <View style={styles.headerRight}>
-              <Text style={styles.cardTitle}>كود الخصم / رمز الاسترداد</Text>
-              <Text style={styles.headerIcon}>🏷️</Text>
+              <CheckoutText style={styles.cardTitle}>كود الخصم / رمز الاسترداد</CheckoutText>
+              <CheckoutText style={styles.headerIcon}>🏷️</CheckoutText>
             </View>
           </View>
 
@@ -292,19 +332,19 @@ export const CheckoutScreen: React.FC = () => {
             <View style={styles.activePromoWrap}>
               <View style={styles.activePromoHeader}>
                 <TouchableOpacity onPress={handleClearPromo} style={styles.removePromoBtn}>
-                  <Text style={styles.removePromoBtnText}>✕ إلغاء الكود</Text>
+                  <CheckoutText style={styles.removePromoBtnText}>✕ إلغاء الكود</CheckoutText>
                 </TouchableOpacity>
                 <View style={styles.promoBadge}>
-                  <Text style={styles.promoBadgeText}>✓ {promoCode}</Text>
+                  <CheckoutText style={styles.promoBadgeText}>✓ {promoCode}</CheckoutText>
                 </View>
               </View>
               {!!promoMessage && (
-                <Text style={styles.promoMessageText}>{promoMessage}</Text>
+                <CheckoutText style={styles.promoMessageText}>{promoMessage}</CheckoutText>
               )}
               {cartDiscount > 0 && (
-                <Text style={styles.promoSavingText}>
+                <CheckoutText style={styles.promoSavingText}>
                   تم توفير {cartDiscount.toLocaleString()} ر.ي من إجمالي الطلب
-                </Text>
+                </CheckoutText>
               )}
             </View>
           ) : (
@@ -319,7 +359,7 @@ export const CheckoutScreen: React.FC = () => {
                   {isApplyingCoupon ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.applyPromoBtnText}>تطبيق الخصم</Text>
+                    <CheckoutText style={styles.applyPromoBtnText}>تطبيق الخصم</CheckoutText>
                   )}
                 </TouchableOpacity>
                 <TextInput
@@ -336,7 +376,7 @@ export const CheckoutScreen: React.FC = () => {
                 />
               </View>
               {couponStatusMsg && (
-                <Text style={styles.couponStatusMsgText}>{couponStatusMsg}</Text>
+                <CheckoutText style={styles.couponStatusMsgText}>{couponStatusMsg}</CheckoutText>
               )}
             </View>
           )}
@@ -344,7 +384,7 @@ export const CheckoutScreen: React.FC = () => {
 
         {/* Notes for Driver */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>ملاحظات للكابتن</Text>
+          <CheckoutText style={styles.cardTitle}>ملاحظات للكابتن</CheckoutText>
           <TextInput
             style={[styles.textInput, styles.textArea]}
             placeholder="مثال: يرجى عدم الضغط على جرس الباب، أو الاتصال مسبقاً..."
@@ -359,41 +399,52 @@ export const CheckoutScreen: React.FC = () => {
 
         {/* Final Payment Breakdown */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>الحساب الإجمالي</Text>
+          <CheckoutText style={styles.cardTitle}>الحساب الإجمالي</CheckoutText>
         <View style={styles.summaryRow}>
-            <Text style={styles.summaryVal}>{cartSubtotal.toLocaleString()} ر.ي</Text>
-            <Text style={styles.summaryLbl}>مجموع السلة</Text>
+            <CheckoutText style={styles.summaryVal}>{cartSubtotal.toLocaleString()} ر.ي</CheckoutText>
+            <CheckoutText style={styles.summaryLbl}>مجموع السلة</CheckoutText>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryVal}>{cartDeliveryFee.toLocaleString()} ر.ي</Text>
-            <Text style={styles.summaryLbl}>رسوم التوصيل</Text>
+            <CheckoutText style={styles.summaryVal}>{cartDeliveryFee.toLocaleString()} ر.ي</CheckoutText>
+            <CheckoutText style={styles.summaryLbl}>رسوم التوصيل</CheckoutText>
           </View>
           {cartSubOrders.map((subOrder) => <View key={`store-delivery-${subOrder.storeId}`} style={styles.summaryRow}>
-            <Text style={styles.summaryVal}>{subOrder.deliveryFee.toLocaleString()} ر.ي</Text>
-            <Text style={styles.summaryLbl}>توصيل {subOrder.storeName}</Text>
+            <CheckoutText style={styles.summaryVal}>{subOrder.deliveryFee.toLocaleString()} ر.ي</CheckoutText>
+            <CheckoutText style={styles.summaryLbl}>توصيل {subOrder.storeName}</CheckoutText>
           </View>)}
           {cartSubOrders.length > 1 && cartFarthestStoreDistanceKm > 0 && (
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryVal}>{cartFarthestStoreDistanceKm.toFixed(1)} كم</Text>
-              <Text style={styles.summaryLbl}>المسافة إلى أبعد متجر</Text>
+              <CheckoutText style={styles.summaryVal}>{cartFarthestStoreDistanceKm.toFixed(1)} كم</CheckoutText>
+              <CheckoutText style={styles.summaryLbl}>المسافة إلى أبعد متجر</CheckoutText>
             </View>
           )}
           {cartDiscount > 0 && (
             <View style={styles.summaryRow}>
-              <Text style={styles.discountVal}>-{cartDiscount.toLocaleString()} ر.ي</Text>
-              <Text style={styles.summaryLbl}>الخصم الترويجي</Text>
+              <CheckoutText style={styles.discountVal}>-{cartDiscount.toLocaleString()} ر.ي</CheckoutText>
+              <CheckoutText style={styles.summaryLbl}>الخصم الترويجي</CheckoutText>
             </View>
           )}
           <View style={styles.divider} />
           <View style={styles.finalTotalRow}>
-            <Text style={styles.finalTotalVal}>
-              {cartTotal.toLocaleString()} <Text style={styles.curr}>ر.ي</Text>
-            </Text>
-            <Text style={styles.finalTotalLbl}>المبلغ المطلوب دفعه</Text>
+            <CheckoutText style={styles.finalTotalVal}>
+              {cartTotal.toLocaleString()} <CheckoutText style={styles.curr}>ر.ي</CheckoutText>
+            </CheckoutText>
+            <CheckoutText style={styles.finalTotalLbl}>المبلغ المطلوب دفعه</CheckoutText>
           </View>
         </View>
-        {isDeliveryQuoteLoading && <View style={styles.summaryRow}><ActivityIndicator size="small" /><Text style={styles.summaryLbl}>جارٍ حساب المسافة ورسوم التوصيل...</Text></View>}
-        {!isDeliveryQuoteLoading && !hasDeliveryQuote && <TouchableOpacity style={styles.summaryRow} onPress={refreshDeliveryQuote}><Text style={[styles.summaryLbl, { color: themeColors.error }]}>تعذر حساب الرسوم. اضغط لإعادة المحاولة</Text></TouchableOpacity>}
+        {isDeliveryQuoteLoading && <View style={styles.summaryRow}><ActivityIndicator size="small" /><CheckoutText style={styles.summaryLbl}>جارٍ حساب المسافة ورسوم التوصيل...</CheckoutText></View>}
+        {!isDeliveryQuoteLoading && !hasDeliveryQuote && (
+          <TouchableOpacity
+            style={styles.summaryRow}
+            onPress={hasSelectedGovernorate === false ? () => navigateTo('profile') : refreshDeliveryQuote}
+          >
+            <CheckoutText style={[styles.summaryLbl, { color: themeColors.error }]}>
+              {hasSelectedGovernorate === false
+                ? 'اختر محافظة التسوق من الملف الشخصي لحساب رسوم التوصيل'
+                : 'تعذر حساب الرسوم. اضغط لإعادة المحاولة'}
+            </CheckoutText>
+          </TouchableOpacity>
+        )}
 
         {/* Submit Order Button */}
         <TouchableOpacity
@@ -405,7 +456,7 @@ export const CheckoutScreen: React.FC = () => {
           {isSubmitting ? (
             <ActivityIndicator color={themeColors.onPrimary} size="small" />
           ) : (
-            <Text style={styles.confirmBtnText}>تأكيد الطلب وإرساله للكابتن 🚀</Text>
+            <CheckoutText style={styles.confirmBtnText}>تأكيد الطلب وإرساله للكابتن 🚀</CheckoutText>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -640,6 +691,7 @@ const createStyles = (colors: ThemeColors) =>
   },
   textInput: {
     backgroundColor: colors.surfaceContainerLow,
+    fontFamily: typography.fontFamily.regular,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.baseSm,
     height: 42,

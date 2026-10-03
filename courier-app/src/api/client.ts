@@ -1,6 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.253.2.95:5295/api';
+const DEFAULT_API_BASE_URL = 'https://cdt-enlargement-fighting-ide.trycloudflare.com/api';
+const isPrivateOrInsecureApiUrl = (value: string) =>
+  !/^https:\/\//i.test(value) ||
+  /^https:\/\/(?:localhost|127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|169\.254(?:\.\d{1,3}){2}|0\.\d{1,3}(?:\.\d{1,3}){2})(?::\d+)?(?:\/|$)|^https:\/\/[^/]+\.(?:local|internal)(?::\d+)?(?:\/|$)/i.test(value);
+const configuredApiBaseUrl = [Constants.expoConfig?.extra?.apiBaseUrl, process.env.EXPO_PUBLIC_API_URL]
+  .map((value) => value?.trim().replace(/\/+$/, ''))
+  .find((value) => value && !isPrivateOrInsecureApiUrl(value));
+
+export const API_BASE_URL = configuredApiBaseUrl && !isPrivateOrInsecureApiUrl(configuredApiBaseUrl)
+  ? configuredApiBaseUrl
+  : DEFAULT_API_BASE_URL;
+
+function getSafeHttpErrorMessage(status: number): string {
+  if (status === 401) return 'بيانات الدخول غير صحيحة أو انتهت الجلسة. يرجى المحاولة مجدداً.';
+  if (status === 403) return 'ليست لديك صلاحية لإتمام هذا الإجراء.';
+  if (status === 404) return 'تعذر العثور على البيانات المطلوبة.';
+  if (status === 409) return 'تعذر إتمام العملية بسبب تعارض في البيانات. راجعها وحاول مجدداً.';
+  if (status === 400 || status === 422) return 'تعذر إتمام الطلب. راجع البيانات المدخلة وحاول مجدداً.';
+  if (status === 429) return 'عدد المحاولات كبير. انتظر قليلاً ثم حاول مجدداً.';
+  if (status >= 500) return 'الخدمة غير متاحة مؤقتاً. حاول مجدداً لاحقاً.';
+  return 'تعذر إتمام الطلب. حاول مجدداً لاحقاً.';
+}
+
 const ACCESS_TOKEN_KEY = '@bs_courier_access_token';
 const REFRESH_TOKEN_KEY = '@bs_courier_refresh_token';
 
@@ -95,8 +118,8 @@ class ApiClient {
         ...options,
         headers,
       });
-    } catch (networkError: any) {
-      throw new Error(`تعذر الاتصال بالسيرفر (${url}). تأكد من تشغيل الـ Backend.`);
+    } catch {
+      throw new Error('تعذر الاتصال بالخدمة. تحقق من اتصال الإنترنت وحاول مجدداً.');
     }
 
     const data = await response.json().catch(() => null);
@@ -107,9 +130,8 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      const errorMessage = data?.message || `خطأ في الاتصال بالسيرفر (${response.status})`;
-      const error = new Error(errorMessage);
-      (error as any).code = data?.code || 'ERROR';
+      const error = new Error(getSafeHttpErrorMessage(response.status));
+      (error as any).code = 'REQUEST_FAILED';
       (error as any).status = response.status;
       throw error;
     }

@@ -44,7 +44,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
       if (!picked) return;
 
       setIsUploading(true);
-      setUploadStatus('جاري رفع الصورة إلى Supabase...');
+      setUploadStatus('جاري رفع الصورة...');
 
       try {
         const publicUrl = await uploadImageToSupabase(picked, folder);
@@ -52,14 +52,14 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
         setUploadStatus('');
         onImageSelected(publicUrl);
         onClose();
-        Alert.alert('نجاح ✓', 'تم رفع الصورة وحفظها في Supabase بنجاح');
-      } catch (uploadError: any) {
+        Alert.alert('تم بنجاح', 'تم رفع الصورة بنجاح.');
+      } catch {
         setIsUploading(false);
         setUploadStatus('');
         // If Supabase upload fails (e.g. policy/network), offer to use the local URI or direct URL
         Alert.alert(
-          'تنبيه Supabase',
-          `تعذر استكمال الرفع إلى Supabase (${uploadError?.message || 'خطأ في الاتصال'}). هل تود استخدام الصورة المحلية مؤقتاً؟`,
+          'تعذر رفع الصورة',
+          'لم نتمكن من رفع الصورة حالياً. هل تريد استخدام الصورة الموجودة على جهازك مؤقتاً؟',
           [
             { text: 'إلغاء', style: 'cancel' },
             {
@@ -99,7 +99,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
 
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>
-            يمكنك رفع صورة مباشرة من معرض جهازك إلى Supabase أو إضافة رابط صورة
+            يمكنك رفع صورة من معرض جهازك أو إضافة رابط صورة
           </Text>
 
           {/* Mode Switcher Tabs */}
@@ -110,7 +110,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
               activeOpacity={0.8}
             >
               <Text style={[styles.tabBtnText, activeTab === 'gallery' && styles.tabBtnTextActive]}>
-                📁 معرض الصور (Supabase)
+                📁 معرض الصور
               </Text>
             </TouchableOpacity>
 

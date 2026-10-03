@@ -311,7 +311,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn('Failed to restore session:', err);
       } finally {
         setIsAuthLoading(false);
-        refreshCatalog();
       }
     };
     restoreSession();
@@ -442,6 +441,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (isAuthenticated) {
       void refreshOrders();
       void refreshAddresses();
+      void refreshCatalog();
     } else {
       setOrders([]);
       setAddresses([]);

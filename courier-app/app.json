@@ -1,38 +1,40 @@
 {
   "expo": {
     "name": "BS Store Courier",
+    "owner": "ultra-horizon",
     "slug": "bs-store-courier",
     "version": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "ed8a7e42-be89-4bb1-8ee7-a99608dcda2c"
+      }
+    },
     "sdkVersion": "57.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F4F5F7"
-    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.bsstore.courier",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "INTERNET"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F4F5F7"
-      },
-      "androidStatusBar": {
-        "barStyle": "dark-content",
-        "backgroundColor": "#00000000",
-        "translucent": true
-      },
-      "androidNavigationBar": {
-        "visible": "sticky-immersive",
-        "barStyle": "dark-content"
       }
     },
     "plugins": [
       "expo-asset",
       "expo-notifications"
-    ]
+    ],
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#00000000",
+      "translucent": true
+    }
   }
 }

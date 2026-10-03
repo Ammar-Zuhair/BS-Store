@@ -4,6 +4,12 @@
 .env.*.local
 *.env
 
+# Private credentials and uploaded attachment staging
+/.secrets/
+/.uploads/
+**/*firebase-adminsdk*.json
+**/*service-account*.json
+
 # .NET / C#
 bin/
 obj/

@@ -1,17 +1,18 @@
 {
   "expo": {
     "name": "متجر بي اس",
-    "slug": "bs-store",
+    "owner": "ultra-horizon",
+    "slug": "bs-store-customer",
     "version": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "4bddebb7-5c80-4360-b310-dbc00824cd29"
+      }
+    },
     "sdkVersion": "57.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F4F5F7"
-    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -19,23 +20,17 @@
       }
     },
     "android": {
+      "package": "com.bsstore.customer",
+      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
+        "INTERNET",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#F4F5F7"
-      },
-      "androidStatusBar": {
-        "barStyle": "dark-content",
-        "backgroundColor": "#00000000",
-        "translucent": true
-      },
-      "androidNavigationBar": {
-        "visible": "sticky-immersive",
-        "barStyle": "dark-content"
       },
       "config": {
         "googleMaps": {
@@ -49,7 +44,13 @@
     "plugins": [
       "expo-asset",
       "expo-font",
-      "expo-notifications"
-    ]
+      "expo-notifications",
+      "./plugins/withFirebaseAndroid"
+    ],
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#00000000",
+      "translucent": true
+    }
   }
 }

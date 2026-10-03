@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,12 @@ import { useApp } from '../context/AppContext';
 import { Store } from '../types';
 import { DealDetailsModal, DealItem } from '../components/DealDetailsModal';
 import { CategoryStoresSkeleton } from '../components/Shimmer';
+import { governorateApi } from '../api';
 
 export const CategoryStoresScreen: React.FC = () => {
   const {
     isLoadingCatalog,
+    isAuthenticated,
     selectedCategory,
     setSelectedCategory,
     setSelectedStore,
@@ -31,6 +33,7 @@ export const CategoryStoresScreen: React.FC = () => {
     cart,
     updateQuantity,
     removeFromCart,
+    refreshCatalog,
     colors: themeColors,
   } = useApp();
 
@@ -49,6 +52,24 @@ export const CategoryStoresScreen: React.FC = () => {
   const [visibleStoresCount, setVisibleStoresCount] = useState(6);
   const [selectedDeal, setSelectedDeal] = useState<DealItem | null>(null);
   const [dealModalVisible, setDealModalVisible] = useState(false);
+  const [customerGovernorateId, setCustomerGovernorateId] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setCustomerGovernorateId(undefined);
+      return;
+    }
+
+    let cancelled = false;
+    governorateApi.mine()
+      .then(({ governorateId }) => {
+        if (!cancelled) setCustomerGovernorateId(governorateId || null);
+      })
+      .catch(() => {
+        if (!cancelled) setCustomerGovernorateId(undefined);
+      });
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
 
   const currentCatObj =
     allCategories.find((c) => c.id === activeCat) || allCategories[0];
@@ -335,7 +356,9 @@ export const CategoryStoresScreen: React.FC = () => {
               <Text style={styles.emptySubtitle}>
                 {searchQuery.trim()
                   ? 'حاول تغيير كلمة البحث أو كتابة أحرف أقل'
-                  : 'جرب اختيار فئة أخرى أو التواصل مع الإدارة'}
+                  : isAuthenticated && customerGovernorateId === null
+                    ? 'اختر محافظة التسوق من الملف الشخصي لعرض المتاجر المتاحة فيها.'
+                    : 'جرب تحديث قائمة المتاجر أو اختيار فئة أخرى.'}
               </Text>
               {searchQuery.trim() ? (
                 <TouchableOpacity
@@ -344,6 +367,19 @@ export const CategoryStoresScreen: React.FC = () => {
                 >
                   <Text style={styles.resetSearchText}>إلغاء البحث وإظهار كل المتاجر</Text>
                 </TouchableOpacity>
+              ) : (
+                <>
+                  {isAuthenticated && (
+                    <TouchableOpacity style={styles.resetSearchBtn} onPress={() => navigateTo('profile')}>
+                      <Text style={styles.resetSearchText}>
+                        {customerGovernorateId === null ? 'اختيار محافظة التسوق' : 'تغيير محافظة التسوق'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity style={styles.resetSearchBtn} onPress={() => { void refreshCatalog(); }}>
+                    <Text style={styles.resetSearchText}>إعادة تحميل المتاجر</Text>
+                  </TouchableOpacity>
+                </>
               ) : null}
             </View>
           ) : (
