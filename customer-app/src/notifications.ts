@@ -10,7 +10,9 @@ Notifications.setNotificationHandler({
 const PUSH_TOKEN_KEY = '@bs_customer_push_token';
 
 export async function registerPushDevice(api: { post: (path: string, data: any) => Promise<any> }, appType: 'admin' | 'courier' | 'customer') {
-  if (Platform.OS === 'web') return null;
+  // Expo Go cannot register remote push tokens. Keep this guard scoped to Expo Go
+  // so development builds and standalone/production builds retain the full flow.
+  if (Platform.OS === 'web' || Constants.appOwnership === 'expo') return null;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId || process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
   if (!projectId) { console.warn('Push registration skipped: set extra.eas.projectId for the EAS project.'); return null; }
   if (Platform.OS === 'android') await Notifications.setNotificationChannelAsync('default', { name: 'الإشعارات', importance: Notifications.AndroidImportance.MAX, vibrationPattern: [0, 250, 250, 250] });
