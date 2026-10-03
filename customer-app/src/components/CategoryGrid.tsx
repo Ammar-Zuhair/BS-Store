@@ -47,9 +47,10 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryPress }) =
             onPress={() => handlePress(cat)}
             accessibilityRole="button"
             accessibilityLabel={'تصفح فئة ' + cat.name}
+            accessibilityHint="يفتح متاجر وعروض هذه الفئة"
           >
             <View style={styles.iconContainer}>
-              <AppIcon name={categoryIconForName(cat.name)} size={24} color={themeColors.primary} />
+              <AppIcon name={categoryIconForName(cat.name)} size={32} color={themeColors.onPrimary} />
             </View>
 
             <Text style={styles.categoryName} numberOfLines={1}>
@@ -116,7 +117,7 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
     padding: spacing.baseMd,
-    minHeight: 132,
+    minHeight: 150,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -124,19 +125,24 @@ const createStyles = (colors: ThemeColors) =>
     ...shadows.card,
   },
   iconContainer: {
-    width: 52,
-    height: 52,
+    width: 66,
+    height: 66,
     borderRadius: borderRadius.xl,
-    backgroundColor: colors.surfaceContainerLow,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.baseSm,
     borderWidth: 1,
-    borderColor: colors.outlineVariant + '35',
+    borderColor: colors.primary,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   categoryName: {
     fontFamily: typography.fontFamily.bold,
-    fontSize: typography.fontSize.sm,
+    fontSize: typography.fontSize.md,
     color: colors.onSurface,
     textAlign: 'center',
     marginBottom: 6,

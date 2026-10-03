@@ -1,58 +1,58 @@
 /**
  * BS Store Customer App Design System Theme Tokens
  * Shared visual tokens for the BS Store customer app.
- * BS Store brand palette: charcoal ink, warm gold, and calm light/dark surfaces.
+ * BS Store customer palette: monochrome black, gray, and white surfaces.
  */
 
 export const lightColors = {
-  // Warm gold inspired by the BS Store emblem
-  primary: '#80520A',
-  primaryContainer: '#F6E9CF',
-  primaryFixed: '#F1DCA9',
-  primaryFixedDim: '#E7C77D',
+  // Monochrome primary actions and soft gray containers
+  primary: '#202020',
+  primaryContainer: '#E8E8E8',
+  primaryFixed: '#E0E0E0',
+  primaryFixedDim: '#CECECE',
   onPrimary: '#FFFFFF',
-  onPrimaryContainer: '#4F3105',
-  onPrimaryFixed: '#3D2908',
-  onPrimaryFixedVariant: '#60410B',
+  onPrimaryContainer: '#202020',
+  onPrimaryFixed: '#202020',
+  onPrimaryFixedVariant: '#404040',
 
-  // Charcoal ink from the logo, with warm neutral containers
-  secondary: '#39332B',
-  secondaryContainer: '#EEEAE3',
-  secondaryFixed: '#E4DED3',
-  secondaryFixedDim: '#D3CABB',
+  // Supporting neutral grays
+  secondary: '#555555',
+  secondaryContainer: '#EEEEEE',
+  secondaryFixed: '#E3E3E3',
+  secondaryFixedDim: '#D2D2D2',
   onSecondary: '#FFFFFF',
-  onSecondaryContainer: '#302920',
-  onSecondaryFixed: '#28231D',
-  onSecondaryFixedVariant: '#51483C',
+  onSecondaryContainer: '#242424',
+  onSecondaryFixed: '#242424',
+  onSecondaryFixedVariant: '#4A4A4A',
 
-  // Copper accent for highlights and offers
-  tertiary: '#A85E18',
-  tertiaryContainer: '#F9EBDD',
-  tertiaryFixed: '#F2D7BC',
-  tertiaryFixedDim: '#E7C09A',
+  // Quiet gray for secondary emphasis
+  tertiary: '#666666',
+  tertiaryContainer: '#EFEFEF',
+  tertiaryFixed: '#E4E4E4',
+  tertiaryFixedDim: '#D5D5D5',
   onTertiary: '#FFFFFF',
-  onTertiaryContainer: '#65350C',
-  onTertiaryFixed: '#482509',
-  onTertiaryFixedVariant: '#783F10',
+  onTertiaryContainer: '#292929',
+  onTertiaryFixed: '#292929',
+  onTertiaryFixedVariant: '#4E4E4E',
 
-  // Warm, quiet neutral surfaces
-  background: '#F8F6F2',
-  surface: '#F8F6F2',
+  // Clean white and cool gray surfaces
+  background: '#F7F7F7',
+  surface: '#F7F7F7',
   surfaceBright: '#FFFFFF',
-  surfaceDim: '#E8E3DA',
+  surfaceDim: '#E5E5E5',
   surfaceContainerLowest: '#FFFFFF',
-  surfaceContainerLow: '#F2EFE9',
-  surfaceContainer: '#ECE8E0',
-  surfaceContainerHigh: '#E5DFD4',
-  surfaceContainerHighest: '#DAD2C5',
-  surfaceVariant: '#ECE8E0',
+  surfaceContainerLow: '#F0F0F0',
+  surfaceContainer: '#EAEAEA',
+  surfaceContainerHigh: '#E1E1E1',
+  surfaceContainerHighest: '#D6D6D6',
+  surfaceVariant: '#EAEAEA',
 
-  // Readable charcoal typography
-  onSurface: '#211E19',
-  onSurfaceVariant: '#625B50',
-  onBackground: '#211E19',
-  outline: '#81786B',
-  outlineVariant: '#DED8CE',
+  // Black typography with accessible gray secondary text
+  onSurface: '#171717',
+  onSurfaceVariant: '#555555',
+  onBackground: '#171717',
+  outline: '#777777',
+  outlineVariant: '#D7D7D7',
 
   // Feedback & Functional Statuses
   error: '#B9383E',
@@ -65,54 +65,54 @@ export const lightColors = {
 };
 
 export const darkColors = {
-  // Gold remains the main action against deep charcoal surfaces
-  primary: '#E8BD68',
-  primaryContainer: '#594014',
-  primaryFixed: '#684B1B',
-  primaryFixedDim: '#805D24',
-  onPrimary: '#332307',
-  onPrimaryContainer: '#F8E9C8',
-  onPrimaryFixed: '#FFF3D8',
-  onPrimaryFixedVariant: '#E9CD91',
+  // Invert the neutral action for contrast on dark surfaces
+  primary: '#F0F0F0',
+  primaryContainer: '#3B3B3B',
+  primaryFixed: '#4A4A4A',
+  primaryFixedDim: '#5C5C5C',
+  onPrimary: '#171717',
+  onPrimaryContainer: '#F0F0F0',
+  onPrimaryFixed: '#FFFFFF',
+  onPrimaryFixedVariant: '#D8D8D8',
 
-  // Warm neutral ink
-  secondary: '#D0C6B5',
-  secondaryContainer: '#39342C',
-  secondaryFixed: '#474035',
-  secondaryFixedDim: '#5B5142',
-  onSecondary: '#28231C',
-  onSecondaryContainer: '#EEE7DA',
-  onSecondaryFixed: '#F4EDE0',
-  onSecondaryFixedVariant: '#D4C9B8',
+  // Neutral gray support colors
+  secondary: '#C7C7C7',
+  secondaryContainer: '#383838',
+  secondaryFixed: '#484848',
+  secondaryFixedDim: '#595959',
+  onSecondary: '#1D1D1D',
+  onSecondaryContainer: '#EEEEEE',
+  onSecondaryFixed: '#FFFFFF',
+  onSecondaryFixedVariant: '#D0D0D0',
 
-  // Muted copper for secondary highlights
-  tertiary: '#E7AD70',
-  tertiaryContainer: '#50351F',
-  tertiaryFixed: '#674527',
-  tertiaryFixedDim: '#805832',
-  onTertiary: '#39210C',
-  onTertiaryContainer: '#F8E5D2',
-  onTertiaryFixed: '#FFF0E2',
-  onTertiaryFixedVariant: '#F0C99F',
+  // Quiet light gray emphasis
+  tertiary: '#D0D0D0',
+  tertiaryContainer: '#3A3A3A',
+  tertiaryFixed: '#4A4A4A',
+  tertiaryFixedDim: '#5A5A5A',
+  onTertiary: '#1D1D1D',
+  onTertiaryContainer: '#F0F0F0',
+  onTertiaryFixed: '#FFFFFF',
+  onTertiaryFixedVariant: '#D6D6D6',
 
-  // Deep charcoal surfaces with a warm undertone
-  background: '#171512',
-  surface: '#171512',
-  surfaceBright: '#25211B',
-  surfaceDim: '#100F0D',
-  surfaceContainerLowest: '#211E19',
-  surfaceContainerLow: '#29251F',
-  surfaceContainer: '#302C25',
-  surfaceContainerHigh: '#39342C',
-  surfaceContainerHighest: '#443E34',
-  surfaceVariant: '#302C25',
+  // Deep neutral surfaces
+  background: '#151515',
+  surface: '#151515',
+  surfaceBright: '#242424',
+  surfaceDim: '#101010',
+  surfaceContainerLowest: '#202020',
+  surfaceContainerLow: '#282828',
+  surfaceContainer: '#303030',
+  surfaceContainerHigh: '#393939',
+  surfaceContainerHighest: '#444444',
+  surfaceVariant: '#303030',
 
-  // Calm, high-contrast typography
-  onSurface: '#F4F0E8',
-  onSurfaceVariant: '#C9C0B2',
-  onBackground: '#F4F0E8',
-  outline: '#938A7B',
-  outlineVariant: '#494237',
+  // High contrast light typography on dark surfaces
+  onSurface: '#F3F3F3',
+  onSurfaceVariant: '#C4C4C4',
+  onBackground: '#F3F3F3',
+  outline: '#929292',
+  outlineVariant: '#484848',
 
   // Feedback & Functional Statuses
   error: '#FF8B8F',
@@ -120,7 +120,7 @@ export const darkColors = {
   onError: '#FFFFFF',
   onErrorContainer: '#FFDADC',
   success: '#78D2A7',
-  warning: '#E8BD68',
+  warning: '#D0D0D0',
   info: '#91C9E4',
 };
 
