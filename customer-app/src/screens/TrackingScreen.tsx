@@ -19,9 +19,10 @@ import { Order, OrderStatusType } from '../types';
 import { ordersApi } from '../api';
 import { AppIcon, AppIconName } from '../components/AppIcon';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import { CachedImage } from '../components/CachedImage';
 
 export const TrackingScreen: React.FC = () => {
-  const { orders, navigateTo, currentOrder, setCurrentOrder, refreshOrders, colors: themeColors } = useApp();
+  const { orders, stores, navigateTo, currentOrder, setCurrentOrder, refreshOrders, colors: themeColors } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -543,9 +544,17 @@ export const TrackingScreen: React.FC = () => {
 
           {orders.map((order) => {
             const statusInfo = getStatusInfo(order.status);
-            const storesNames = Array.from(
-              new Set(order.items.map((i) => i.product.storeName))
-            ).join(' • ');
+            const orderStores = Array.from(
+              new Map(order.items.map(({ product }) => [
+                product.storeId || product.storeName,
+                {
+                  id: product.storeId,
+                  name: product.storeName,
+                  imageUrl: stores.find((store) => store.id === product.storeId)?.imageUrl,
+                },
+              ])).values()
+            );
+            const storeNames = orderStores.map((store) => store.name).filter(Boolean);
 
             return (
               <TouchableOpacity
@@ -553,8 +562,9 @@ export const TrackingScreen: React.FC = () => {
                 style={styles.orderCard}
                 activeOpacity={0.88}
                 onPress={() => setSelectedOrderId(order.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`طلب رقم ${order.orderNumber} من ${storeNames.join('، ') || 'المتجر'}، ${statusInfo.label}، اضغط لعرض التفاصيل والتتبع`}
               >
-                {/* Header row: Order # & Status Badge */}
                 <View style={styles.cardHeaderRow}>
                   <View
                     style={[
@@ -576,56 +586,71 @@ export const TrackingScreen: React.FC = () => {
                   </View>
                   <View style={styles.cardTitleWrap}>
                     <Text style={styles.cardOrderNumber}>
-                      طلب #{order.orderNumber}
+                      الطلب #{order.orderNumber}
                     </Text>
-                    <Text style={styles.cardOrderDate}>{order.createdAt}</Text>
+                    <Text style={styles.cardOrderDate}>تاريخ الطلب · {order.createdAt}</Text>
                   </View>
                 </View>
 
-                {/* Divider */}
                 <View style={styles.cardDivider} />
 
-                {/* Body: Stores & Items */}
-                <View style={styles.cardBody}>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoVal} numberOfLines={1}>
-                      {storesNames || '—'}
-                    </Text>
-                    <Text style={styles.infoLbl}>المتاجر:</Text>
+                <View style={styles.storeSummary}>
+                  <View style={styles.storeImageStack} accessibilityElementsHidden>
+                    {orderStores.length <= 1 ? (
+                      <View style={styles.singleStoreImage}>
+                        {orderStores[0]?.imageUrl ? (
+                          <CachedImage source={{ uri: orderStores[0].imageUrl }} style={styles.singleStoreImageContent} resizeMode="cover" />
+                        ) : (
+                          <AppIcon name="store" size={23} color={themeColors.primary} />
+                        )}
+                      </View>
+                    ) : (
+                      orderStores.slice(0, 3).map((store, index) => (
+                        <View key={store.id || `${store.name}-${index}`} style={[styles.stackedStoreImage, { right: index * 19, zIndex: 3 - index }]}>
+                          {store.imageUrl ? (
+                            <CachedImage source={{ uri: store.imageUrl }} style={styles.stackedStoreImageContent} resizeMode="cover" />
+                          ) : (
+                            <AppIcon name="store" size={16} color={themeColors.primary} />
+                          )}
+                        </View>
+                      ))
+                    )}
                   </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoVal}>
-                      {order.items.length} أصناف
+                  <View style={styles.storeSummaryText}>
+                    <Text style={styles.storeSummaryTitle} numberOfLines={1}>
+                      {orderStores.length > 1 ? `${orderStores.length} متاجر` : (storeNames[0] || 'طلب المتجر')}
                     </Text>
-                    <Text style={styles.infoLbl}>عدد الأصناف:</Text>
+                    {orderStores.length > 1 ? (
+                      <Text style={styles.storeNames} numberOfLines={1}>{storeNames.join('، ')}</Text>
+                    ) : (
+                      <Text style={styles.storeNames} numberOfLines={1}>{order.items.length} أصناف في الطلب</Text>
+                    )}
                   </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoVal}>
-                      {order.address.district} - {order.address.street}
-                    </Text>
-                    <Text style={styles.infoLbl}>العنوان:</Text>
+                </View>
+
+                <View style={styles.orderMetaRow}>
+                  <View style={styles.metaItem}>
+                    <AppIcon name="map-pin" size={14} color={themeColors.onSurfaceVariant} />
+                    <Text style={styles.metaText} numberOfLines={1}>{order.address.district} · {order.address.street}</Text>
                   </View>
                   {!!order.notes && (
-                    <View style={styles.infoRow}>
-                      <Text style={[styles.infoVal, { color: themeColors.primary }]} numberOfLines={1}>
-                        {order.notes}
-                      </Text>
-                      <Text style={styles.infoLbl}>ملاحظاتك:</Text>
+                    <View style={styles.metaItem}>
+                      <AppIcon name="notebook" size={14} color={themeColors.onSurfaceVariant} />
+                      <Text style={styles.metaText} numberOfLines={1}>{order.notes}</Text>
                     </View>
                   )}
                 </View>
 
-                {/* Footer: Amount & Action Link */}
                 <View style={styles.cardFooter}>
                   <View style={styles.actionWrap}>
-                    <Text style={styles.actionText}>عرض التفاصيل والتتبع</Text>
-                    <Text style={styles.actionArrow}>←</Text>
+                    <Text style={styles.actionText}>التفاصيل والتتبع</Text>
+                    <AppIcon name="arrow-left" size={15} color={themeColors.onPrimary} />
                   </View>
                   <View style={styles.amountWrap}>
                     <Text style={styles.amountVal}>
                       {order.totalAmount.toLocaleString()} ر.ي
                     </Text>
-                    <Text style={styles.amountLbl}>الإجمالي</Text>
+                    <Text style={styles.amountLbl}>الإجمالي · {order.items.length} أصناف</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -674,9 +699,9 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
     padding: spacing.baseMd,
-    marginBottom: spacing.baseSm,
+    marginBottom: spacing.baseMd,
     borderWidth: 1,
-    borderColor: colors.outlineVariant + '35',
+    borderColor: colors.outlineVariant + '75',
     ...shadows.card,
   },
   cardHeaderRow: {
@@ -686,6 +711,8 @@ const createStyles = (colors: ThemeColors) =>
   },
   cardTitleWrap: {
     alignItems: 'flex-end',
+    flex: 1,
+    marginRight: spacing.baseSm,
   },
   cardOrderNumber: {
     fontFamily: typography.fontFamily.bold,
@@ -695,9 +722,9 @@ const createStyles = (colors: ThemeColors) =>
   },
   cardOrderDate: {
     fontFamily: typography.fontFamily.medium,
-    fontSize: 12,
+    fontSize: typography.fontSize.xs,
     color: colors.onSurfaceVariant,
-    marginTop: 2,
+    marginTop: 3,
   },
   cardStatusBadge: {
     paddingHorizontal: 10,
@@ -712,8 +739,91 @@ const createStyles = (colors: ThemeColors) =>
   },
   cardDivider: {
     height: 1,
-    backgroundColor: colors.outlineVariant + '25',
-    marginVertical: 10,
+    backgroundColor: colors.outlineVariant + '80',
+    marginVertical: spacing.baseMd,
+  },
+  storeSummary: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    minHeight: 62,
+    marginBottom: spacing.baseSm,
+  },
+  storeImageStack: {
+    width: 62,
+    height: 58,
+    position: 'relative',
+    justifyContent: 'center',
+    marginLeft: spacing.baseSm,
+  },
+  singleStoreImage: {
+    width: 56,
+    height: 56,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    backgroundColor: colors.primaryContainer,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  singleStoreImageContent: {
+    width: '100%',
+    height: '100%',
+  },
+  stackedStoreImage: {
+    position: 'absolute',
+    top: 9,
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: colors.primaryContainer,
+    borderWidth: 2,
+    borderColor: colors.surfaceContainerLowest,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stackedStoreImageContent: {
+    width: '100%',
+    height: '100%',
+  },
+  storeSummaryText: {
+    flex: 1,
+    alignItems: 'flex-end',
+    minWidth: 0,
+  },
+  storeSummaryTitle: {
+    fontFamily: typography.fontFamily.bold,
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.onSurface,
+    textAlign: 'right',
+  },
+  storeNames: {
+    fontFamily: typography.fontFamily.medium,
+    fontSize: typography.fontSize.xs,
+    color: colors.onSurfaceVariant,
+    marginTop: 3,
+    textAlign: 'right',
+  },
+  orderMetaRow: {
+    gap: 5,
+    paddingVertical: spacing.baseSm,
+    borderTopWidth: 1,
+    borderTopColor: colors.outlineVariant + '65',
+  },
+  metaItem: {
+    minHeight: 20,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  metaText: {
+    flex: 1,
+    fontFamily: typography.fontFamily.medium,
+    fontSize: typography.fontSize.xs,
+    color: colors.onSurfaceVariant,
+    textAlign: 'right',
   },
   cardBody: {
     gap: 4,
@@ -740,17 +850,16 @@ const createStyles = (colors: ThemeColors) =>
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant + '20',
+    marginTop: spacing.baseSm,
   },
   amountWrap: {
     alignItems: 'flex-end',
+    flexShrink: 1,
+    marginLeft: spacing.baseXs,
   },
   amountLbl: {
     fontFamily: typography.fontFamily.medium,
-    fontSize: 11,
+    fontSize: typography.fontSize.xs,
     color: colors.onSurfaceVariant,
   },
   amountVal: {
@@ -762,22 +871,20 @@ const createStyles = (colors: ThemeColors) =>
   actionWrap: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surfaceContainerLow,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.baseSm,
+    minHeight: 44,
     borderRadius: borderRadius.md,
+    flexShrink: 0,
   },
   actionText: {
     fontFamily: typography.fontFamily.bold,
-    fontSize: 11,
-    color: colors.primary,
+    fontSize: typography.fontSize.xs,
+    color: colors.onPrimary,
     fontWeight: typography.fontWeight.bold,
-  },
-  actionArrow: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: 'bold',
+    includeFontPadding: false,
   },
   emptyContainer: {
     flex: 1,
