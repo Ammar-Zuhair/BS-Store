@@ -4,6 +4,7 @@
   "description": "BS Store Admin App - تطبيق المدير والعمليات لمتجر BS Store",
   "main": "expo/AppEntry.js",
   "scripts": {
+    "postinstall": "node -e \"const fs=require('node:fs');if(fs.existsSync('../scripts/install-expo-cloudflare-cli.js'))require('node:child_process').execFileSync(process.execPath,['../scripts/install-expo-cloudflare-cli.js'],{stdio:'inherit'})\"",
     "start": "expo start --port 8085",
     "tunnel": "EXPO_PORT=8086 bash ../scripts/start-expo-cloudflare-tunnel.sh",
     "android": "expo start --port 8085 --android",
