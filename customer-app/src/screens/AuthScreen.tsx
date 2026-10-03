@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,17 +15,18 @@ import {
   Image,
   Modal,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { typography, borderRadius, spacing } from '../theme';
+import { typography, borderRadius, spacing, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { authApi, governorateApi } from '../api';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
 import { TermsModal } from '../components/TermsModal';
+import { AppIcon, AppIconName } from '../components/AppIcon';
 
 type AuthMode = 'phone' | 'password' | 'register';
 
 export const AuthScreen: React.FC = () => {
-  const { login, register, navigateTo, registeredUser } = useApp();
+  const { login, register, navigateTo, registeredUser, colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [mode, setMode] = useState<AuthMode>('phone');
   const [isCheckingPhone, setIsCheckingPhone] = useState(false);
@@ -275,7 +276,7 @@ export const AuthScreen: React.FC = () => {
         'الشروط والأحكام',
         'يرجى الموافقة على الشروط والأحكام وسياسة الخصوصية للمتابعة.',
         [
-          { text: 'قراءة الشروط 📄', onPress: () => setShowTermsModal(true) },
+          { text: 'قراءة الشروط', onPress: () => setShowTermsModal(true) },
           { text: 'موافق ومتابعة ✓', onPress: () => setAgreeTerms(true) },
         ]
       );
@@ -323,13 +324,6 @@ export const AuthScreen: React.FC = () => {
 
   return (
     <View style={styles.screen}>
-      <LinearGradient
-        colors={['#0A0B0D', '#121418', '#181B22']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -370,10 +364,12 @@ export const AuthScreen: React.FC = () => {
                 />
               </Animated.View>
 
-              {[{ icon: '👕', place: styles.orbitTopRight, tint: '#F59E0B' },
-                { icon: '🍲', place: styles.orbitBottomRight, tint: '#FB7185' },
-                { icon: '📱', place: styles.orbitBottomLeft, tint: '#60A5FA' },
-                { icon: '🛒', place: styles.orbitTopLeft, tint: '#34D399' }].map((item, index) => (
+              {[
+                { icon: 'shirt' as AppIconName, place: styles.orbitTopRight, tint: themeColors.tertiary },
+                { icon: 'soup' as AppIconName, place: styles.orbitBottomRight, tint: themeColors.primary },
+                { icon: 'smartphone' as AppIconName, place: styles.orbitBottomLeft, tint: themeColors.secondary },
+                { icon: 'shopping-cart' as AppIconName, place: styles.orbitTopLeft, tint: themeColors.success },
+              ].map((item, index) => (
                 <Animated.View
                   key={item.icon}
                   pointerEvents="none"
@@ -384,7 +380,7 @@ export const AuthScreen: React.FC = () => {
                     { transform: [{ translateY: waveAnim.interpolate({ inputRange: [-7, 0, 7], outputRange: index % 2 ? [5, 0, -5] : [-5, 0, 5] }) }] },
                   ]}
                 >
-                  <Text style={styles.orbitIcon}>{item.icon}</Text>
+                  <AppIcon name={item.icon} size={22} color={item.tint} />
                 </Animated.View>
               ))}
             </View>
@@ -415,14 +411,14 @@ export const AuthScreen: React.FC = () => {
                     <TextInput
                       style={styles.textInput}
                       placeholder="770 000 000"
-                      placeholderTextColor="#6B7280"
+                      placeholderTextColor={themeColors.outline}
                       value={phone}
                       onChangeText={setPhone}
                       keyboardType="phone-pad"
                       textAlign="left"
+                      accessibilityLabel="رقم الهاتف المحمول"
                     />
                     <View style={styles.countryBadge}>
-                      <Text style={styles.flagEmoji}>🇾🇪</Text>
                       <Text style={styles.countryCode}>+967</Text>
                     </View>
                   </View>
@@ -434,14 +430,20 @@ export const AuthScreen: React.FC = () => {
                   onPress={handleCheckPhone}
                   disabled={isCheckingPhone}
                   activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="متابعة والتحقق من رقم الهاتف"
+                  accessibilityState={{ disabled: isCheckingPhone, busy: isCheckingPhone }}
                 >
                   {isCheckingPhone ? (
                     <View style={styles.btnRow}>
-                      <ActivityIndicator color="#111317" size="small" />
+                      <ActivityIndicator color={themeColors.onPrimary} size="small" />
                       <Text style={styles.primaryBtnText}>جاري التحقق...</Text>
                     </View>
                   ) : (
-                    <Text style={styles.primaryBtnText}>متابعة ➔</Text>
+                    <View style={styles.btnRow}>
+                      <Text style={styles.primaryBtnText}>متابعة</Text>
+                      <AppIcon name="arrow-right" size={17} color={themeColors.onPrimary} />
+                    </View>
                   )}
                 </TouchableOpacity>
 
@@ -453,8 +455,13 @@ export const AuthScreen: React.FC = () => {
                     switchMode('register');
                   }}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="إنشاء حساب جديد"
                 >
-                  <Text style={styles.registerUnderneathText}>+ إنشاء حساب جديد</Text>
+                  <View style={styles.btnRow}>
+                    <AppIcon name="plus" size={16} color={themeColors.primary} />
+                    <Text style={styles.registerUnderneathText}>إنشاء حساب جديد</Text>
+                  </View>
                 </TouchableOpacity>
 
                 {/* Divider Line */}
@@ -469,8 +476,13 @@ export const AuthScreen: React.FC = () => {
                   style={styles.guestLinkBtn}
                   onPress={() => navigateTo('home')}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="التصفح كزائر بدون تسجيل"
                 >
-                  <Text style={styles.guestLinkText}>التصفح كزائر بدون تسجيل ➔</Text>
+                  <View style={styles.btnRow}>
+                    <Text style={styles.guestLinkText}>التصفح كزائر بدون تسجيل</Text>
+                    <AppIcon name="arrow-right" size={15} color={themeColors.onSurfaceVariant} />
+                  </View>
                 </TouchableOpacity>
               </View>
             )}
@@ -485,8 +497,10 @@ export const AuthScreen: React.FC = () => {
                   style={styles.backRowBtn}
                   onPress={() => switchMode('phone')}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="تغيير رقم الهاتف"
                 >
-                  <Text style={styles.backRowIcon}>➔</Text>
+                  <AppIcon name="arrow-right" size={15} color={themeColors.primary} />
                   <Text style={styles.backRowText}>تغيير رقم الهاتف</Text>
                 </TouchableOpacity>
 
@@ -511,7 +525,7 @@ export const AuthScreen: React.FC = () => {
                 {/* Password Input */}
                 <View style={styles.inputGroup}>
                   <View style={styles.inputHeaderRow}>
-                    <TouchableOpacity onPress={handleForgotPassword} activeOpacity={0.7}>
+                    <TouchableOpacity onPress={handleForgotPassword} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="استعادة كلمة المرور">
                       <Text style={styles.forgotPassLink}>نسيت كلمة المرور؟</Text>
                     </TouchableOpacity>
                     <Text style={styles.inputLabel}>كلمة المرور</Text>
@@ -522,16 +536,19 @@ export const AuthScreen: React.FC = () => {
                       style={styles.eyeBtn}
                       onPress={() => setShowPassword((prev) => !prev)}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
                     >
-                      <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '🙈'}</Text>
+                      <AppIcon name={showPassword ? 'eye-off' : 'eye'} size={19} color={themeColors.onSurfaceVariant} />
                     </TouchableOpacity>
                     <TextInput
                       style={[styles.textInput, { textAlign: 'right' }]}
                       placeholder="••••••••"
-                      placeholderTextColor="#6B7280"
+                      placeholderTextColor={themeColors.outline}
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
+                      accessibilityLabel="كلمة المرور"
                     />
                   </View>
                 </View>
@@ -541,6 +558,9 @@ export const AuthScreen: React.FC = () => {
                   style={styles.checkboxRow}
                   onPress={() => setRememberMe((prev) => !prev)}
                   activeOpacity={0.8}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel="حفظ تسجيل الدخول على هذا الجهاز"
+                  accessibilityState={{ checked: rememberMe }}
                 >
                   <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
                     {rememberMe && <Text style={styles.checkmark}>✓</Text>}
@@ -554,10 +574,13 @@ export const AuthScreen: React.FC = () => {
                   onPress={handleLogin}
                   disabled={isLoading}
                   activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="تسجيل الدخول"
+                  accessibilityState={{ disabled: isLoading, busy: isLoading }}
                 >
                   {isLoading ? (
                     <View style={styles.btnRow}>
-                      <ActivityIndicator color="#111317" size="small" />
+                      <ActivityIndicator color={themeColors.onPrimary} size="small" />
                       <Text style={styles.primaryBtnText}>جاري تسجيل الدخول...</Text>
                     </View>
                   ) : (
@@ -591,8 +614,10 @@ export const AuthScreen: React.FC = () => {
                   style={styles.backRowBtn}
                   onPress={() => switchMode('phone')}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="الرجوع لتسجيل الدخول"
                 >
-                  <Text style={styles.backRowIcon}>➔</Text>
+                  <AppIcon name="arrow-right" size={15} color={themeColors.primary} />
                   <Text style={styles.backRowText}>الرجوع لتسجيل الدخول</Text>
                 </TouchableOpacity>
 
@@ -610,11 +635,12 @@ export const AuthScreen: React.FC = () => {
                     <TextInput
                       style={[styles.textInput, { textAlign: 'right' }]}
                       placeholder="مثال: أحمد محمد علي"
-                      placeholderTextColor="#6B7280"
+                      placeholderTextColor={themeColors.outline}
                       value={regName}
                       onChangeText={setRegName}
+                      accessibilityLabel="الاسم الكامل"
                     />
-                    <Text style={styles.fieldIcon}>👤</Text>
+                    <AppIcon name="user" size={18} color={themeColors.onSurfaceVariant} />
                   </View>
                 </View>
 
@@ -625,14 +651,14 @@ export const AuthScreen: React.FC = () => {
                     <TextInput
                       style={styles.textInput}
                       placeholder="770 000 000"
-                      placeholderTextColor="#6B7280"
+                      placeholderTextColor={themeColors.outline}
                       value={regPhone}
                       onChangeText={setRegPhone}
                       keyboardType="phone-pad"
                       textAlign="left"
+                      accessibilityLabel="رقم الهاتف"
                     />
                     <View style={styles.countryBadge}>
-                      <Text style={styles.flagEmoji}>🇾🇪</Text>
                       <Text style={styles.countryCode}>+967</Text>
                     </View>
                   </View>
@@ -646,18 +672,21 @@ export const AuthScreen: React.FC = () => {
                       style={styles.eyeBtn}
                       onPress={() => setShowRegPassword((prev) => !prev)}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={showRegPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
                     >
-                      <Text style={styles.eyeIcon}>{showRegPassword ? '👁️' : '🙈'}</Text>
+                      <AppIcon name={showRegPassword ? 'eye-off' : 'eye'} size={19} color={themeColors.onSurfaceVariant} />
                     </TouchableOpacity>
                     <TextInput
                       style={[styles.textInput, { textAlign: 'right' }]}
                       placeholder="6 خانات على الأقل"
-                      placeholderTextColor="#6B7280"
+                      placeholderTextColor={themeColors.outline}
                       value={regPassword}
                       onChangeText={setRegPassword}
                       secureTextEntry={!showRegPassword}
+                      accessibilityLabel="كلمة المرور"
                     />
-                    <Text style={styles.fieldIcon}>🔒</Text>
+                    <AppIcon name="lock" size={18} color={themeColors.onSurfaceVariant} />
                   </View>
                 </View>
 
@@ -669,24 +698,30 @@ export const AuthScreen: React.FC = () => {
                       style={styles.eyeBtn}
                       onPress={() => setShowRegConfirmPassword((prev) => !prev)}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={showRegConfirmPassword ? 'إخفاء تأكيد كلمة المرور' : 'إظهار تأكيد كلمة المرور'}
                     >
-                      <Text style={styles.eyeIcon}>{showRegConfirmPassword ? '👁️' : '🙈'}</Text>
+                      <AppIcon name={showRegConfirmPassword ? 'eye-off' : 'eye'} size={19} color={themeColors.onSurfaceVariant} />
                     </TouchableOpacity>
                     <TextInput
                       style={[styles.textInput, { textAlign: 'right' }]}
                       placeholder="إعادة إدخال كلمة المرور"
-                      placeholderTextColor="#6B7280"
+                      placeholderTextColor={themeColors.outline}
                       value={regConfirmPassword}
                       onChangeText={setRegConfirmPassword}
                       secureTextEntry={!showRegConfirmPassword}
+                      accessibilityLabel="تأكيد كلمة المرور"
                     />
-                    <Text style={styles.fieldIcon}>🔒</Text>
+                    <AppIcon name="lock" size={18} color={themeColors.onSurfaceVariant} />
                   </View>
                 </View>
 
                 {/* 5. Delivery Address Section */}
                 <View style={styles.addressSectionHeader}>
-                  <Text style={styles.addressHeaderTitle}>📍 عنوان التوصيل الأساسي</Text>
+                  <View style={styles.addressHeaderRow}>
+                    <AppIcon name="map-pin" size={17} color={themeColors.primary} />
+                    <Text style={styles.addressHeaderTitle}>عنوان التوصيل الأساسي</Text>
+                  </View>
                   <Text style={styles.addressHeaderSub}>
                     مطلوب لتحديد مسافة التوصيل وأقرب المتاجر بدقة
                   </Text>
@@ -700,9 +735,11 @@ export const AuthScreen: React.FC = () => {
                   ]}
                   onPress={() => setShowMapPicker(true)}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={isLocationPicked ? 'تعديل موقع التوصيل' : 'تحديد موقع التوصيل'}
                 >
                   <View style={[styles.mapPickerIconBox, isLocationPicked && styles.mapPickerIconBoxPicked]}>
-                    <Text style={styles.mapPickerIcon}>{isLocationPicked ? '📍' : '🗺️'}</Text>
+                    <AppIcon name={isLocationPicked ? 'map-pin' : 'map'} size={19} color={themeColors.primary} />
                   </View>
                   <View style={styles.mapPickerInfo}>
                     <Text style={styles.mapPickerTitle}>
@@ -715,13 +752,16 @@ export const AuthScreen: React.FC = () => {
                     </Text>
                   </View>
                   <View style={styles.mapPickerActionBadge}>
-                    <Text style={styles.mapPickerActionText}>{isLocationPicked ? 'تعديل ✎' : 'تحديد ➔'}</Text>
+                    <View style={styles.mapPickerActionRow}>
+                      <Text style={styles.mapPickerActionText}>{isLocationPicked ? 'تعديل' : 'تحديد'}</Text>
+                      <AppIcon name={isLocationPicked ? 'edit' : 'arrow-right'} size={13} color={themeColors.primary} />
+                    </View>
                   </View>
                 </TouchableOpacity>
 
                 {/* City & District in One Row */}
                 <Text style={styles.inputLabel}>محافظة السكن *</Text>
-                <TouchableOpacity style={styles.inputWrapper} onPress={() => setGovernoratePickerOpen(true)}>
+                <TouchableOpacity style={styles.inputWrapper} onPress={() => setGovernoratePickerOpen(true)} accessibilityRole="button" accessibilityLabel="اختيار المحافظة">
                   <Text style={[styles.textInput, { textAlign: 'right', paddingVertical: 12 }]}>{governorates.find((g) => g.id === governorateId)?.name || 'اختر المحافظة'}</Text>
                 </TouchableOpacity>
                 <View style={styles.row2}>
@@ -731,9 +771,10 @@ export const AuthScreen: React.FC = () => {
                       <TextInput
                         style={[styles.textInput, { textAlign: 'right' }]}
                         placeholder="المدينة (مثال: صنعاء، عدن، ...)"
-                        placeholderTextColor="#6B7280"
+                        placeholderTextColor={themeColors.outline}
                         value={regCity}
                         onChangeText={setRegCity}
+                        accessibilityLabel="المدينة"
                       />
                     </View>
                   </View>
@@ -743,9 +784,10 @@ export const AuthScreen: React.FC = () => {
                       <TextInput
                         style={[styles.textInput, { textAlign: 'right' }]}
                         placeholder="اسم الحي / المنطقة"
-                        placeholderTextColor="#6B7280"
+                        placeholderTextColor={themeColors.outline}
                         value={regDistrict}
                         onChangeText={setRegDistrict}
+                        accessibilityLabel="الحي أو المنطقة"
                       />
                     </View>
                   </View>
@@ -758,19 +800,24 @@ export const AuthScreen: React.FC = () => {
                     <TextInput
                       style={[styles.textInput, { textAlign: 'right' }]}
                       placeholder="الشارع، رقم المبنى، أو أقرب معلم"
-                      placeholderTextColor="#6B7280"
+                      placeholderTextColor={themeColors.outline}
                       value={regStreet}
                       onChangeText={setRegStreet}
+                      accessibilityLabel="الشارع وتفاصيل العنوان"
                     />
                   </View>
                 </View>
 
                 {/* 6. Terms & Conditions with Clickable Modal Trigger */}
                 <View style={styles.termsRow}>
-                  <TouchableOpacity
-                    style={[styles.checkbox, agreeTerms && styles.checkboxActive]}
-                    onPress={() => setAgreeTerms((prev) => !prev)}
-                    activeOpacity={0.8}
+                <TouchableOpacity
+                  style={[styles.checkbox, agreeTerms && styles.checkboxActive]}
+                  onPress={() => setAgreeTerms((prev) => !prev)}
+                  activeOpacity={0.8}
+                  hitSlop={12}
+                    accessibilityRole="checkbox"
+                    accessibilityLabel="أوافق على الشروط والأحكام وسياسة الخصوصية"
+                    accessibilityState={{ checked: agreeTerms }}
                   >
                     {agreeTerms && <Text style={styles.checkmark}>✓</Text>}
                   </TouchableOpacity>
@@ -780,6 +827,8 @@ export const AuthScreen: React.FC = () => {
                     <TouchableOpacity
                       onPress={() => setShowTermsModal(true)}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel="قراءة الشروط والأحكام وسياسة الخصوصية"
                     >
                       <Text style={styles.termsHighlightText}>
                         الشروط والأحكام وسياسة الخصوصية
@@ -794,10 +843,13 @@ export const AuthScreen: React.FC = () => {
                   onPress={handleRegister}
                   disabled={isLoading}
                   activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="إنشاء الحساب والبدء بالتسوق"
+                  accessibilityState={{ disabled: isLoading, busy: isLoading }}
                 >
                   {isLoading ? (
                     <View style={styles.btnRow}>
-                      <ActivityIndicator color="#111317" size="small" />
+                      <ActivityIndicator color={themeColors.onPrimary} size="small" />
                       <Text style={styles.primaryBtnText}>جاري إنشاء الحساب...</Text>
                     </View>
                   ) : (
@@ -832,10 +884,24 @@ export const AuthScreen: React.FC = () => {
         onConfirm={handleLocationPicked}
       />
       <Modal visible={governoratePickerOpen} transparent animationType="slide" onRequestClose={() => setGovernoratePickerOpen(false)}>
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#0009' }}><View style={{ maxHeight: '70%', backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18 }}>
-          <Text style={{ textAlign: 'right', fontSize: 18, fontWeight: '700', marginBottom: 12 }}>اختر المحافظة</Text>
-          <ScrollView>{governorates.map((g) => <TouchableOpacity key={g.id} style={{ padding: 14, borderBottomWidth: 1, borderColor: '#eee' }} onPress={() => { setGovernorateId(g.id); setRegCity(g.name); setGovernoratePickerOpen(false); }}><Text style={{ textAlign: 'right', fontSize: 16 }}>{g.name}</Text></TouchableOpacity>)}</ScrollView>
-        </View></View>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>اختر المحافظة</Text>
+            <ScrollView>
+              {governorates.map((g) => (
+                <TouchableOpacity
+                  key={g.id}
+                  style={styles.governorateOption}
+                  onPress={() => { setGovernorateId(g.id); setRegCity(g.name); setGovernoratePickerOpen(false); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={'اختيار محافظة ' + g.name}
+                >
+                  <Text style={styles.governorateOptionText}>{g.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
 
       {/* Interactive Terms & Conditions Modal */}
@@ -848,54 +914,54 @@ export const AuthScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0A0B0D',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 42 : 26,
-    paddingBottom: 48,
+    paddingTop: Platform.OS === 'ios' ? 24 : 18,
+    paddingBottom: 32,
   },
   heroSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 22,
   },
   logoAnchor: {
-    width: 252,
-    height: 236,
+    width: 204,
+    height: 188,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: 10,
     position: 'relative',
   },
   outerWaveRing: {
     position: 'absolute',
-    width: 224,
-    height: 224,
-    borderRadius: 112,
+    width: 174,
+    height: 174,
+    borderRadius: 87,
     borderWidth: 1,
-    borderColor: '#F59E9B35',
+    borderColor: colors.primaryFixedDim + '70',
   },
   auraRing: {
     position: 'absolute',
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    borderWidth: 2,
-    borderColor: '#F59E0B',
+    width: 148,
+    height: 148,
+    borderRadius: 74,
+    borderWidth: 1,
+    borderColor: colors.primary,
     backgroundColor: 'transparent',
-    shadowColor: '#F59E0B',
-    shadowOpacity: 0.45,
-    shadowRadius: 24,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
   },
   logoBadge: {
-    width: 164,
-    height: 164,
+    width: 124,
+    height: 124,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -905,51 +971,52 @@ const styles = StyleSheet.create({
   },
   orbitBadge: {
     position: 'absolute',
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.24,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  orbitTopRight: { top: 20, right: 22 },
-  orbitBottomRight: { bottom: 18, right: 30 },
-  orbitBottomLeft: { bottom: 18, left: 30 },
-  orbitTopLeft: { top: 20, left: 22 },
-  orbitIcon: { fontSize: 27 },
+  orbitTopRight: { top: 16, right: 20 },
+  orbitBottomRight: { bottom: 14, right: 28 },
+  orbitBottomLeft: { bottom: 14, left: 28 },
+  orbitTopLeft: { top: 16, left: 20 },
   brandTitle: {
     fontFamily: typography.fontFamily.extraBold,
-    fontSize: 28,
-    color: '#FFFFFF',
+    fontSize: 25,
+    color: colors.onSurface,
     textAlign: 'center',
-    lineHeight: 38,
+    lineHeight: 34,
   },
   brandSubtitle: {
     fontFamily: typography.fontFamily.medium,
-    fontSize: 16,
-    color: '#C4C9D2',
+    fontSize: 14,
+    color: colors.onSurfaceVariant,
     textAlign: 'center',
     marginTop: 7,
-    lineHeight: 24,
+    lineHeight: 22,
   },
   cardContainer: {
     width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
   },
   formCard: {
-    backgroundColor: '#181A1E',
-    borderRadius: 24,
-    padding: 22,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: 22,
+    padding: 18,
     borderWidth: 1,
-    borderColor: '#262A32',
+    borderColor: colors.outlineVariant,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardHeader: {
     alignItems: 'flex-end',
@@ -958,13 +1025,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 20,
-    color: '#F9FAFB',
+    color: colors.onSurface,
     textAlign: 'right',
   },
   cardSubtitle: {
     fontFamily: typography.fontFamily.regular,
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 4,
   },
@@ -980,97 +1047,91 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 14,
-    color: '#E5E7EB',
+    color: colors.onSurface,
     textAlign: 'right',
     marginBottom: 6,
   },
   forgotPassLink: {
     fontFamily: typography.fontFamily.medium,
     fontSize: 11.5,
-    color: '#F59E0B',
+    color: colors.primary,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1F232B',
+    backgroundColor: colors.surfaceContainerLow,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: '#2D323E',
+    borderColor: colors.outlineVariant,
     paddingHorizontal: 12,
-    height: 50,
+    minHeight: 52,
+    height: 52,
   },
   textInput: {
     flex: 1,
     fontFamily: typography.fontFamily.medium,
     fontSize: 16,
-    color: '#F9FAFB',
+    color: colors.onSurface,
     height: '100%',
   },
   countryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#2A2F3A',
+    backgroundColor: colors.primaryContainer,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: borderRadius.sm,
     marginLeft: 8,
   },
-  flagEmoji: {
-    fontSize: 14,
-  },
   countryCode: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 12,
-    color: '#E5E7EB',
-  },
-  fieldIcon: {
-    fontSize: 15,
-    marginLeft: 8,
+    color: colors.onPrimaryContainer,
   },
   eyeBtn: {
-    padding: 6,
-  },
-  eyeIcon: {
-    fontSize: 16,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryActionBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.xl,
-    paddingVertical: 14,
+    minHeight: 50,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   primaryBtnText: {
     fontFamily: typography.fontFamily.bold,
-    fontSize: 17,
-    color: '#111317',
+    fontSize: 16,
+    color: colors.onPrimary,
   },
   btnRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
   },
   registerUnderneathBtn: {
-    backgroundColor: '#262A32',
+    backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
-    paddingVertical: 13,
+    minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#363D47',
+    borderColor: colors.outlineVariant,
   },
   registerUnderneathText: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 14,
-    color: '#F59E0B',
+    color: colors.primary,
   },
   dividerRow: {
     flexDirection: 'row',
@@ -1080,22 +1141,23 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#262A32',
+    backgroundColor: colors.outlineVariant,
   },
   dividerText: {
     fontFamily: typography.fontFamily.medium,
     fontSize: 11,
-    color: '#6B7280',
+    color: colors.outline,
     marginHorizontal: 10,
   },
   guestLinkBtn: {
     alignItems: 'center',
-    paddingVertical: 4,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   guestLinkText: {
     fontFamily: typography.fontFamily.medium,
     fontSize: 12.5,
-    color: '#9CA3AF',
+    color: colors.onSurfaceVariant,
   },
   backRowBtn: {
     flexDirection: 'row-reverse',
@@ -1103,23 +1165,19 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 12,
     alignSelf: 'flex-end',
-  },
-  backRowIcon: {
-    color: '#F59E0B',
-    fontSize: 14,
-    fontWeight: 'bold',
+    minHeight: 44,
   },
   backRowText: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 12,
-    color: '#F59E0B',
+    color: colors.primary,
   },
   phoneVerifiedBanner: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    backgroundColor: '#1F2722',
+    backgroundColor: colors.primaryContainer,
     borderWidth: 1,
-    borderColor: '#10B981' + '40',
+    borderColor: colors.success + '40',
     borderRadius: borderRadius.lg,
     padding: 10,
     marginBottom: 16,
@@ -1129,24 +1187,24 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
   phoneCheckIcon: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: 'bold',
   },
   phoneVerifiedSub: {
     fontFamily: typography.fontFamily.regular,
     fontSize: 10.5,
-    color: '#9CA3AF',
+    color: colors.onSurfaceVariant,
   },
   phoneVerifiedNumber: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 13,
-    color: '#10B981',
+    color: colors.success,
     letterSpacing: 1,
   },
   checkboxRow: {
@@ -1161,24 +1219,24 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 5,
     borderWidth: 1.5,
-    borderColor: '#6B7280',
+    borderColor: colors.outline,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1F232B',
+    backgroundColor: colors.surfaceContainerLow,
   },
   checkboxActive: {
-    backgroundColor: '#F59E0B',
-    borderColor: '#F59E0B',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   checkmark: {
-    color: '#111317',
+    color: colors.onPrimary,
     fontSize: 12,
     fontWeight: 'bold',
   },
   checkboxLabel: {
     fontFamily: typography.fontFamily.regular,
     fontSize: 12,
-    color: '#D1D5DB',
+    color: colors.onSurfaceVariant,
   },
   switchRow: {
     flexDirection: 'row-reverse',
@@ -1190,12 +1248,12 @@ const styles = StyleSheet.create({
   switchText: {
     fontFamily: typography.fontFamily.regular,
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.onSurfaceVariant,
   },
   switchLink: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 12,
-    color: '#F59E0B',
+    color: colors.primary,
   },
   addressSectionHeader: {
     alignItems: 'flex-end',
@@ -1203,51 +1261,54 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#262A32',
+    borderTopColor: colors.outlineVariant,
   },
   addressHeaderTitle: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 13.5,
-    color: '#F59E0B',
+    color: colors.primary,
     textAlign: 'right',
+  },
+  addressHeaderRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
   },
   addressHeaderSub: {
     fontFamily: typography.fontFamily.regular,
     fontSize: 11,
-    color: '#9CA3AF',
+    color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 2,
   },
   mapPickerCard: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    backgroundColor: '#1F232B',
+    backgroundColor: colors.surfaceContainerLow,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#F59E0B' + '70',
+    borderColor: colors.primary + '70',
     borderRadius: borderRadius.lg,
     padding: 10,
+    minHeight: 68,
     marginBottom: 12,
     gap: 10,
   },
   mapPickerCardPicked: {
     borderStyle: 'solid',
-    borderColor: '#10B981',
-    backgroundColor: '#1A2722',
+    borderColor: colors.success,
+    backgroundColor: colors.primaryContainer,
   },
   mapPickerIconBox: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: borderRadius.md,
-    backgroundColor: '#2A2F3A',
+    backgroundColor: colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
   },
   mapPickerIconBoxPicked: {
-    backgroundColor: '#10B981' + '30',
-  },
-  mapPickerIcon: {
-    fontSize: 18,
+    backgroundColor: colors.primaryFixedDim,
   },
   mapPickerInfo: {
     flex: 1,
@@ -1256,26 +1317,33 @@ const styles = StyleSheet.create({
   mapPickerTitle: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 12,
-    color: '#F9FAFB',
+    color: colors.onSurface,
     textAlign: 'right',
   },
   mapPickerDesc: {
     fontFamily: typography.fontFamily.regular,
     fontSize: 10.5,
-    color: '#9CA3AF',
+    color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 2,
   },
   mapPickerActionBadge: {
-    backgroundColor: '#2A2F3A',
+    backgroundColor: colors.surfaceContainerHigh,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: borderRadius.sm,
+    minHeight: 34,
+    justifyContent: 'center',
+  },
+  mapPickerActionRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 3,
   },
   mapPickerActionText: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 10.5,
-    color: '#F59E0B',
+    color: colors.primary,
   },
   row2: {
     flexDirection: 'row-reverse',
@@ -1300,12 +1368,44 @@ const styles = StyleSheet.create({
   termsNormalText: {
     fontFamily: typography.fontFamily.regular,
     fontSize: 12,
-    color: '#D1D5DB',
+    color: colors.onSurfaceVariant,
   },
   termsHighlightText: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 12,
-    color: '#F59E0B',
+    color: colors.primary,
     textDecorationLine: 'underline',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(10, 24, 17, 0.48)',
+  },
+  modalCard: {
+    maxHeight: '70%',
+    backgroundColor: colors.surfaceContainerLowest,
+    borderTopLeftRadius: borderRadius.xxl,
+    borderTopRightRadius: borderRadius.xxl,
+    padding: spacing.baseMd,
+    paddingBottom: 24,
+  },
+  modalTitle: {
+    fontFamily: typography.fontFamily.bold,
+    textAlign: 'right',
+    fontSize: typography.fontSize.lg,
+    color: colors.onSurface,
+    marginBottom: spacing.baseSm,
+  },
+  governorateOption: {
+    minHeight: 48,
+    justifyContent: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.outlineVariant,
+  },
+  governorateOptionText: {
+    textAlign: 'right',
+    fontFamily: typography.fontFamily.medium,
+    fontSize: typography.fontSize.md,
+    color: colors.onSurface,
   },
 });

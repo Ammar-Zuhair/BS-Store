@@ -13,6 +13,7 @@ import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { Product, BundlePiece } from '../types';
 import { ProductDetailsModal } from '../components/ProductDetailsModal';
+import { AppIcon } from '../components/AppIcon';
 
 export const StoreDetailScreen: React.FC = () => {
   const {
@@ -133,15 +134,18 @@ export const StoreDetailScreen: React.FC = () => {
           <CachedImage source={{ uri: store.imageUrl }} style={styles.storeCover} resizeMode="contain" />
           <View style={styles.storeCardContent}>
             <View style={styles.storeTitleRow}>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>
+              <View style={[styles.statusBadge, !store.isOpen && styles.statusBadgeClosed]}>
+                <Text style={[styles.statusText, !store.isOpen && styles.statusTextClosed]}>
                   {store.isOpen ? 'مفتوح للطلبات' : 'مغلق'}
                 </Text>
               </View>
               <Text style={styles.storeName}>{store.name}</Text>
             </View>
 
-            <Text style={styles.storeAddress}>📍 {store.address}</Text>
+            <View style={styles.storeAddressRow}>
+              <Text style={styles.storeAddress}>{store.address}</Text>
+              <AppIcon name="map-pin" size={15} color={themeColors.outline} />
+            </View>
 
           </View>
         </View>
@@ -187,7 +191,9 @@ export const StoreDetailScreen: React.FC = () => {
 
           {filteredProducts.length === 0 ? (
             <View style={styles.emptyProductsCard}>
-              <Text style={styles.emptyProductsIcon}>🍽️</Text>
+              <View style={styles.emptyProductsIconWrap}>
+                <AppIcon name="soup" size={27} color={themeColors.primary} />
+              </View>
               <Text style={styles.emptyProductsTitle}>لا توجد منتجات مسجلة في هذا القسم</Text>
               <Text style={styles.emptyProductsSubtitle}>
                 اختر قسم "الكل" أو تصفح باقي أقسام المتجر
@@ -234,9 +240,8 @@ export const StoreDetailScreen: React.FC = () => {
                     <View style={styles.productInfo}>
                       {isBundle && (
                         <View style={styles.bundleTag}>
-                          <Text style={styles.bundleTagText}>
-                            ✨ طقم متكامل (انقر للتفاصيل والتجزئة)
-                          </Text>
+                          <AppIcon name="sparkles" size={14} color={themeColors.primary} />
+                          <Text style={styles.bundleTagText}>طقم متكامل (انقر للتفاصيل والتجزئة)</Text>
                         </View>
                       )}
                       <Text style={styles.productName}>{product.name}</Text>
@@ -275,15 +280,19 @@ export const StoreDetailScreen: React.FC = () => {
                           <TouchableOpacity
                             style={styles.stepBtn}
                             onPress={() => updateQuantity(product.id, quantity + 1)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`زيادة كمية ${product.name}`}
                           >
-                            <Text style={styles.stepBtnText}>+</Text>
+                            <AppIcon name="plus" size={16} color={themeColors.primary} />
                           </TouchableOpacity>
                           <Text style={styles.stepQty}>{quantity}</Text>
                           <TouchableOpacity
                             style={styles.stepBtn}
                             onPress={() => updateQuantity(product.id, quantity - 1)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`تقليل كمية ${product.name}`}
                           >
-                            <Text style={styles.stepBtnText}>-</Text>
+                            <AppIcon name="minus" size={16} color={themeColors.primary} />
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -292,9 +301,12 @@ export const StoreDetailScreen: React.FC = () => {
                         style={styles.simpleAddBtn}
                         onPress={() => addToCart(product, 1)}
                         activeOpacity={0.85}
+                        accessibilityRole="button"
+                        accessibilityLabel={`إضافة ${product.name} إلى السلة`}
                       >
+                        <AppIcon name="plus" size={16} color={themeColors.onPrimary} />
                         <Text style={styles.simpleAddBtnText}>
-                          + إضافة للسلة ({price.toLocaleString()} ر.ي)
+                          إضافة للسلة ({price.toLocaleString()} ر.ي)
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -326,8 +338,10 @@ export const StoreDetailScreen: React.FC = () => {
                 <TouchableOpacity
                   style={styles.modalCloseBtn}
                   onPress={() => setSelectedBundleProduct(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="إغلاق تفاصيل الطقم"
                 >
-                  <Text style={styles.modalCloseIcon}>✕</Text>
+                  <AppIcon name="close" size={17} color={themeColors.onSurface} />
                 </TouchableOpacity>
                 <View style={styles.modalTitleWrap}>
                   <Text style={styles.modalHeaderTitle}>تفاصيل ومكونات الطقم</Text>
@@ -396,8 +410,10 @@ export const StoreDetailScreen: React.FC = () => {
                                   fullBundleQty + 1
                                 )
                               }
+                              accessibilityRole="button"
+                              accessibilityLabel="زيادة كمية الطقم"
                             >
-                              <Text style={styles.stepBtnText}>+</Text>
+                                <AppIcon name="plus" size={16} color={themeColors.primary} />
                             </TouchableOpacity>
                             <Text style={styles.stepQty}>{fullBundleQty}</Text>
                             <TouchableOpacity
@@ -408,8 +424,10 @@ export const StoreDetailScreen: React.FC = () => {
                                   fullBundleQty - 1
                                 )
                               }
+                              accessibilityRole="button"
+                              accessibilityLabel="تقليل كمية الطقم"
                             >
-                              <Text style={styles.stepBtnText}>-</Text>
+                                <AppIcon name="minus" size={16} color={themeColors.primary} />
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -421,9 +439,12 @@ export const StoreDetailScreen: React.FC = () => {
                         style={styles.fullBundleOrderBtn}
                         activeOpacity={0.88}
                         onPress={() => addToCart(selectedBundleProduct, 1)}
+                        accessibilityRole="button"
+                        accessibilityLabel={selectedBundleProduct.isBundle ? 'إضافة الطقم كاملاً إلى السلة' : 'إضافة المنتج إلى السلة'}
                       >
+                        <AppIcon name="shopping-bag" size={16} color={themeColors.onPrimary} />
                         <Text style={styles.fullBundleOrderBtnText}>
-                          {selectedBundleProduct.isBundle ? '+ إضافة الباقة كاملة إلى السلة 🛍️' : '+ إضافة المنتج إلى السلة 🛍️'}
+                          {selectedBundleProduct.isBundle ? 'إضافة الباقة كاملة إلى السلة' : 'إضافة المنتج إلى السلة'}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -468,8 +489,10 @@ export const StoreDetailScreen: React.FC = () => {
                                 onPress={() =>
                                   updateQuantity(pieceItemKey, pieceQty + 1)
                                 }
+                                accessibilityRole="button"
+                                accessibilityLabel={`زيادة كمية ${piece.name}`}
                               >
-                                <Text style={styles.stepBtnText}>+</Text>
+                                <AppIcon name="plus" size={16} color={themeColors.primary} />
                               </TouchableOpacity>
                               <Text style={styles.stepQty}>{pieceQty}</Text>
                               <TouchableOpacity
@@ -477,8 +500,10 @@ export const StoreDetailScreen: React.FC = () => {
                                 onPress={() =>
                                   updateQuantity(pieceItemKey, pieceQty - 1)
                                 }
+                                accessibilityRole="button"
+                                accessibilityLabel={`تقليل كمية ${piece.name}`}
                               >
-                                <Text style={styles.stepBtnText}>-</Text>
+                                <AppIcon name="minus" size={16} color={themeColors.primary} />
                               </TouchableOpacity>
                             </View>
                           ) : (
@@ -492,7 +517,10 @@ export const StoreDetailScreen: React.FC = () => {
                                   1
                                 )
                               }
+                              accessibilityRole="button"
+                              accessibilityLabel={`طلب ${piece.name}`}
                             >
+                              <AppIcon name="plus" size={14} color={themeColors.primary} />
                               <Text style={styles.pieceAddButtonText}>
                                 + طلب القطعة
                               </Text>
@@ -571,7 +599,10 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.full,
+  },
+  statusBadgeClosed: {
+    backgroundColor: colors.surfaceContainerHigh,
   },
   statusText: {
     fontFamily: typography.fontFamily.bold,
@@ -579,11 +610,20 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.onPrimary,
     fontWeight: typography.fontWeight.bold,
   },
+  statusTextClosed: {
+    color: colors.onSurfaceVariant,
+  },
   storeAddress: {
     fontFamily: typography.fontFamily.medium,
     fontSize: 11,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
+    marginBottom: 6,
+  },
+  storeAddressRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    gap: 5,
     marginBottom: 6,
   },
   storeMetaRow: {
@@ -716,6 +756,9 @@ const createStyles = (colors: ThemeColors) =>
     paddingVertical: 2,
     borderRadius: borderRadius.sm,
     marginBottom: 4,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
   },
   bundleTagText: {
     fontFamily: typography.fontFamily.bold,
@@ -800,18 +843,12 @@ const createStyles = (colors: ThemeColors) =>
     borderColor: colors.outlineVariant + '40',
   },
   stepBtn: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.sm,
-  },
-  stepBtnText: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 17,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
   },
   stepQty: {
     fontFamily: typography.fontFamily.bold,
@@ -824,7 +861,11 @@ const createStyles = (colors: ThemeColors) =>
   simpleAddBtn: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.lg,
+    minHeight: 48,
     paddingVertical: 10,
+    paddingHorizontal: spacing.baseSm,
+    flexDirection: 'row-reverse',
+    gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -857,17 +898,12 @@ const createStyles = (colors: ThemeColors) =>
     borderBottomColor: colors.outlineVariant + '25',
   },
   modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.full,
     backgroundColor: colors.surfaceContainerLow,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  modalCloseIcon: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.onSurface,
   },
   modalTitleWrap: {
     alignItems: 'flex-end',
@@ -940,7 +976,10 @@ const createStyles = (colors: ThemeColors) =>
   fullBundleOrderBtn: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
+    minHeight: 48,
     paddingVertical: 10,
+    flexDirection: 'row-reverse',
+    gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1021,9 +1060,14 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: colors.surfaceContainerHigh,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    minHeight: 44,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.outlineVariant + '35',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
   pieceAddButtonText: {
     fontFamily: typography.fontFamily.bold,
@@ -1055,9 +1099,14 @@ const createStyles = (colors: ThemeColors) =>
     borderColor: colors.outlineVariant + '30',
     marginTop: 8,
   },
-  emptyProductsIcon: {
-    fontSize: 40,
-    marginBottom: 8,
+  emptyProductsIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.baseSm,
   },
   emptyProductsTitle: {
     fontFamily: typography.fontFamily.bold,

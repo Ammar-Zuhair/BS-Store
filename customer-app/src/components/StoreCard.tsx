@@ -4,6 +4,7 @@ import { CachedImage } from './CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Store } from '../types';
 import { useApp } from '../context/AppContext';
+import { AppIcon } from './AppIcon';
 
 interface StoreCardProps {
   store: Store;
@@ -18,22 +19,37 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
       style={styles.card}
       onPress={onPress}
       activeOpacity={0.88}
+      accessibilityRole="button"
+      accessibilityLabel={'فتح متجر ' + store.name + (store.isOpen ? '، مفتوح' : '، مغلق')}
     >
       <View style={styles.imageContainer}>
         <CachedImage source={{ uri: store.imageUrl }} style={styles.image} />
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>{store.isOpen ? 'مفتوح' : 'مغلق'}</Text>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: store.isOpen ? themeColors.success : themeColors.surfaceContainerHigh },
+          ]}
+        >
+          <Text
+            style={[
+              styles.statusText,
+              { color: store.isOpen ? '#FFFFFF' : themeColors.onSurfaceVariant },
+            ]}
+          >
+            {store.isOpen ? 'مفتوح' : 'مغلق'}
+          </Text>
         </View>
       </View>
 
       <View style={styles.content}>
         <View style={styles.headerRow}>
-          <Text style={styles.name}>{store.name}</Text>
+          <Text style={styles.name} numberOfLines={1}>{store.name}</Text>
         </View>
 
-        <Text style={styles.address} numberOfLines={1}>
-          {store.address}
-        </Text>
+        <View style={styles.addressRow}>
+          <AppIcon name="map-pin" size={14} color={themeColors.onSurfaceVariant} />
+          <Text style={styles.address} numberOfLines={2}>{store.address}</Text>
+        </View>
 
       </View>
     </TouchableOpacity>
@@ -44,17 +60,17 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
   card: {
     flexDirection: 'row-reverse',
-    minHeight: 124,
+    minHeight: 128,
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
     overflow: 'hidden',
     marginBottom: spacing.baseMd,
     borderWidth: 1,
-    borderColor: colors.outlineVariant + '30',
+    borderColor: colors.outlineVariant,
     ...shadows.card,
   },
   imageContainer: {
-    height: 124,
+    height: 128,
     width: 118,
     flexShrink: 0,
     position: 'relative',
@@ -68,7 +84,7 @@ const createStyles = (colors: ThemeColors) =>
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.success,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: borderRadius.sm,
@@ -76,7 +92,7 @@ const createStyles = (colors: ThemeColors) =>
   statusText: {
     fontSize: 10,
     fontWeight: typography.fontWeight.bold,
-    color: colors.onPrimary,
+    color: '#FFFFFF',
   },
   etaBadge: {
     position: 'absolute',
@@ -102,6 +118,8 @@ const createStyles = (colors: ThemeColors) =>
     padding: spacing.baseSm,
     flex: 1,
     justifyContent: 'center',
+    minWidth: 0,
+    gap: 5,
   },
   headerRow: {
     flexDirection: 'row-reverse',
@@ -118,6 +136,11 @@ const createStyles = (colors: ThemeColors) =>
     fontSize: typography.fontSize.xs,
     color: colors.onSurfaceVariant,
     textAlign: 'right',
-    marginTop: 2,
+    flex: 1,
+  },
+  addressRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    gap: 5,
   },
 });

@@ -4,6 +4,7 @@ import { CachedImage } from './CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { DealDetailsModal, DealItem } from './DealDetailsModal';
+import { AppIcon } from './AppIcon';
 
 export const initialDeals: DealItem[] = [];
 
@@ -133,10 +134,25 @@ export const OffersDealsSection: React.FC = () => {
                 <Text style={styles.cardBadgeText}>{deal.badge}</Text>
               </View>
 
-              {/* Countdown Tag on Top Left */}
-              <View style={styles.dealExpiryBadge}>
-                <Text style={styles.dealExpiryText}>
-                  {remSeconds > 0 ? `⏳ ${formatCountdown(remSeconds)}` : '⚠️ منتهي'}
+             {/* Countdown Tag on Top Left */}
+              <View
+                style={[
+                  styles.dealExpiryBadge,
+                  remSeconds <= 0 && { backgroundColor: themeColors.errorContainer },
+                ]}
+              >
+                <AppIcon
+                  name={remSeconds > 0 ? 'clock' : 'alert'}
+                  size={13}
+                  color={remSeconds > 0 ? themeColors.onSurfaceVariant : themeColors.error}
+                />
+                <Text
+                  style={[
+                    styles.dealExpiryText,
+                    remSeconds <= 0 && { color: themeColors.error },
+                  ]}
+                >
+                  {remSeconds > 0 ? formatCountdown(remSeconds) : 'منتهي'}
                 </Text>
               </View>
 
@@ -145,9 +161,10 @@ export const OffersDealsSection: React.FC = () => {
 
               <View style={styles.cardContent}>
                 <View style={styles.dealHeaderRow}>
-                  <Text style={styles.storeNameText} numberOfLines={1}>
-                    📍 {deal.storeName}
-                  </Text>
+                  <View style={styles.storeNameRow}>
+                    <AppIcon name='map-pin' size={13} color={themeColors.onSurfaceVariant} />
+                    <Text style={styles.storeNameText} numberOfLines={1}>{deal.storeName}</Text>
+                  </View>
                   {deal.couponCode ? (
                     <View style={styles.couponTag}>
                       <Text style={styles.couponTagText}>كود: {deal.couponCode}</Text>
@@ -177,23 +194,27 @@ export const OffersDealsSection: React.FC = () => {
                   {qty > 0 ? (
                     <View style={styles.stepperWrap}>
                       <TouchableOpacity
-                        style={styles.stepBtn}
-                        onPress={() => updateQuantity(deal.id, qty + 1)}
-                      >
-                        <Text style={styles.stepBtnText}>+</Text>
+                       style={styles.stepBtn}
+                       onPress={() => updateQuantity(deal.id, qty + 1)}
+                        accessibilityRole='button'
+                        accessibilityLabel={'زيادة كمية ' + deal.title}
+                     >
+                        <AppIcon name='plus' size={16} color={themeColors.primary} />
                       </TouchableOpacity>
                       <Text style={styles.stepQtyText}>{qty}</Text>
                       <TouchableOpacity
                         style={styles.stepBtn}
-                        onPress={() => {
-                          if (qty === 1) {
-                            removeFromCart(deal.id);
-                          } else {
-                            updateQuantity(deal.id, qty - 1);
-                          }
-                        }}
-                      >
-                        <Text style={styles.stepBtnText}>-</Text>
+                       onPress={() => {
+                         if (qty === 1) {
+                           removeFromCart(deal.id);
+                         } else {
+                           updateQuantity(deal.id, qty - 1);
+                         }
+                       }}
+                        accessibilityRole='button'
+                        accessibilityLabel={'تقليل كمية ' + deal.title}
+                     >
+                        <AppIcon name='minus' size={16} color={themeColors.primary} />
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -205,8 +226,10 @@ export const OffersDealsSection: React.FC = () => {
                         } else {
                           handleQuickAdd(deal);
                         }
-                      }}
-                      activeOpacity={0.85}
+                     }}
+                     activeOpacity={0.85}
+                      accessibilityRole='button'
+                      accessibilityLabel={'فتح العرض ' + deal.title}
                     >
                       <Text style={styles.actionBtnText}>
                         {deal.dealType === 'DELIVERY_DISCOUNT' ? 'تفعيل الخصم' : (deal.products.length > 0 ? 'عرض الباقة ➔' : (deal.couponCode ? 'تفعيل الكود' : '+ إضافة'))}
@@ -320,7 +343,7 @@ const createStyles = (colors: ThemeColors) =>
     fontSize: 10,
     color: colors.onPrimary,
   },
-  dealExpiryBadge: {
+ dealExpiryBadge: {
     position: 'absolute',
     top: 10,
     left: 10,
@@ -329,8 +352,11 @@ const createStyles = (colors: ThemeColors) =>
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant + '60',
+   borderWidth: 1,
+   borderColor: colors.outlineVariant + '60',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
   },
   dealExpiryText: {
     fontFamily: typography.fontFamily.bold,
@@ -362,11 +388,17 @@ const createStyles = (colors: ThemeColors) =>
     fontSize: 10,
     color: colors.secondary,
   },
-  storeNameText: {
+ storeNameText: {
     fontFamily: typography.fontFamily.bold,
     fontSize: typography.fontSize.xs,
     color: colors.secondary,
-    textAlign: 'right',
+   textAlign: 'right',
+ },
+  storeNameRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
   },
   dealTitleText: {
     fontFamily: typography.fontFamily.bold,
@@ -406,11 +438,13 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.outline,
     textDecorationLine: 'line-through',
   },
-  actionBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: borderRadius.md,
+ actionBtn: {
+   backgroundColor: colors.primary,
+   paddingHorizontal: 12,
+    minHeight: 42,
+   borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionBtnText: {
     fontFamily: typography.fontFamily.bold,
@@ -428,14 +462,11 @@ const createStyles = (colors: ThemeColors) =>
     paddingVertical: 2,
     gap: 8,
   },
-  stepBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  stepBtnText: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 16,
-    color: colors.primary,
+ stepBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stepQtyText: {
     fontFamily: typography.fontFamily.bold,

@@ -11,6 +11,7 @@ import { CachedImage } from './CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { Product, BundlePiece } from '../types';
+import { AppIcon } from './AppIcon';
 
 export interface DealItem {
   id: string;
@@ -117,12 +118,21 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
         <View style={styles.sheet}>
           {/* Header Bar */}
           <View style={styles.header}>
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-              <Text style={styles.closeBtnText}>✕</Text>
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={onClose}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="إغلاق تفاصيل العرض"
+            >
+              <AppIcon name="close" size={19} color={themeColors.onSurface} />
             </TouchableOpacity>
             <View style={styles.headerInfo}>
               <Text style={styles.headerTitle}>{deal.title}</Text>
-              <Text style={styles.storeNameText}>📍 {deal.storeName}</Text>
+              <View style={styles.storeNameRow}>
+                <AppIcon name="map-pin" size={14} color={themeColors.onSurfaceVariant} />
+                <Text style={styles.storeNameText}>{deal.storeName}</Text>
+              </View>
             </View>
           </View>
 
@@ -181,8 +191,10 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
                             <TouchableOpacity
                               style={styles.stepBtn}
                               onPress={() => updateQuantity(cartItem!.product.id, qty + 1)}
+                              accessibilityRole="button"
+                              accessibilityLabel={`زيادة كمية ${item.name}`}
                             >
-                              <Text style={styles.stepBtnText}>+</Text>
+                              <AppIcon name="plus" size={16} color={themeColors.primary} />
                             </TouchableOpacity>
                             <Text style={styles.stepQtyText}>{qty}</Text>
                             <TouchableOpacity
@@ -194,8 +206,10 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
                                   updateQuantity(cartItem!.product.id, qty - 1);
                                 }
                               }}
+                              accessibilityRole="button"
+                              accessibilityLabel={`تقليل كمية ${item.name}`}
                             >
-                              <Text style={styles.stepBtnText}>-</Text>
+                              <AppIcon name="minus" size={16} color={themeColors.primary} />
                             </TouchableOpacity>
                           </View>
                         ) : (
@@ -203,8 +217,11 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
                             style={styles.addPieceBtn}
                             onPress={() => handleAddPiece(item)}
                             activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`إضافة ${item.name} إلى السلة`}
                           >
-                            <Text style={styles.addPieceBtnText}>+ إضافة للقطعة</Text>
+                            <AppIcon name="plus" size={14} color={themeColors.onSecondary} />
+                            <Text style={styles.addPieceBtnText}>إضافة القطعة</Text>
                           </TouchableOpacity>
                         )}
                         <Text style={styles.itemPriceText}>
@@ -258,8 +275,11 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
               style={styles.addDealBtn}
               onPress={handleAddWholeDeal}
               activeOpacity={0.88}
+              accessibilityRole="button"
+              accessibilityLabel="إضافة العرض بالكامل إلى السلة"
             >
-              <Text style={styles.addDealBtnText}>إضافة العرض بالكامل إلى السلة 🛍️</Text>
+              <AppIcon name="shopping-bag" size={18} color={themeColors.onPrimary} />
+              <Text style={styles.addDealBtnText}>إضافة العرض بالكامل إلى السلة</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -307,18 +327,19 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.secondary,
     marginTop: 2,
   },
+  storeNameRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 4,
+  },
   closeBtn: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: borderRadius.full,
     backgroundColor: colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  closeBtnText: {
-    fontSize: 16,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.onSurfaceVariant,
   },
   scroll: {
     paddingHorizontal: spacing.screenGutter,
@@ -449,9 +470,13 @@ const createStyles = (colors: ThemeColors) =>
   },
   addPieceBtn: {
     backgroundColor: colors.secondary,
+    minHeight: 44,
     paddingHorizontal: 10,
-    paddingVertical: 5,
     borderRadius: borderRadius.md,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
   addPieceBtnText: {
     fontFamily: typography.fontFamily.bold,
@@ -467,16 +492,13 @@ const createStyles = (colors: ThemeColors) =>
     borderColor: colors.primary,
     paddingHorizontal: 4,
     paddingVertical: 2,
-    gap: 6,
+    gap: 4,
   },
   stepBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  stepBtnText: {
-    fontSize: 16,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.primary,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stepQtyText: {
     fontFamily: typography.fontFamily.bold,
@@ -528,10 +550,13 @@ const createStyles = (colors: ThemeColors) =>
   },
   addDealBtn: {
     backgroundColor: colors.primary,
-    paddingVertical: 14,
+    minHeight: 52,
+    paddingVertical: 12,
     borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row-reverse',
+    gap: spacing.baseSm,
     ...shadows.card,
   },
   addDealBtnText: {

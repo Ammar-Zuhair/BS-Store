@@ -121,8 +121,7 @@ const MainNavigator: React.FC = () => {
       style={[
         styles.safeArea,
         {
-          backgroundColor:
-            currentScreen === 'auth' ? '#0A0B0D' : themeColors.surfaceContainerLowest,
+          backgroundColor: themeColors.surfaceContainerLowest,
         },
       ]}
       edges={['top', 'left', 'right']}
@@ -132,13 +131,12 @@ const MainNavigator: React.FC = () => {
         style={[
           styles.appContainer,
           {
-            backgroundColor:
-              currentScreen === 'auth' ? '#0A0B0D' : themeColors.background,
+            backgroundColor: themeColors.background,
           },
         ]}
       >
         <StatusBar
-          barStyle={isDarkMode || currentScreen === 'auth' ? 'light-content' : 'dark-content'}
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
           backgroundColor="transparent"
           translucent={true}
           hidden={false}

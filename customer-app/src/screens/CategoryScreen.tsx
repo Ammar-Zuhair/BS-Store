@@ -5,6 +5,7 @@ import { Header } from '../components/Header';
 import { CategoryPills } from '../components/CategoryPills';
 import { ProductCard } from '../components/ProductCard';
 import { ProductDetailsModal } from '../components/ProductDetailsModal';
+import { AppIcon } from '../components/AppIcon';
 import { useApp } from '../context/AppContext';
 import { Product } from '../types';
 
@@ -105,7 +106,9 @@ export const CategoryScreen: React.FC = () => {
 
           {filteredProducts.length === 0 && (
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyIcon}>🔍</Text>
+              <View style={styles.emptyIconWrap}>
+                <AppIcon name="search" size={26} color={themeColors.primary} />
+              </View>
               <Text style={styles.emptyTitle}>لا توجد أصناف مطابقة لهذا التصنيف</Text>
               <Text style={styles.emptySubtitle}>
                 جرب اختيار تصنيف آخر أو تصفح جميع المتاجر
@@ -196,8 +199,13 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       paddingVertical: 40,
     },
-    emptyIcon: {
-      fontSize: 36,
+    emptyIconWrap: {
+      width: 60,
+      height: 60,
+      borderRadius: borderRadius.full,
+      backgroundColor: colors.primaryContainer,
+      alignItems: 'center',
+      justifyContent: 'center',
       marginBottom: spacing.baseXs,
     },
     emptyTitle: {

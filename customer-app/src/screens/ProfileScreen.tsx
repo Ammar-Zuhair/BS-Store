@@ -14,6 +14,7 @@ import { typography, spacing, borderRadius, shadows, ThemeColors } from '../them
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { governorateApi } from '../api';
+import { AppIcon } from '../components/AppIcon';
 
 export const ProfileScreen: React.FC = () => {
   const {
@@ -79,7 +80,7 @@ export const ProfileScreen: React.FC = () => {
         {!isAuthenticated ? (
           <View style={styles.guestCard}>
             <View style={styles.avatarIconWrap}>
-              <Text style={styles.avatarIconText}>👋</Text>
+              <AppIcon name="sparkles" size={23} color={themeColors.primary} />
             </View>
             <View style={styles.guestInfo}>
               <Text style={styles.guestTitle}>أهلاً بك في متجر بي اس</Text>
@@ -90,15 +91,18 @@ export const ProfileScreen: React.FC = () => {
                 style={styles.loginBtn}
                 onPress={() => navigateTo('auth')}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="تسجيل الدخول أو إنشاء حساب"
               >
-                <Text style={styles.loginBtnText}>تسجيل الدخول / إنشاء حساب ➔</Text>
+                <AppIcon name="arrow-right" size={16} color={themeColors.onPrimary} />
+                <Text style={styles.loginBtnText}>تسجيل الدخول / إنشاء حساب</Text>
               </TouchableOpacity>
             </View>
           </View>
         ) : (
           <View style={styles.userCard}>
             <View style={styles.avatarIconWrap}>
-              <Text style={styles.avatarIconText}>👤</Text>
+              <AppIcon name="user" size={22} color={themeColors.primary} />
             </View>
             <View style={styles.userInfo}>
               <View style={styles.nameRow}>
@@ -112,9 +116,37 @@ export const ProfileScreen: React.FC = () => {
         {/* Appearance & Dark Mode Toggle Card */}
         {isAuthenticated && <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>محافظة التسوق</Text>
-          <TouchableOpacity style={styles.menuItem} onPress={() => setShowGovernorates(true)}><Text style={styles.menuText}>{governorates.find(g => g.id === governorateId)?.name || 'اختر المحافظة'}</Text><Text>▾</Text></TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => setShowGovernorates(true)}
+            accessibilityRole="button"
+            accessibilityLabel="اختيار محافظة التسوق"
+          >
+            <AppIcon name="chevron-down" size={18} color={themeColors.onSurfaceVariant} />
+            <Text style={styles.menuText}>{governorates.find(g => g.id === governorateId)?.name || 'اختر المحافظة'}</Text>
+          </TouchableOpacity>
         </View>}
-        <Modal visible={showGovernorates} transparent animationType="slide" onRequestClose={() => setShowGovernorates(false)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:'#0008'}}><View style={{maxHeight:'70%',backgroundColor:themeColors.surfaceContainerLowest,borderTopLeftRadius:20,borderTopRightRadius:20,padding:18}}><Text style={{textAlign:'right',fontSize:18,fontWeight:'700',marginBottom:10}}>اختر المحافظة</Text><ScrollView>{governorates.map(g=><TouchableOpacity key={g.id} style={{padding:14,borderBottomWidth:1,borderColor:'#ddd'}} onPress={()=>saveGovernorate(g.id)}><Text style={{textAlign:'right'}}>{g.name}</Text></TouchableOpacity>)}</ScrollView></View></View></Modal>
+        <Modal visible={showGovernorates} transparent animationType="slide" onRequestClose={() => setShowGovernorates(false)}>
+          <View style={styles.governorateOverlay}>
+            <View style={styles.governorateSheet}>
+              <Text style={styles.governorateTitle}>اختر المحافظة</Text>
+              <ScrollView>
+                {governorates.map((g) => (
+                  <TouchableOpacity
+                    key={g.id}
+                    style={styles.governorateOption}
+                    onPress={() => saveGovernorate(g.id)}
+                    accessibilityRole="radio"
+                    accessibilityLabel={g.name}
+                    accessibilityState={{ checked: g.id === governorateId }}
+                  >
+                    <Text style={styles.governorateOptionText}>{g.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>المظهر والتفضيلات</Text>
@@ -122,6 +154,7 @@ export const ProfileScreen: React.FC = () => {
             <Switch
               value={isDarkMode}
               onValueChange={toggleTheme}
+              accessibilityLabel="تبديل الوضع الداكن"
               trackColor={{ false: themeColors.surfaceContainerHighest, true: themeColors.primary }}
               thumbColor={isDarkMode ? themeColors.onPrimary : '#FFFFFF'}
             />
@@ -130,7 +163,7 @@ export const ProfileScreen: React.FC = () => {
                 <Text style={styles.themeTitle}>
                   {isDarkMode ? 'الوضع الداكن (الليلي)' : 'الوضع الفاتح (النهاري)'}
                 </Text>
-                <Text style={styles.themeIcon}>{isDarkMode ? '🌙' : '☀️'}</Text>
+                <AppIcon name={isDarkMode ? 'moon' : 'sun'} size={18} color={themeColors.primary} />
               </View>
               <Text style={styles.themeDesc}>
                 {isDarkMode
@@ -144,10 +177,15 @@ export const ProfileScreen: React.FC = () => {
         {/* Saved Addresses Section */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <TouchableOpacity onPress={() => setShowAddAddress(!showAddAddress)}>
-              <Text style={styles.actionText}>
-                {showAddAddress ? 'إلغاء' : '+ إضافة عنوان'}
-              </Text>
+            <TouchableOpacity
+              onPress={() => setShowAddAddress(!showAddAddress)}
+              accessibilityRole="button"
+              accessibilityLabel={showAddAddress ? 'إلغاء إضافة العنوان' : 'إضافة عنوان'}
+            >
+              <View style={styles.actionRow}>
+                {!showAddAddress && <AppIcon name="plus" size={15} color={themeColors.primary} />}
+                <Text style={styles.actionText}>{showAddAddress ? 'إلغاء' : 'إضافة عنوان'}</Text>
+              </View>
             </TouchableOpacity>
             <Text style={styles.sectionTitle}>العناوين المحفوظة</Text>
           </View>
@@ -162,6 +200,7 @@ export const ProfileScreen: React.FC = () => {
                 value={city}
                 onChangeText={setCity}
                 textAlign="right"
+                accessibilityLabel="المدينة"
               />
               <TextInput
                 style={styles.input}
@@ -170,6 +209,7 @@ export const ProfileScreen: React.FC = () => {
                 value={district}
                 onChangeText={setDistrict}
                 textAlign="right"
+                accessibilityLabel="الحي أو المنطقة"
               />
               <TextInput
                 style={styles.input}
@@ -178,6 +218,7 @@ export const ProfileScreen: React.FC = () => {
                 value={street}
                 onChangeText={setStreet}
                 textAlign="right"
+                accessibilityLabel="الشارع أو المعلم البارز"
               />
               <TextInput
                 style={styles.input}
@@ -186,10 +227,13 @@ export const ProfileScreen: React.FC = () => {
                 value={desc}
                 onChangeText={setDesc}
                 textAlign="right"
+                accessibilityLabel="تفاصيل إضافية للعنوان"
               />
               <TouchableOpacity
                 style={styles.saveAddrBtn}
                 onPress={handleSaveAddress}
+                accessibilityRole="button"
+                accessibilityLabel="حفظ العنوان"
               >
                 <Text style={styles.saveAddrBtnText}>حفظ العنوان</Text>
               </TouchableOpacity>
@@ -202,9 +246,11 @@ export const ProfileScreen: React.FC = () => {
             addresses.map((addr) => (
               <View key={addr.id} style={styles.addressRow}>
                 <View style={styles.addrIconWrap}>
-                  <Text style={styles.addrIcon}>
-                    {addr.label === 'المنزل' ? '🏠' : '🏢'}
-                  </Text>
+                  <AppIcon
+                    name={addr.label === 'المنزل' ? 'house' : 'building'}
+                    size={19}
+                    color={themeColors.primary}
+                  />
                 </View>
                 <View style={styles.addrInfo}>
                   <View style={styles.addrLabelRow}>
@@ -235,6 +281,8 @@ export const ProfileScreen: React.FC = () => {
                       setCurrentOrder(ord);
                       navigateTo('tracking');
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel={'تتبع الطلب رقم ' + ord.orderNumber}
                   >
                     <Text style={styles.trackBtnText}>تتبع</Text>
                   </TouchableOpacity>
@@ -267,11 +315,13 @@ export const ProfileScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => Alert.alert('خدمة العملاء', 'بيانات الدعم غير متاحة حالياً.')}
+            accessibilityRole="button"
+            accessibilityLabel="مركز المساعدة والدعم الفني"
           >
-            <Text style={styles.menuArrow}>‹</Text>
+            <AppIcon name="chevron-left" size={18} color={themeColors.onSurfaceVariant} />
             <View style={styles.menuTitleRow}>
               <Text style={styles.menuText}>مركز المساعدة والدعم الفني</Text>
-              <Text style={styles.menuIcon}>💬</Text>
+              <AppIcon name="message" size={19} color={themeColors.primary} />
             </View>
           </TouchableOpacity>
 
@@ -279,11 +329,13 @@ export const ProfileScreen: React.FC = () => {
             <TouchableOpacity
               style={[styles.menuItem, styles.logoutItem]}
               onPress={logout}
+              accessibilityRole="button"
+              accessibilityLabel="تسجيل الخروج"
             >
-              <Text style={styles.logoutArrow}>‹</Text>
+              <AppIcon name="chevron-left" size={18} color={themeColors.error} />
               <View style={styles.menuTitleRow}>
                 <Text style={styles.logoutText}>تسجيل الخروج</Text>
-                <Text style={styles.logoutIcon}>🚪</Text>
+                <AppIcon name="logout" size={19} color={themeColors.error} />
               </View>
             </TouchableOpacity>
           )}
@@ -334,9 +386,13 @@ const createStyles = (c: ThemeColors) =>
     loginBtn: {
       backgroundColor: c.primary,
       paddingHorizontal: spacing.baseSm,
-      paddingVertical: 8,
+      minHeight: 44,
       borderRadius: borderRadius.lg,
       marginTop: 4,
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
     },
     loginBtnText: {
       color: c.onPrimary,
@@ -365,8 +421,11 @@ const createStyles = (c: ThemeColors) =>
       justifyContent: 'center',
       marginLeft: spacing.baseSm,
     },
-    avatarIconText: {
-      fontSize: 24,
+    actionRow: {
+      minHeight: 44,
+      flexDirection: 'row-reverse',
+      alignItems: 'center',
+      gap: 4,
     },
     userInfo: {
       flex: 1,
@@ -395,6 +454,36 @@ const createStyles = (c: ThemeColors) =>
       borderWidth: 1,
       borderColor: c.outlineVariant + '40',
       ...shadows.card,
+    },
+    governorateOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: 'rgba(0, 0, 0, 0.52)',
+    },
+    governorateSheet: {
+      maxHeight: '70%',
+      backgroundColor: c.surfaceContainerLowest,
+      borderTopLeftRadius: borderRadius.xxl,
+      borderTopRightRadius: borderRadius.xxl,
+      padding: spacing.baseMd,
+    },
+    governorateTitle: {
+      textAlign: 'right',
+      fontSize: typography.fontSize.lg,
+      fontWeight: typography.fontWeight.bold,
+      color: c.onSurface,
+      marginBottom: spacing.baseSm,
+    },
+    governorateOption: {
+      minHeight: 48,
+      justifyContent: 'center',
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: c.outlineVariant,
+    },
+    governorateOptionText: {
+      textAlign: 'right',
+      color: c.onSurface,
+      fontSize: typography.fontSize.md,
     },
     sectionHeader: {
       flexDirection: 'row-reverse',
@@ -460,7 +549,8 @@ const createStyles = (c: ThemeColors) =>
       backgroundColor: c.surfaceContainerLowest,
       borderRadius: borderRadius.md,
       paddingHorizontal: spacing.baseSm,
-      height: 38,
+      minHeight: 48,
+      paddingVertical: spacing.baseXs,
       fontSize: typography.fontSize.xs,
       color: c.onSurface,
       marginBottom: 6,
@@ -469,7 +559,7 @@ const createStyles = (c: ThemeColors) =>
     },
     saveAddrBtn: {
       backgroundColor: c.primary,
-      paddingVertical: 8,
+      minHeight: 48,
       borderRadius: borderRadius.md,
       alignItems: 'center',
       marginTop: 2,

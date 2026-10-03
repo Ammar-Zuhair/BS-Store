@@ -1,14 +1,16 @@
-import React from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import React, { useMemo } from 'react';
+import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
+import { AppIcon } from './AppIcon';
 
 interface SearchBarProps {
   onFilterPress?: () => void;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({ onFilterPress }) => {
-  const { searchQuery, setSearchQuery } = useApp();
+  const { searchQuery, setSearchQuery, colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   return (
     <View style={styles.container}>
@@ -16,30 +18,33 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onFilterPress }) => {
         style={styles.filterBtn}
         onPress={onFilterPress}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="خيارات البحث والتصفية"
       >
-        <Text style={styles.filterIcon}>⚙️</Text>
+        <AppIcon name="filter" size={19} color={themeColors.primary} />
       </TouchableOpacity>
 
       <View style={styles.inputWrapper}>
         <TextInput
           style={styles.input}
           placeholder="ابحث عن وجبة، منتج، أو متجر محلي..."
-          placeholderTextColor={colors.onSurfaceVariant + '90'}
+          placeholderTextColor={themeColors.outline}
           value={searchQuery}
           onChangeText={setSearchQuery}
           textAlign="right"
+          accessibilityLabel="البحث عن وجبة أو منتج أو متجر"
         />
-        <Text style={styles.searchIcon}>🔍</Text>
+        <AppIcon name="search" size={19} color={themeColors.onSurfaceVariant} />
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: spacing.baseXs,
+    gap: spacing.baseSm,
     paddingHorizontal: spacing.screenGutter,
     marginVertical: spacing.baseXs,
   },
@@ -50,7 +55,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
     paddingHorizontal: spacing.baseSm,
-    height: 48,
+    minHeight: 50,
+    height: 50,
     borderWidth: 1,
     borderColor: colors.outlineVariant + '40',
     ...shadows.card,
@@ -66,8 +72,8 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   filterBtn: {
-    width: 48,
-    height: 48,
+    width: 50,
+    height: 50,
     borderRadius: borderRadius.xl,
     backgroundColor: colors.surfaceContainerLowest,
     alignItems: 'center',
@@ -75,8 +81,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.outlineVariant + '40',
     ...shadows.card,
-  },
-  filterIcon: {
-    fontSize: 18,
   },
 });

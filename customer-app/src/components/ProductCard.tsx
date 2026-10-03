@@ -4,6 +4,7 @@ import { CachedImage } from './CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Product } from '../types';
 import { useApp } from '../context/AppContext';
+import { AppIcon } from './AppIcon';
 
 interface ProductCardProps {
   product: Product;
@@ -25,6 +26,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
       style={styles.card}
       onPress={onPress}
       activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={'عرض تفاصيل ' + product.name}
     >
       <View style={styles.imageWrap}>
               <CachedImage source={{ uri: product.imageUrl }} style={styles.image} />
@@ -36,9 +39,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
       </View>
 
       <View style={styles.details}>
-        <Text style={styles.storeName} numberOfLines={1}>
-          📍 {product.storeName}
-        </Text>
+        <View style={styles.storeRow}>
+          <AppIcon name="map-pin" size={13} color={themeColors.onSurfaceVariant} />
+          <Text style={styles.storeName} numberOfLines={1}>{product.storeName}</Text>
+        </View>
         <Text style={styles.title} numberOfLines={2}>
           {product.name}
         </Text>
@@ -65,8 +69,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
                 style={styles.stepBtn}
                 onPress={() => updateQuantity(product.id, qty + 1)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={'زيادة كمية ' + product.name}
               >
-                <Text style={styles.stepBtnText}>+</Text>
+                <AppIcon name="plus" size={16} color={themeColors.primary} />
               </TouchableOpacity>
               <Text style={styles.stepQty}>{qty}</Text>
               <TouchableOpacity
@@ -79,8 +85,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
                   }
                 }}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={'تقليل كمية ' + product.name}
               >
-                <Text style={styles.stepBtnText}>-</Text>
+                <AppIcon name="minus" size={16} color={themeColors.primary} />
               </TouchableOpacity>
             </View>
           ) : (
@@ -88,8 +96,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
               style={styles.addBtn}
               onPress={() => addToCart(product, 1)}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={'إضافة ' + product.name + ' إلى السلة'}
             >
-              <Text style={styles.addBtnText}>+ إضافة</Text>
+              <AppIcon name="plus" size={15} color={themeColors.onPrimary} />
+              <Text style={styles.addBtnText}>إضافة</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -148,6 +159,11 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.secondary,
     textAlign: 'right',
   },
+  storeRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+  },
   title: {
     fontFamily: typography.fontFamily.bold,
     fontSize: typography.fontSize.sm,
@@ -192,8 +208,11 @@ const createStyles = (colors: ThemeColors) =>
   addBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.baseSm + 2,
-    paddingVertical: 6,
+    minHeight: 44,
     borderRadius: borderRadius.md,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 3,
   },
   addBtnText: {
     fontFamily: typography.fontFamily.bold,
@@ -212,13 +231,10 @@ const createStyles = (colors: ThemeColors) =>
     gap: 8,
   },
   stepBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  stepBtnText: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 16,
-    color: colors.primary,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stepQty: {
     fontFamily: typography.fontFamily.bold,

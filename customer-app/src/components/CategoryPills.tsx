@@ -26,6 +26,9 @@ export const CategoryPills: React.FC = () => {
               style={[styles.pill, isSelected && styles.pillActive]}
               onPress={() => setSelectedCategory(cat.id)}
               activeOpacity={0.8}
+              accessibilityRole="tab"
+              accessibilityLabel={cat.name}
+              accessibilityState={{ selected: isSelected }}
             >
               <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>
                 {cat.name}
@@ -49,6 +52,9 @@ const createStyles = (colors: ThemeColors) =>
       gap: spacing.baseXs,
     },
     pill: {
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
       paddingHorizontal: spacing.baseMd,
       paddingVertical: 8,
       borderRadius: borderRadius.full,

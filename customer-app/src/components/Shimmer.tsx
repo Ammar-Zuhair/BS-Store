@@ -33,7 +33,7 @@ export const ShimmerPlaceholder: React.FC<ShimmerPlaceholderProps> = ({
   style,
   children,
 }) => {
-  const { isDarkMode } = useApp();
+  const { isDarkMode, colors: themeColors } = useApp();
   const [layoutWidth, setLayoutWidth] = useState<number>(0);
   const animatedValue = useRef(new Animated.Value(0)).current;
 
@@ -73,7 +73,7 @@ export const ShimmerPlaceholder: React.FC<ShimmerPlaceholderProps> = ({
           width: width as any,
           height: height as any,
           borderRadius: radius,
-          backgroundColor: isDarkMode ? '#232832' : '#E2E8F0',
+          backgroundColor: themeColors.surfaceContainer,
         },
         style,
       ]}
@@ -280,7 +280,6 @@ export const CategoryStoresSkeleton: React.FC = () => {
 
 const styles = StyleSheet.create({
   base: {
-    backgroundColor: '#E2E8F0',
     overflow: 'hidden',
     position: 'relative',
   },

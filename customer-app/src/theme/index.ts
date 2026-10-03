@@ -1,124 +1,127 @@
 /**
  * BS Store Customer App Design System Theme Tokens
- * Supports Dynamic Light & Dark Mode with Persian/Charcoal Grey Palette
+ * Shared visual tokens for the BS Store customer app.
+ * Fresh market greens, warm amber accents, and calm light/dark surfaces.
  */
 
 export const lightColors = {
-  // Brand Charcoal Black
-  primary: '#181A1E',
-  primaryContainer: '#262930',
-  primaryFixed: '#E4E7EC',
-  primaryFixedDim: '#D0D5DD',
+  // Market green
+  primary: '#176B56',
+  primaryContainer: '#E3F1EB',
+  primaryFixed: '#D2EAE0',
+  primaryFixedDim: '#B8DDCE',
   onPrimary: '#FFFFFF',
-  onPrimaryContainer: '#F4F5F7',
-  onPrimaryFixed: '#181A1E',
-  onPrimaryFixedVariant: '#262930',
+  onPrimaryContainer: '#17483B',
+  onPrimaryFixed: '#153D32',
+  onPrimaryFixedVariant: '#235D4C',
 
-  // Secondary Steel & Slate Charcoal
-  secondary: '#363D47',
-  secondaryContainer: '#EAECEF',
-  secondaryFixed: '#DFE2E6',
-  secondaryFixedDim: '#CBD0D7',
+  // Supporting evergreen and slate
+  secondary: '#40564C',
+  secondaryContainer: '#E9EFEB',
+  secondaryFixed: '#DDE7E1',
+  secondaryFixedDim: '#C8D8CF',
   onSecondary: '#FFFFFF',
-  onSecondaryContainer: '#181A1E',
-  onSecondaryFixed: '#181A1E',
-  onSecondaryFixedVariant: '#363D47',
+  onSecondaryContainer: '#24392F',
+  onSecondaryFixed: '#1D332A',
+  onSecondaryFixedVariant: '#40564C',
 
-  // Tertiary Amber / Warm Orange
-  tertiary: '#D97706',
-  tertiaryContainer: '#FEF3C7',
-  tertiaryFixed: '#FDE68A',
-  tertiaryFixedDim: '#FCD34D',
+  // Warm amber for deals and small highlights
+  tertiary: '#A85C0A',
+  tertiaryContainer: '#FFF1D8',
+  tertiaryFixed: '#F9DFAF',
+  tertiaryFixedDim: '#F3CD8A',
   onTertiary: '#FFFFFF',
-  onTertiaryContainer: '#92400E',
-  onTertiaryFixed: '#78350F',
-  onTertiaryFixedVariant: '#B45309',
+  onTertiaryContainer: '#693709',
+  onTertiaryFixed: '#4A2707',
+  onTertiaryFixedVariant: '#81450A',
 
-  // Canvas & Surfaces - Light Silver / Gray Background
-  background: '#F4F5F7',
-  surface: '#F4F5F7',
+  // Warm, quiet neutral surfaces
+  background: '#F6F8F5',
+  surface: '#F6F8F5',
   surfaceBright: '#FFFFFF',
-  surfaceDim: '#E5E7EB',
+  surfaceDim: '#E5EAE6',
   surfaceContainerLowest: '#FFFFFF',
-  surfaceContainerLow: '#EFF1F4',
-  surfaceContainer: '#E8EBEF',
-  surfaceContainerHigh: '#DFE3E8',
-  surfaceContainerHighest: '#D4D9E0',
-  surfaceVariant: '#E8EBEF',
+  surfaceContainerLow: '#F0F4F0',
+  surfaceContainer: '#E9EFEB',
+  surfaceContainerHigh: '#DFE7E1',
+  surfaceContainerHighest: '#D4DED7',
+  surfaceVariant: '#E9EFEB',
 
-  // High contrast crisp Charcoal typography
-  onSurface: '#111317',
-  onSurfaceVariant: '#4E5564',
-  onBackground: '#111317',
-  outline: '#8891A0',
-  outlineVariant: '#DDE1E7',
+  // Readable forest-charcoal typography
+  onSurface: '#17231D',
+  onSurfaceVariant: '#536259',
+  onBackground: '#17231D',
+  outline: '#78877D',
+  outlineVariant: '#D9E2DC',
 
   // Feedback & Functional Statuses
-  error: '#EF4444',
-  errorContainer: '#FEE2E2',
+  error: '#B9383E',
+  errorContainer: '#FCE7E7',
   onError: '#FFFFFF',
-  onErrorContainer: '#991B1B',
-  success: '#10B981',
-  warning: '#F59E0B',
+  onErrorContainer: '#7F252A',
+  success: '#18764F',
+  warning: '#98540C',
+  info: '#346B8B',
 };
 
 export const darkColors = {
-  // Brand Charcoal & Amber Accent
-  primary: '#F59E0B',
-  primaryContainer: '#262A32',
-  primaryFixed: '#2E333F',
-  primaryFixedDim: '#3D4454',
-  onPrimary: '#111317',
-  onPrimaryContainer: '#F9FAFB',
-  onPrimaryFixed: '#F9FAFB',
-  onPrimaryFixedVariant: '#E5E7EB',
+  // Bright green stays legible as the main action in dark mode
+  primary: '#75D0AD',
+  primaryContainer: '#1B4C3B',
+  primaryFixed: '#235B47',
+  primaryFixedDim: '#2D7058',
+  onPrimary: '#12372B',
+  onPrimaryContainer: '#D7F2E5',
+  onPrimaryFixed: '#E3F6EC',
+  onPrimaryFixedVariant: '#B4E6D0',
 
-  // Secondary Slate
-  secondary: '#9CA3AF',
-  secondaryContainer: '#1F232B',
-  secondaryFixed: '#282D37',
-  secondaryFixedDim: '#323946',
-  onSecondary: '#111317',
-  onSecondaryContainer: '#F3F4F6',
-  onSecondaryFixed: '#F9FAFB',
-  onSecondaryFixedVariant: '#D1D5DB',
+  // Supporting sage and slate
+  secondary: '#B8C8BE',
+  secondaryContainer: '#26352E',
+  secondaryFixed: '#304238',
+  secondaryFixedDim: '#3B5045',
+  onSecondary: '#152019',
+  onSecondaryContainer: '#E1ECE5',
+  onSecondaryFixed: '#E7F0EA',
+  onSecondaryFixedVariant: '#C9D9CF',
 
-  // Tertiary Amber / Warm Orange
-  tertiary: '#F59E0B',
-  tertiaryContainer: '#451A03',
-  tertiaryFixed: '#78350F',
-  tertiaryFixedDim: '#92400E',
-  onTertiary: '#111317',
-  onTertiaryContainer: '#FEF3C7',
-  onTertiaryFixed: '#FEF3C7',
-  onTertiaryFixedVariant: '#FDE68A',
+  // Amber remains a small highlight, not a second primary
+  tertiary: '#F1B45D',
+  tertiaryContainer: '#4E3518',
+  tertiaryFixed: '#68471D',
+  tertiaryFixedDim: '#805923',
+  onTertiary: '#34220B',
+  onTertiaryContainer: '#FBE6C3',
+  onTertiaryFixed: '#FFF0D8',
+  onTertiaryFixedVariant: '#F3D09A',
 
-  // Canvas & Surfaces - Deep Charcoal Dark
-  background: '#0D0E11',
-  surface: '#0D0E11',
-  surfaceBright: '#181A1E',
-  surfaceDim: '#08090B',
-  surfaceContainerLowest: '#181A1E',
-  surfaceContainerLow: '#1F232B',
-  surfaceContainer: '#252932',
-  surfaceContainerHigh: '#2C313C',
-  surfaceContainerHighest: '#343A47',
-  surfaceVariant: '#1F232B',
+  // Deep evergreen-charcoal surfaces
+  background: '#111914',
+  surface: '#111914',
+  surfaceBright: '#1B261F',
+  surfaceDim: '#0B100D',
+  surfaceContainerLowest: '#18221C',
+  surfaceContainerLow: '#1E2A23',
+  surfaceContainer: '#24322A',
+  surfaceContainerHigh: '#2B3A31',
+  surfaceContainerHighest: '#34443A',
+  surfaceVariant: '#24322A',
 
-  // Typography - High Contrast Crisp White / Silver
-  onSurface: '#F9FAFB',
-  onSurfaceVariant: '#9CA3AF',
-  onBackground: '#F9FAFB',
-  outline: '#6B7280',
-  outlineVariant: '#262A32',
+  // Calm, high-contrast typography
+  onSurface: '#F0F5F1',
+  onSurfaceVariant: '#BCC9C0',
+  onBackground: '#F0F5F1',
+  outline: '#84958A',
+  outlineVariant: '#34443A',
 
   // Feedback & Functional Statuses
-  error: '#EF4444',
-  errorContainer: '#450A0A',
+  error: '#FF8B8F',
+  errorContainer: '#54282A',
   onError: '#FFFFFF',
-  onErrorContainer: '#FCA5A5',
-  success: '#10B981',
-  warning: '#F59E0B',
+  onErrorContainer: '#FFDADC',
+  success: '#78D2A7',
+  warning: '#F1B45D',
+  info: '#91C9E4',
 };
 
 export type ThemeColors = typeof lightColors;
@@ -150,7 +153,7 @@ export const typography = {
     lg: 18,
     xl: 20,
     xxl: 24,
-    display: 28,
+    display: 32,
   },
   fontWeight: {
     regular: '400' as const,
@@ -175,46 +178,66 @@ export const spacing = {
   baseLg: 24,
   baseXl: 32,
   screenGutter: 16,
+  xxs: 4,
+  xs: 8,
+  sm: 12,
+  md: 16,
+  lg: 20,
+  xl: 24,
+  xxl: 32,
+  section: 28,
 };
 
 export const borderRadius = {
   none: 0,
-  xs: 4,
-  sm: 6,
-  md: 8,
-  lg: 12,
-  xl: 16,
-  xxl: 24,
+  xs: 6,
+  sm: 10,
+  md: 14,
+  lg: 18,
+  xl: 22,
+  xxl: 28,
   full: 9999,
+};
+
+export const iconSize = {
+  sm: 16,
+  md: 20,
+  lg: 24,
+};
+
+export const motion = {
+  press: 120,
+  fast: 160,
+  standard: 220,
 };
 
 export const shadows = {
   card: {
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.055,
+    shadowRadius: 6,
+    elevation: 1,
   },
   button: {
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 1,
   },
   floating: {
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    elevation: 6,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
   },
   header: {
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
 };

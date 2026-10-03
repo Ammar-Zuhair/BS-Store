@@ -4,6 +4,7 @@ import { CachedImage } from '../components/CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
+import { AppIcon } from '../components/AppIcon';
 
 export const CartScreen: React.FC = () => {
   const {
@@ -51,7 +52,9 @@ export const CartScreen: React.FC = () => {
 
       {cart.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🛒</Text>
+          <View style={styles.emptyIconWrap}>
+            <AppIcon name="shopping-cart" size={31} color={themeColors.primary} />
+          </View>
           <Text style={styles.emptyTitle}>سلة الشراء فارغة</Text>
           <Text style={styles.emptySubtitle}>
             تصفح المتاجر واختر وجباتك وأصنافك المفضلة
@@ -59,6 +62,8 @@ export const CartScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.browseBtn}
             onPress={() => navigateTo('home')}
+            accessibilityRole="button"
+            accessibilityLabel="ابدأ التسوق"
           >
             <Text style={styles.browseBtnText}>ابدأ التسوق الآن</Text>
           </TouchableOpacity>
@@ -70,7 +75,7 @@ export const CartScreen: React.FC = () => {
         >
           {/* Multi-store Notice */}
           <View style={styles.noticeBox}>
-            <Text style={styles.noticeIcon}>ℹ️</Text>
+            <AppIcon name="info" size={19} color={themeColors.info} />
             <View style={styles.noticeTextWrap}>
               <Text style={styles.noticeTitle}>
                 سلة متعددة المتاجر ({cartSubOrders.length} متاجر)
@@ -120,8 +125,10 @@ export const CartScreen: React.FC = () => {
                         onPress={() =>
                           updateQuantity(item.product.id, item.quantity + 1)
                         }
+                        accessibilityRole="button"
+                        accessibilityLabel={`زيادة كمية ${item.product.name}`}
                       >
-                        <Text style={styles.stepBtnText}>+</Text>
+                        <AppIcon name="plus" size={15} color={themeColors.primary} />
                       </TouchableOpacity>
                       <Text style={styles.stepQty}>{item.quantity}</Text>
                       <TouchableOpacity
@@ -129,8 +136,10 @@ export const CartScreen: React.FC = () => {
                         onPress={() =>
                           updateQuantity(item.product.id, item.quantity - 1)
                         }
+                        accessibilityRole="button"
+                        accessibilityLabel={`تقليل كمية ${item.product.name}`}
                       >
-                        <Text style={styles.stepBtnText}>-</Text>
+                        <AppIcon name="minus" size={15} color={themeColors.primary} />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -148,6 +157,8 @@ export const CartScreen: React.FC = () => {
                   style={[styles.applyBtn, { backgroundColor: themeColors.error }]}
                   onPress={handleClearPromo}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="إلغاء كود الخصم"
                 >
                   <Text style={styles.applyBtnText}>إلغاء</Text>
                 </TouchableOpacity>
@@ -156,6 +167,8 @@ export const CartScreen: React.FC = () => {
                   style={styles.applyBtn}
                   onPress={handleApplyPromo}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="تطبيق كود الخصم"
                 >
                   <Text style={styles.applyBtnText}>تطبيق</Text>
                 </TouchableOpacity>
@@ -172,6 +185,7 @@ export const CartScreen: React.FC = () => {
                 }}
                 autoCapitalize="characters"
                 textAlign="right"
+                accessibilityLabel="رمز الاسترداد أو كود الخصم"
               />
             </View>
             {(contextPromoMessage || localPromoMessage) && (
@@ -240,6 +254,8 @@ export const CartScreen: React.FC = () => {
               navigateTo('checkout');
             }}
             activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel="متابعة إتمام الطلب والدفع"
           >
             <View style={styles.btnPriceTag}>
               <Text style={styles.btnPriceText}>
@@ -271,8 +287,13 @@ const createStyles = (colors: ThemeColors) =>
     justifyContent: 'center',
     padding: spacing.screenGutter,
   },
-  emptyIcon: {
-    fontSize: 54,
+  emptyIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.baseSm,
   },
   emptyTitle: {
@@ -307,10 +328,6 @@ const createStyles = (colors: ThemeColors) =>
     borderColor: colors.primaryFixed,
     marginBottom: spacing.baseSm,
     gap: spacing.baseXs,
-  },
-  noticeIcon: {
-    fontSize: 18,
-    marginTop: 2,
   },
   noticeTextWrap: {
     flex: 1,
@@ -407,17 +424,12 @@ const createStyles = (colors: ThemeColors) =>
     gap: 6,
   },
   stepBtn: {
-    width: 24,
-    height: 24,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.sm,
-  },
-  stepBtnText: {
-    fontSize: 14,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
   },
   stepQty: {
     fontSize: typography.fontSize.xs,
@@ -449,13 +461,14 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: colors.surfaceContainerLow,
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.baseSm,
-    height: 42,
+    minHeight: 44,
     fontSize: typography.fontSize.xs,
     color: colors.onSurface,
   },
   applyBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.baseMd,
+    minHeight: 44,
     borderRadius: borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',

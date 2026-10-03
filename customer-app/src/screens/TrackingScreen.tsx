@@ -17,6 +17,7 @@ import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { Order, OrderStatusType } from '../types';
 import { ordersApi } from '../api';
+import { AppIcon, AppIconName } from '../components/AppIcon';
 
 export const TrackingScreen: React.FC = () => {
   const { orders, navigateTo, currentOrder, setCurrentOrder, refreshOrders, colors: themeColors } = useApp();
@@ -51,7 +52,7 @@ export const TrackingScreen: React.FC = () => {
     switch (status) {
       case 'DELIVERED':
         return {
-          label: 'تم التسليم بنجاح ✓',
+          label: 'تم التسليم بنجاح',
           bgColor: themeColors.success + '20',
           textColor: themeColors.success,
           borderColor: themeColors.success + '50',
@@ -59,7 +60,7 @@ export const TrackingScreen: React.FC = () => {
         };
       case 'OUT_FOR_DELIVERY':
         return {
-          label: 'في الطريق إليك 🛵',
+          label: 'في الطريق إليك',
           bgColor: themeColors.primary + '20',
           textColor: themeColors.primary,
           borderColor: themeColors.primary + '50',
@@ -68,16 +69,16 @@ export const TrackingScreen: React.FC = () => {
       case 'PURCHASING':
       case 'WAREHOUSE_PICKUP':
         return {
-          label: 'جاري التجهيز والشراء 🛍️',
-          bgColor: '#FF980025',
-          textColor: '#E65100',
-          borderColor: '#FF980050',
+          label: 'جاري التجهيز والشراء',
+          bgColor: themeColors.tertiaryContainer,
+          textColor: themeColors.onTertiaryContainer,
+          borderColor: themeColors.tertiary + '55',
           stepIndex: 2,
         };
       case 'DRIVER_ASSIGNED':
       case 'DRIVER_ACCEPTED':
         return {
-          label: 'تم تعيين الكابتن 🛵',
+          label: 'تم تعيين الكابتن',
           bgColor: themeColors.primary + '20',
           textColor: themeColors.primary,
           borderColor: themeColors.primary + '50',
@@ -86,23 +87,23 @@ export const TrackingScreen: React.FC = () => {
       case 'PENDING_PAYMENT':
       case 'PAYMENT_PENDING_VERIFICATION':
         return {
-          label: 'قيد المراجعة والتحقق ⏳',
-          bgColor: '#F57C0020',
-          textColor: '#E65100',
-          borderColor: '#F57C0040',
+          label: 'قيد المراجعة والتحقق',
+          bgColor: themeColors.tertiaryContainer,
+          textColor: themeColors.onTertiaryContainer,
+          borderColor: themeColors.tertiary + '55',
           stepIndex: 0,
         };
       case 'PENDING_ADMIN_APPROVAL':
         return {
-          label: 'بانتظار موافقة الإدارة ⏳',
-          bgColor: '#F57C0020',
-          textColor: '#E65100',
-          borderColor: '#F57C0040',
+          label: 'بانتظار موافقة الإدارة',
+          bgColor: themeColors.tertiaryContainer,
+          textColor: themeColors.onTertiaryContainer,
+          borderColor: themeColors.tertiary + '55',
           stepIndex: 0,
         };
       case 'CANCELLED':
         return {
-          label: 'ملغي ❌',
+          label: 'ملغي',
           bgColor: themeColors.error + '20',
           textColor: themeColors.error,
           borderColor: themeColors.error + '50',
@@ -119,36 +120,36 @@ export const TrackingScreen: React.FC = () => {
     }
   };
 
-  const steps: { key: OrderStatusType; title: string; desc: string; icon: string }[] = [
+  const steps: { key: OrderStatusType; title: string; desc: string; icon: AppIconName }[] = [
     {
       key: 'CONFIRMED',
       title: 'تم تأكيد الطلب',
       desc: 'تم استلام طلبك وبانتظار تحرك الكابتن',
-      icon: '✓',
+      icon: 'check-circle',
     },
     {
       key: 'DRIVER_ASSIGNED',
       title: 'تم تعيين الكابتن',
       desc: 'الكابتن في طريقه إلى المتاجر',
-      icon: '🛵',
+      icon: 'bike',
     },
     {
       key: 'PURCHASING',
       title: 'جاري الشراء وتجهيز الأصناف',
       desc: 'شراء الأصناف المحددة وتوثيق الفاتورة',
-      icon: '🛍️',
+      icon: 'shopping-bag',
     },
     {
       key: 'OUT_FOR_DELIVERY',
       title: 'في الطريق إليك',
       desc: 'الكابتن متوجه الآن إلى عنوانك',
-      icon: '🚀',
+      icon: 'truck',
     },
     {
       key: 'DELIVERED',
       title: 'تم التوصيل بنجاح',
       desc: 'نتمنى لك تجربة ممتعة مع BS Store',
-      icon: '🎉',
+      icon: 'check',
     },
   ];
 
@@ -185,12 +186,15 @@ export const TrackingScreen: React.FC = () => {
               onPress={handleRefresh}
               disabled={isRefreshing}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="تحديث حالة الطلب"
+              accessibilityState={{ disabled: isRefreshing, busy: isRefreshing }}
             >
               {isRefreshing ? (
                 <ActivityIndicator size="small" color={themeColors.primary} />
               ) : (
                 <View style={styles.refreshBtnInner}>
-                  <Text style={styles.refreshIconText}>🔄</Text>
+                  <AppIcon name="refresh" size={15} color={themeColors.primary} />
                   <Text style={styles.refreshLabelText}>تحديث</Text>
                 </View>
               )}
@@ -243,8 +247,10 @@ export const TrackingScreen: React.FC = () => {
                   style={styles.callButton}
                   onPress={() => handleCallDriver(selectedOrder)}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="الاتصال بالكابتن"
                 >
-                  <Text style={styles.callButtonIcon}>📞</Text>
+                  <AppIcon name="phone" size={16} color={themeColors.onPrimary} />
                   <Text style={styles.callButtonText}>اتصال</Text>
                 </TouchableOpacity>
 
@@ -258,7 +264,7 @@ export const TrackingScreen: React.FC = () => {
                 </View>
 
                 <View style={styles.driverAvatar}>
-                  <Text style={{ fontSize: 22 }}>🛵</Text>
+                  <AppIcon name="bike" size={22} color={themeColors.primary} />
                 </View>
               </View>
             </View>
@@ -281,7 +287,11 @@ export const TrackingScreen: React.FC = () => {
                         isCurrent && styles.stepDotCurrent,
                       ]}
                     >
-                      <Text style={styles.stepDotIcon}>{step.icon}</Text>
+                      <AppIcon
+                        name={step.icon}
+                        size={15}
+                        color={isPassed ? themeColors.onPrimary : themeColors.onSurfaceVariant}
+                      />
                     </View>
                     {index < steps.length - 1 && (
                       <View
@@ -318,20 +328,27 @@ export const TrackingScreen: React.FC = () => {
           ) : (
             <View style={styles.timelineCard}>
               <Text style={styles.timelineTitle}>كيف كانت تجربتك؟</Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginVertical: 12 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginVertical: 12 }}>
                 {[1, 2, 3, 4, 5].map((rating) => (
-                  <TouchableOpacity key={rating} onPress={() => setReviewRating(rating)}>
-                    <Text style={{ fontSize: 30, color: rating <= reviewRating ? '#F5B301' : '#BDBDBD' }}>★</Text>
+                  <TouchableOpacity
+                    key={rating}
+                    onPress={() => setReviewRating(rating)}
+                    style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`تقييم ${rating} من 5`}
+                    accessibilityState={{ selected: rating === reviewRating }}
+                  >
+                    <AppIcon name="star" size={25} color={rating <= reviewRating ? themeColors.tertiary : themeColors.outlineVariant} />
                   </TouchableOpacity>
                 ))}
               </View>
-              <TextInput value={reviewComment} onChangeText={setReviewComment} placeholder="اكتب ملاحظتك عن الطلب" multiline style={{ minHeight: 72, textAlign: 'right', borderWidth: 1, borderColor: themeColors.outlineVariant, borderRadius: 12, padding: 12, color: themeColors.onSurface }} />
+              <TextInput value={reviewComment} onChangeText={setReviewComment} placeholder="اكتب ملاحظتك عن الطلب" placeholderTextColor={themeColors.outline} accessibilityLabel="ملاحظتك عن الطلب" multiline style={{ minHeight: 72, textAlign: 'right', borderWidth: 1, borderColor: themeColors.outlineVariant, borderRadius: 12, padding: 12, color: themeColors.onSurface, backgroundColor: themeColors.surfaceContainerLowest }} />
               <TouchableOpacity disabled={isSubmittingReview || !reviewComment.trim()} onPress={async () => {
                 setIsSubmittingReview(true);
                 try { await ordersApi.submitReview(selectedOrder.id, reviewRating, reviewComment.trim()); await refreshOrders?.(); Alert.alert('شكراً لك', 'تم حفظ تقييمك للطلب'); setReviewComment(''); }
                 catch (error: any) { Alert.alert('تعذر حفظ التقييم', error?.message || 'حاول مرة أخرى'); }
                 finally { setIsSubmittingReview(false); }
-              }} style={{ backgroundColor: themeColors.primary, borderRadius: 12, padding: 13, alignItems: 'center', marginTop: 12, opacity: isSubmittingReview || !reviewComment.trim() ? 0.55 : 1 }}>
+              }} accessibilityRole="button" accessibilityLabel="إرسال التقييم" accessibilityState={{ disabled: isSubmittingReview || !reviewComment.trim(), busy: isSubmittingReview }} style={{ minHeight: 48, backgroundColor: themeColors.primary, borderRadius: 12, padding: 13, alignItems: 'center', justifyContent: 'center', marginTop: 12, opacity: isSubmittingReview || !reviewComment.trim() ? 0.55 : 1 }}>
                 <Text style={{ color: '#fff', fontFamily: 'Tajawal_700Bold' }}>{isSubmittingReview ? 'جارٍ الحفظ...' : 'إرسال التقييم'}</Text>
               </TouchableOpacity>
             </View>
@@ -391,7 +408,7 @@ export const TrackingScreen: React.FC = () => {
             </View>
             {!!selectedOrder.notes && (
               <View style={[styles.detailItem, { flexDirection: 'column', alignItems: 'flex-end', gap: 4, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: themeColors.outlineVariant + '30' }]}>
-                <Text style={styles.detailLbl}>📝 ملاحظاتك المسجلة على الطلب:</Text>
+                <Text style={styles.detailLbl}>ملاحظاتك المسجلة على الطلب:</Text>
                 <Text style={[styles.detailVal, { color: themeColors.primary, textAlign: 'right', fontFamily: 'Tajawal_500Medium' }]}>
                   {selectedOrder.notes}
                 </Text>
@@ -404,11 +421,17 @@ export const TrackingScreen: React.FC = () => {
             onPress={handleRefresh}
             disabled={isRefreshing}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="تحديث حالة الطلب الآن"
+            accessibilityState={{ disabled: isRefreshing, busy: isRefreshing }}
           >
             {isRefreshing ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={themeColors.onPrimary} />
             ) : (
-              <Text style={styles.refreshOrderNowBtnText}>🔄 تحديث حالة الطلب الآن</Text>
+              <View style={styles.refreshActionRow}>
+                <AppIcon name="refresh" size={16} color={themeColors.onPrimary} />
+                <Text style={styles.refreshOrderNowBtnText}>تحديث حالة الطلب الآن</Text>
+              </View>
             )}
           </TouchableOpacity>
 
@@ -441,12 +464,15 @@ export const TrackingScreen: React.FC = () => {
             onPress={handleRefresh}
             disabled={isRefreshing}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="تحديث الطلبات"
+            accessibilityState={{ disabled: isRefreshing, busy: isRefreshing }}
           >
             {isRefreshing ? (
               <ActivityIndicator size="small" color={themeColors.primary} />
             ) : (
               <View style={styles.refreshBtnInner}>
-                <Text style={styles.refreshIconText}>🔄</Text>
+                <AppIcon name="refresh" size={15} color={themeColors.primary} />
                 <Text style={styles.refreshLabelText}>تحديث</Text>
               </View>
             )}
@@ -466,11 +492,15 @@ export const TrackingScreen: React.FC = () => {
             />
           }
         >
-          <Text style={styles.emptyIcon}>📦</Text>
+          <View style={styles.emptyIconWrap}>
+            <AppIcon name="package" size={30} color={themeColors.primary} />
+          </View>
           <Text style={styles.emptyTitle}>لا توجد طلبات سابقة</Text>
           <TouchableOpacity
             style={styles.browseBtn}
             onPress={() => navigateTo('home')}
+            accessibilityRole="button"
+            accessibilityLabel="ابدأ التسوق"
           >
             <Text style={styles.browseBtnText}>ابدأ التسوق الآن</Text>
           </TouchableOpacity>
@@ -478,11 +508,17 @@ export const TrackingScreen: React.FC = () => {
             style={styles.emptyRefreshBtn}
             onPress={handleRefresh}
             disabled={isRefreshing}
+            accessibilityRole="button"
+            accessibilityLabel="تحديث الطلبات"
+            accessibilityState={{ disabled: isRefreshing, busy: isRefreshing }}
           >
             {isRefreshing ? (
               <ActivityIndicator size="small" color={themeColors.primary} />
             ) : (
-              <Text style={styles.emptyRefreshBtnText}>🔄 تحديث الطلبات</Text>
+              <View style={styles.refreshActionRow}>
+                <AppIcon name="refresh" size={16} color={themeColors.primary} />
+                <Text style={styles.emptyRefreshBtnText}>تحديث الطلبات</Text>
+              </View>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -748,8 +784,13 @@ const createStyles = (colors: ThemeColors) =>
     justifyContent: 'center',
     padding: spacing.screenGutter,
   },
-  emptyIcon: {
-    fontSize: 54,
+  emptyIconWrap: {
+    width: 76,
+    height: 76,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.baseSm,
   },
   emptyTitle: {
@@ -859,11 +900,8 @@ const createStyles = (colors: ThemeColors) =>
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: spacing.baseSm,
-    paddingVertical: 8,
+    minHeight: 44,
     borderRadius: borderRadius.lg,
-  },
-  callButtonIcon: {
-    fontSize: 12,
   },
   callButtonText: {
     fontFamily: typography.fontFamily.bold,
@@ -911,10 +949,6 @@ const createStyles = (colors: ThemeColors) =>
   stepDotCurrent: {
     backgroundColor: colors.secondaryContainer,
     transform: [{ scale: 1.15 }],
-  },
-  stepDotIcon: {
-    fontSize: 11,
-    color: colors.onPrimary,
   },
   stepLine: {
     width: 2,
@@ -1052,15 +1086,18 @@ const createStyles = (colors: ThemeColors) =>
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 70,
-    height: 36,
+    minHeight: 44,
   },
   refreshBtnInner: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 4,
   },
-  refreshIconText: {
-    fontSize: 13,
+  refreshActionRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   refreshLabelText: {
     fontFamily: typography.fontFamily.bold,
@@ -1072,6 +1109,7 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: colors.primary,
     borderRadius: borderRadius.lg,
     paddingVertical: 12,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 10,
@@ -1085,7 +1123,8 @@ const createStyles = (colors: ThemeColors) =>
   },
   emptyRefreshBtn: {
     marginTop: 12,
-    paddingVertical: 10,
+    minHeight: 44,
+    paddingVertical: 8,
     paddingHorizontal: 20,
     backgroundColor: colors.surfaceContainerLow,
     borderRadius: borderRadius.lg,

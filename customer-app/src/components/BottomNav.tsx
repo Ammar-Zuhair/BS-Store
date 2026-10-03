@@ -1,15 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, typography, borderRadius, shadows } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { typography, borderRadius, shadows } from '../theme';
 import { useApp, ScreenName } from '../context/AppContext';
+import { AppIcon, AppIconName } from './AppIcon';
 
 export const BottomNav: React.FC = () => {
   const { currentScreen, navigateTo, colors: themeColors } = useApp();
+  const insets = useSafeAreaInsets();
 
-  const tabs: { id: ScreenName; label: string; icon: string }[] = [
-    { id: 'home', label: 'الرئيسية', icon: '🏠' },
-    { id: 'tracking', label: 'طلباتي', icon: '📦' },
-    { id: 'profile', label: 'حسابي', icon: '👤' },
+  const tabs: { id: ScreenName; label: string; icon: AppIconName }[] = [
+    { id: 'home', label: 'الرئيسية', icon: 'home' },
+    { id: 'tracking', label: 'طلباتي', icon: 'package' },
+    { id: 'profile', label: 'حسابي', icon: 'user' },
   ];
 
   return (
@@ -18,7 +21,8 @@ export const BottomNav: React.FC = () => {
         styles.container,
         {
           backgroundColor: themeColors.surfaceContainerLowest,
-          borderTopColor: themeColors.outlineVariant + '35',
+          borderTopColor: themeColors.outlineVariant,
+          paddingBottom: insets.bottom,
         },
       ]}
     >
@@ -30,13 +34,23 @@ export const BottomNav: React.FC = () => {
               key={tab.id}
               style={styles.tab}
               onPress={() => navigateTo(tab.id)}
-              activeOpacity={0.8}
+              activeOpacity={0.78}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.label}
+              accessibilityState={{ selected: isActive }}
             >
-              <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
-                <Text style={styles.tabIcon}>{tab.icon}</Text>
-                {isActive && (
-                  <View style={[styles.activeDot, { backgroundColor: themeColors.primary }]} />
-                )}
+              <View
+                style={[
+                  styles.iconWrap,
+                  isActive && { backgroundColor: themeColors.primaryContainer },
+                ]}
+              >
+                <AppIcon
+                  name={tab.icon}
+                  size={20}
+                  color={isActive ? themeColors.primary : themeColors.onSurfaceVariant}
+                  strokeWidth={isActive ? 2.15 : 1.8}
+                />
               </View>
               <Text
                 style={[
@@ -61,53 +75,38 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderTopWidth: 1,
-    borderTopColor: colors.outlineVariant + '30',
+    borderTopWidth: StyleSheet.hairlineWidth,
     ...shadows.header,
     zIndex: 80,
   },
   bar: {
-    height: 68,
+    minHeight: 64,
     flexDirection: 'row-reverse',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingBottom: 4,
+    paddingHorizontal: 10,
+    paddingTop: 4,
   },
   tab: {
+    minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 2,
     flex: 1,
   },
   iconWrap: {
-    width: 32,
-    height: 28,
+    width: 48,
+    height: 30,
+    borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
-  },
-  iconWrapActive: {
-    transform: [{ scale: 1.1 }],
-  },
-  tabIcon: {
-    fontSize: 20,
-  },
-  activeDot: {
-    position: 'absolute',
-    bottom: -2,
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: colors.primary,
   },
   tabLabel: {
+    fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.onSurfaceVariant,
-    fontWeight: typography.fontWeight.medium,
-    marginTop: 2,
+    lineHeight: 18,
   },
   tabLabelActive: {
-    color: colors.primary,
-    fontWeight: typography.fontWeight.bold,
+    fontFamily: typography.fontFamily.bold,
   },
 });

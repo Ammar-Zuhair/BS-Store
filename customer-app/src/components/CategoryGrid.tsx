@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { Category } from '../types';
+import { AppIcon, categoryIconForName } from './AppIcon';
 
 interface CategoryGridProps {
   onCategoryPress?: (cat: Category) => void;
@@ -44,9 +45,11 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryPress }) =
             style={styles.gridItem}
             activeOpacity={0.85}
             onPress={() => handlePress(cat)}
+            accessibilityRole="button"
+            accessibilityLabel={'تصفح فئة ' + cat.name}
           >
             <View style={styles.iconContainer}>
-              <Text style={styles.iconText}>{cat.icon || '🛍️'}</Text>
+              <AppIcon name={categoryIconForName(cat.name)} size={24} color={themeColors.primary} />
             </View>
 
             <Text style={styles.categoryName} numberOfLines={1}>
@@ -113,15 +116,16 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
     padding: spacing.baseMd,
+    minHeight: 132,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.outlineVariant + '40',
+    borderColor: colors.outlineVariant,
     ...shadows.card,
   },
   iconContainer: {
-    width: 58,
-    height: 58,
+    width: 52,
+    height: 52,
     borderRadius: borderRadius.xl,
     backgroundColor: colors.surfaceContainerLow,
     alignItems: 'center',
@@ -129,9 +133,6 @@ const createStyles = (colors: ThemeColors) =>
     marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.outlineVariant + '35',
-  },
-  iconText: {
-    fontSize: 28,
   },
   categoryName: {
     fontFamily: typography.fontFamily.bold,

@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { CachedImage } from './CachedImage';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { FlashDeal } from '../types';
+import { AppIcon } from './AppIcon';
 
 interface FlashDealsProps {
   onSelectDeal?: (deal: FlashDeal) => void;
 }
 
 export const FlashDeals: React.FC<FlashDealsProps> = ({ onSelectDeal }) => {
-  const { addToCart, products } = useApp();
+  const { addToCart, products, colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [seconds, setSeconds] = useState(13335); // ~03:42:15
 
   const discountedProducts = products.filter(
@@ -55,7 +57,7 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ onSelectDeal }) => {
       <View style={styles.headerRow}>
         <View style={styles.titleInfo}>
           <View style={styles.fireIconWrap}>
-            <Text style={styles.fireIcon}>🔥</Text>
+            <AppIcon name="tag" size={19} color={themeColors.tertiary} />
           </View>
           <View>
             <View style={styles.badgeRow}>
@@ -69,7 +71,7 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ onSelectDeal }) => {
         </View>
 
         <View style={styles.timerBadge}>
-          <Text style={styles.clockIcon}>⏱</Text>
+          <AppIcon name="clock" size={15} color={themeColors.tertiary} />
           <Text style={styles.timerText}>{formatTimer(seconds)}</Text>
         </View>
       </View>
@@ -90,7 +92,7 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ onSelectDeal }) => {
 
             <View style={styles.dealDetails}>
               <View style={styles.storeRow}>
-                <Text style={styles.storeIcon}>🏪</Text>
+                <AppIcon name="store" size={13} color={themeColors.onSurfaceVariant} />
                 <Text style={styles.storeName}>{deal.storeName}</Text>
               </View>
 
@@ -116,8 +118,11 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ onSelectDeal }) => {
                   style={styles.addBtn}
                   onPress={() => addToCart(deal.product, 1)}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={'إضافة ' + deal.title + ' إلى السلة'}
                 >
-                  <Text style={styles.addBtnText}>+ أضف</Text>
+                  <AppIcon name="plus" size={14} color={themeColors.onPrimary} />
+                  <Text style={styles.addBtnText}>أضف</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -128,7 +133,7 @@ export const FlashDeals: React.FC<FlashDealsProps> = ({ onSelectDeal }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     marginVertical: spacing.baseSm,
   },
@@ -143,6 +148,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: spacing.baseXs,
+    flexShrink: 1,
   },
   fireIconWrap: {
     width: 36,
@@ -151,9 +157,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondaryContainer + '20',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  fireIcon: {
-    fontSize: 18,
   },
   badgeRow: {
     flexDirection: 'row-reverse',
@@ -189,9 +192,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: borderRadius.full,
-  },
-  clockIcon: {
-    fontSize: 12,
   },
   timerText: {
     fontSize: typography.fontSize.xs,
@@ -242,9 +242,6 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: 2,
   },
-  storeIcon: {
-    fontSize: 12,
-  },
   storeName: {
     fontSize: typography.fontSize.xs,
     color: colors.primary,
@@ -287,8 +284,11 @@ const styles = StyleSheet.create({
   addBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.baseSm,
-    paddingVertical: 6,
+    minHeight: 44,
     borderRadius: borderRadius.md,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 3,
   },
   addBtnText: {
     color: colors.onPrimary,

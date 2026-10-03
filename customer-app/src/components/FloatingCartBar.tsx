@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
+import { AppIcon } from './AppIcon';
 
 export const FloatingCartBar: React.FC = () => {
   const {
@@ -13,6 +15,7 @@ export const FloatingCartBar: React.FC = () => {
     colors: themeColors,
   } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const insets = useSafeAreaInsets();
 
   if (cart.length === 0 || currentScreen === 'cart' || currentScreen === 'checkout' || currentScreen === 'auth') {
     return null;
@@ -22,15 +25,17 @@ export const FloatingCartBar: React.FC = () => {
   const storeCount = cartSubOrders.length;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { bottom: 74 + insets.bottom }]}>
       <TouchableOpacity
         style={styles.floatingBar}
         onPress={() => navigateTo('cart')}
         activeOpacity={0.9}
+        accessibilityRole="button"
+        accessibilityLabel={'فتح السلة، ' + totalItemsCount + ' أصناف، الإجمالي ' + cartTotal.toLocaleString() + ' ريال يمني'}
       >
         <View style={styles.rightContent}>
           <View style={styles.iconWrap}>
-            <Text style={styles.cartIcon}>🛒</Text>
+            <AppIcon name="shopping-cart" size={20} color={themeColors.onPrimary} />
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{totalItemsCount}</Text>
             </View>
@@ -50,7 +55,7 @@ export const FloatingCartBar: React.FC = () => {
             </Text>
           </View>
           <View style={styles.actionArrow}>
-            <Text style={styles.arrowText}>➔</Text>
+            <AppIcon name="arrow-left" size={17} color={themeColors.onPrimary} />
           </View>
         </View>
       </TouchableOpacity>
@@ -69,8 +74,8 @@ const createStyles = (colors: ThemeColors) =>
   },
   floatingBar: {
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.xxl,
-    height: 60,
+    borderRadius: borderRadius.xl,
+    minHeight: 62,
     paddingHorizontal: spacing.baseMd,
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
@@ -91,9 +96,6 @@ const createStyles = (colors: ThemeColors) =>
     justifyContent: 'center',
     position: 'relative',
   },
-  cartIcon: {
-    fontSize: 20,
-  },
   badge: {
     position: 'absolute',
     top: -2,
@@ -108,7 +110,7 @@ const createStyles = (colors: ThemeColors) =>
     borderColor: colors.primary,
   },
   badgeText: {
-    color: colors.onSecondary,
+    color: colors.onSecondaryContainer,
     fontSize: 9,
     fontWeight: typography.fontWeight.bold,
   },
@@ -121,7 +123,7 @@ const createStyles = (colors: ThemeColors) =>
     fontWeight: typography.fontWeight.bold,
   },
   storesCount: {
-    color: colors.onPrimary + 'CC',
+    color: colors.onPrimary + 'D9',
     fontSize: typography.fontSize.xs,
   },
   leftContent: {
@@ -133,8 +135,8 @@ const createStyles = (colors: ThemeColors) =>
     alignItems: 'flex-start',
   },
   totalLabel: {
-    color: colors.onPrimary + 'BB',
-    fontSize: 10,
+    color: colors.onPrimary + 'D9',
+    fontSize: typography.fontSize.xs,
   },
   totalValue: {
     color: colors.onPrimary,
@@ -151,10 +153,5 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  arrowText: {
-    color: colors.onPrimary,
-    fontSize: 16,
-    fontWeight: typography.fontWeight.bold,
   },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Modal,
   View,
@@ -8,7 +8,9 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
-import { typography, borderRadius, spacing } from '../theme';
+import { typography, borderRadius, ThemeColors } from '../theme';
+import { useApp } from '../context/AppContext';
+import { AppIcon } from './AppIcon';
 
 interface TermsModalProps {
   visible: boolean;
@@ -21,6 +23,9 @@ export const TermsModal: React.FC<TermsModalProps> = ({
   onClose,
   onAccept,
 }) => {
+  const { colors: themeColors } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+
   const handleAccept = () => {
     if (onAccept) onAccept();
     onClose();
@@ -41,8 +46,10 @@ export const TermsModal: React.FC<TermsModalProps> = ({
               onPress={onClose}
               style={styles.closeBtn}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="إغلاق الشروط والأحكام"
             >
-              <Text style={styles.closeIcon}>✕</Text>
+              <AppIcon name="close" size={18} color={themeColors.onSurface} />
             </TouchableOpacity>
             <View style={styles.titleWrap}>
               <Text style={styles.title}>الشروط والأحكام وسياسة الخصوصية</Text>
@@ -117,6 +124,8 @@ export const TermsModal: React.FC<TermsModalProps> = ({
               style={styles.acceptBtn}
               onPress={handleAccept}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="أوافق على الشروط والأحكام"
             >
               <Text style={styles.acceptBtnText}>أوافق على الشروط والأحكام ✓</Text>
             </TouchableOpacity>
@@ -127,19 +136,19 @@ export const TermsModal: React.FC<TermsModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    backgroundColor: '#181A1E',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderTopLeftRadius: borderRadius.xxl,
+    borderTopRightRadius: borderRadius.xxl,
     maxHeight: '88%',
     borderWidth: 1,
-    borderColor: '#262A32',
+    borderColor: colors.outlineVariant,
   },
   header: {
     flexDirection: 'row',
@@ -149,20 +158,15 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#262A32',
+    borderBottomColor: colors.outlineVariant,
   },
   closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#262A32',
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceContainerLow,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  closeIcon: {
-    color: '#D1D5DB',
-    fontSize: 15,
-    fontWeight: 'bold',
   },
   titleWrap: {
     alignItems: 'flex-end',
@@ -172,13 +176,13 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 16,
-    color: '#F9FAFB',
+    color: colors.onSurface,
     textAlign: 'right',
   },
   subtitle: {
     fontFamily: typography.fontFamily.regular,
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 2,
   },
@@ -191,23 +195,23 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 18,
-    backgroundColor: '#1F232B',
+    backgroundColor: colors.surfaceContainerLow,
     borderRadius: borderRadius.lg,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#2D323E',
+    borderColor: colors.outlineVariant,
   },
   sectionTitle: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 14,
-    color: '#F59E0B',
+    color: colors.tertiary,
     textAlign: 'right',
     marginBottom: 6,
   },
   sectionText: {
     fontFamily: typography.fontFamily.regular,
-    fontSize: 12.5,
-    color: '#D1D5DB',
+    fontSize: 14,
+    color: colors.onSurface,
     textAlign: 'right',
     lineHeight: 22,
   },
@@ -218,19 +222,20 @@ const styles = StyleSheet.create({
   updateText: {
     fontFamily: typography.fontFamily.medium,
     fontSize: 11,
-    color: '#6B7280',
+    color: colors.outline,
   },
   footer: {
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 20,
     borderTopWidth: 1,
-    borderTopColor: '#262A32',
-    backgroundColor: '#181A1E',
+    borderTopColor: colors.outlineVariant,
+    backgroundColor: colors.surfaceContainerLowest,
   },
   acceptBtn: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.xl,
+    minHeight: 50,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -238,6 +243,6 @@ const styles = StyleSheet.create({
   acceptBtnText: {
     fontFamily: typography.fontFamily.bold,
     fontSize: 15,
-    color: '#111317',
+    color: colors.onPrimary,
   },
 });

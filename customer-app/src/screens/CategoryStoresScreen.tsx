@@ -16,6 +16,7 @@ import { Store } from '../types';
 import { DealDetailsModal, DealItem } from '../components/DealDetailsModal';
 import { CategoryStoresSkeleton } from '../components/Shimmer';
 import { governorateApi } from '../api';
+import { AppIcon, categoryIconForName } from '../components/AppIcon';
 
 export const CategoryStoresScreen: React.FC = () => {
   const {
@@ -162,8 +163,15 @@ export const CategoryStoresScreen: React.FC = () => {
                   setVisibleStoresCount(6);
                 }}
                 activeOpacity={0.8}
+                accessibilityRole="tab"
+                accessibilityLabel={cat.name}
+                accessibilityState={{ selected: isSelected }}
               >
-                <Text style={styles.tabIcon}>{cat.icon}</Text>
+                <AppIcon
+                  name={categoryIconForName(cat.name)}
+                  size={17}
+                  color={isSelected ? themeColors.onPrimary : themeColors.onSurfaceVariant}
+                />
                 <Text style={[styles.tabText, isSelected && styles.tabTextActive]}>
                   {cat.name}
                 </Text>
@@ -180,8 +188,10 @@ export const CategoryStoresScreen: React.FC = () => {
                 style={styles.clearSearchBtn}
                 onPress={() => setSearchQuery('')}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="مسح البحث"
               >
-                <Text style={styles.clearSearchText}>✕</Text>
+                <AppIcon name="close" size={14} color={themeColors.onSurfaceVariant} />
               </TouchableOpacity>
             ) : null}
             <TextInput
@@ -192,8 +202,9 @@ export const CategoryStoresScreen: React.FC = () => {
               onChangeText={setSearchQuery}
               textAlign="right"
               returnKeyType="search"
+              accessibilityLabel="البحث عن متجر"
             />
-            <Text style={styles.searchIcon}>🔍</Text>
+            <AppIcon name="search" size={18} color={themeColors.onSurfaceVariant} />
           </View>
         </View>
 
@@ -238,9 +249,10 @@ export const CategoryStoresScreen: React.FC = () => {
                     </View>
 
                     <View style={styles.offerContent}>
-                      <Text style={styles.offerStoreName} numberOfLines={1}>
-                        📍 {deal.storeName}
-                      </Text>
+                      <View style={styles.offerStoreRow}>
+                        <AppIcon name="map-pin" size={13} color={themeColors.onSurfaceVariant} />
+                        <Text style={styles.offerStoreName} numberOfLines={1}>{deal.storeName}</Text>
+                      </View>
                       <Text style={styles.offerTitle} numberOfLines={1}>
                         {deal.title}
                       </Text>
@@ -265,8 +277,10 @@ export const CategoryStoresScreen: React.FC = () => {
                             <TouchableOpacity
                               style={styles.stepBtn}
                               onPress={() => updateQuantity(deal.id, qty + 1)}
+                              accessibilityRole="button"
+                              accessibilityLabel={'زيادة كمية ' + deal.title}
                             >
-                              <Text style={styles.stepBtnText}>+</Text>
+                              <AppIcon name="plus" size={16} color={themeColors.primary} />
                             </TouchableOpacity>
                             <Text style={styles.stepQtyText}>{qty}</Text>
                             <TouchableOpacity
@@ -278,8 +292,10 @@ export const CategoryStoresScreen: React.FC = () => {
                                   updateQuantity(deal.id, qty - 1);
                                 }
                               }}
+                              accessibilityRole="button"
+                              accessibilityLabel={'تقليل كمية ' + deal.title}
                             >
-                              <Text style={styles.stepBtnText}>-</Text>
+                              <AppIcon name="minus" size={16} color={themeColors.primary} />
                             </TouchableOpacity>
                           </View>
                         ) : (
@@ -308,9 +324,14 @@ export const CategoryStoresScreen: React.FC = () => {
                                 );
                               }
                             }}
+                            accessibilityRole="button"
+                            accessibilityLabel={'إضافة العرض ' + deal.title + ' إلى السلة'}
                           >
+                            {deal.products && deal.products.length === 0 && (
+                              <AppIcon name="plus" size={14} color={themeColors.onPrimary} />
+                            )}
                             <Text style={styles.addBtnText}>
-                              {deal.products && deal.products.length > 0 ? 'عرض الباقة ➔' : '+ إضافة'}
+                              {deal.products && deal.products.length > 0 ? 'عرض الباقة' : 'إضافة'}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -347,7 +368,9 @@ export const CategoryStoresScreen: React.FC = () => {
 
           {filteredCategoryStores.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyIcon}>🏪</Text>
+              <View style={styles.emptyIcon}>
+                <AppIcon name="store" size={28} color={themeColors.onSurfaceVariant} />
+              </View>
               <Text style={styles.emptyTitle}>
                 {searchQuery.trim()
                   ? `لا توجد متاجر تطابق "${searchQuery.trim()}"`
@@ -380,7 +403,7 @@ export const CategoryStoresScreen: React.FC = () => {
                     <Text style={styles.resetSearchText}>إعادة تحميل المتاجر</Text>
                   </TouchableOpacity>
                 </>
-              ) : null}
+              )}
             </View>
           ) : (
             filteredCategoryStores.slice(0, visibleStoresCount).map((store) => (
@@ -429,6 +452,7 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: colors.surfaceContainerLowest,
     paddingHorizontal: spacing.baseMd,
     paddingVertical: 9,
+    minHeight: 44,
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: colors.outlineVariant + '35',
@@ -438,9 +462,6 @@ const createStyles = (colors: ThemeColors) =>
   tabActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
-  },
-  tabIcon: {
-    fontSize: 16,
   },
   tabText: {
     fontFamily: typography.fontFamily.medium,
@@ -461,7 +482,8 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.lg,
     paddingHorizontal: 14,
-    height: 46,
+    minHeight: 48,
+    height: 48,
     borderWidth: 1,
     borderColor: colors.outlineVariant + '45',
     ...shadows.card,
@@ -475,8 +497,6 @@ const createStyles = (colors: ThemeColors) =>
     paddingVertical: 4,
   },
   searchIcon: {
-    fontSize: 16,
-    color: colors.outline,
     marginLeft: 8,
   },
   clearSearchBtn: {
@@ -487,11 +507,6 @@ const createStyles = (colors: ThemeColors) =>
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
-  },
-  clearSearchText: {
-    fontSize: 12,
-    color: colors.onSurfaceVariant,
-    fontWeight: 'bold',
   },
   offersSection: {
     marginTop: spacing.baseSm,
@@ -581,6 +596,11 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.secondary,
     textAlign: 'right',
   },
+  offerStoreRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+  },
   offerTitle: {
     fontFamily: typography.fontFamily.bold,
     fontSize: typography.fontSize.sm,
@@ -619,8 +639,12 @@ const createStyles = (colors: ThemeColors) =>
   addBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    minHeight: 44,
     borderRadius: borderRadius.md,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
   addBtnText: {
     fontFamily: typography.fontFamily.bold,
@@ -639,13 +663,10 @@ const createStyles = (colors: ThemeColors) =>
     gap: 6,
   },
   stepBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  stepBtnText: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 16,
-    color: colors.primary,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stepQtyText: {
     fontFamily: typography.fontFamily.bold,
@@ -679,7 +700,12 @@ const createStyles = (colors: ThemeColors) =>
     borderColor: colors.outlineVariant + '30',
   },
   emptyIcon: {
-    fontSize: 40,
+    width: 64,
+    height: 64,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceContainerLow,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.baseSm,
   },
   emptyTitle: {

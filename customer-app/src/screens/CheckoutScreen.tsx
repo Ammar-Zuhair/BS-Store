@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import { governorateApi, paymentsApi } from '../api';
 import { PaymentMethodType } from '../types';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
+import { AppIcon } from '../components/AppIcon';
 
 type CheckoutTextProps = React.ComponentProps<typeof Text>;
 
@@ -179,12 +180,12 @@ export const CheckoutScreen: React.FC = () => {
         {/* Address Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <TouchableOpacity onPress={() => setShowMapPicker(true)}>
+            <TouchableOpacity onPress={() => setShowMapPicker(true)} accessibilityRole="button" accessibilityLabel={selectedAddress ? 'تعديل عنوان التوصيل' : 'إضافة عنوان توصيل'}>
               <CheckoutText style={styles.changeLink}>{selectedAddress ? 'تعديل أو تغيير' : '+ إضافة عنوان'}</CheckoutText>
             </TouchableOpacity>
             <View style={styles.headerRight}>
               <CheckoutText style={styles.cardTitle}>عنوان التوصيل</CheckoutText>
-              <CheckoutText style={styles.headerIcon}>📍</CheckoutText>
+              <AppIcon name="map-pin" size={19} color={themeColors.primary} />
             </View>
           </View>
           {selectedAddress ? (
@@ -202,8 +203,10 @@ export const CheckoutScreen: React.FC = () => {
               style={styles.missingAddressBtn}
               onPress={() => setShowMapPicker(true)}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="اختيار موقع التوصيل على الخريطة"
             >
-              <CheckoutText style={styles.missingAddressIcon}>🗺️</CheckoutText>
+              <AppIcon name="map" size={22} color={themeColors.primary} />
               <View style={{ flex: 1, alignItems: 'flex-end' }}>
                 <CheckoutText style={styles.missingAddressTitle}>لم يتم تحديد موقع التوصيل</CheckoutText>
                 <CheckoutText style={styles.missingAddressSub}>اضغط هنا لاختيار موقعك بدقة على الخريطة (GPS)</CheckoutText>
@@ -218,7 +221,7 @@ export const CheckoutScreen: React.FC = () => {
             <CheckoutText style={styles.storesCountBadge}>{cartSubOrders.length} متاجر</CheckoutText>
             <View style={styles.headerRight}>
               <CheckoutText style={styles.cardTitle}>ملخص محطات الاستلام</CheckoutText>
-              <CheckoutText style={styles.headerIcon}>🏪</CheckoutText>
+              <AppIcon name="store" size={19} color={themeColors.primary} />
             </View>
           </View>
           {cartSubOrders.map((so, idx) => (
@@ -238,7 +241,7 @@ export const CheckoutScreen: React.FC = () => {
             <View />
             <View style={styles.headerRight}>
               <CheckoutText style={styles.cardTitle}>طريقة الدفع</CheckoutText>
-              <CheckoutText style={styles.headerIcon}>💳</CheckoutText>
+              <AppIcon name="credit-card" size={19} color={themeColors.primary} />
             </View>
           </View>
 
@@ -250,6 +253,9 @@ export const CheckoutScreen: React.FC = () => {
             ]}
             onPress={() => setPaymentMethod('CASH_ON_DELIVERY')}
             activeOpacity={0.85}
+            accessibilityRole="radio"
+            accessibilityLabel="الدفع نقداً عند الاستلام"
+            accessibilityState={{ checked: paymentMethod === 'CASH_ON_DELIVERY' }}
           >
             <View style={styles.radio}>
               {paymentMethod === 'CASH_ON_DELIVERY' && <View style={styles.radioInner} />}
@@ -257,7 +263,7 @@ export const CheckoutScreen: React.FC = () => {
             <View style={styles.methodInfo}>
               <View style={styles.methodTitleRow}>
                 <CheckoutText style={styles.methodTitle}>الدفع نقداً عند الاستلام (COD)</CheckoutText>
-                <CheckoutText style={styles.methodIcon}>💵</CheckoutText>
+                <AppIcon name="cash" size={18} color={themeColors.primary} />
               </View>
               <CheckoutText style={styles.methodDesc}>
                 ادفع للكابتن بعد استلام جميع الطلبات ومطابقتها
@@ -273,6 +279,9 @@ export const CheckoutScreen: React.FC = () => {
             ]}
             onPress={() => setPaymentMethod('MANUAL_TRANSFER')}
             activeOpacity={0.85}
+            accessibilityRole="radio"
+            accessibilityLabel="تحويل بنكي أو إشعار سداد"
+            accessibilityState={{ checked: paymentMethod === 'MANUAL_TRANSFER' }}
           >
             <View style={styles.radio}>
               {paymentMethod === 'MANUAL_TRANSFER' && <View style={styles.radioInner} />}
@@ -280,7 +289,7 @@ export const CheckoutScreen: React.FC = () => {
             <View style={styles.methodInfo}>
               <View style={styles.methodTitleRow}>
                 <CheckoutText style={styles.methodTitle}>تحويل بنكي / إشعار سداد</CheckoutText>
-                <CheckoutText style={styles.methodIcon}>🏦</CheckoutText>
+                <AppIcon name="bank" size={18} color={themeColors.primary} />
               </View>
               <CheckoutText style={styles.methodDesc}>
                 تحويل عبر الكريمي جوال أو المحافظ الإلكترونية
@@ -312,6 +321,7 @@ export const CheckoutScreen: React.FC = () => {
                 value={transferRef}
                 onChangeText={setTransferRef}
                 textAlign="right"
+                accessibilityLabel="رقم الحوالة أو العملية"
               />
 
             </View>
@@ -324,15 +334,16 @@ export const CheckoutScreen: React.FC = () => {
             <View />
             <View style={styles.headerRight}>
               <CheckoutText style={styles.cardTitle}>كود الخصم / رمز الاسترداد</CheckoutText>
-              <CheckoutText style={styles.headerIcon}>🏷️</CheckoutText>
+              <AppIcon name="tag" size={19} color={themeColors.primary} />
             </View>
           </View>
 
           {promoCode ? (
             <View style={styles.activePromoWrap}>
               <View style={styles.activePromoHeader}>
-                <TouchableOpacity onPress={handleClearPromo} style={styles.removePromoBtn}>
-                  <CheckoutText style={styles.removePromoBtnText}>✕ إلغاء الكود</CheckoutText>
+                <TouchableOpacity onPress={handleClearPromo} style={styles.removePromoBtn} accessibilityRole="button" accessibilityLabel="إلغاء كود الخصم">
+                  <AppIcon name="close" size={14} color={themeColors.error} />
+                  <CheckoutText style={styles.removePromoBtnText}>إلغاء الكود</CheckoutText>
                 </TouchableOpacity>
                 <View style={styles.promoBadge}>
                   <CheckoutText style={styles.promoBadgeText}>✓ {promoCode}</CheckoutText>
@@ -357,7 +368,7 @@ export const CheckoutScreen: React.FC = () => {
                   activeOpacity={0.8}
                 >
                   {isApplyingCoupon ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={themeColors.onPrimary} />
                   ) : (
                     <CheckoutText style={styles.applyPromoBtnText}>تطبيق الخصم</CheckoutText>
                   )}
@@ -373,6 +384,7 @@ export const CheckoutScreen: React.FC = () => {
                   }}
                   autoCapitalize="characters"
                   textAlign="right"
+                  accessibilityLabel="رمز الاسترداد أو كود الخصم"
                 />
               </View>
               {couponStatusMsg && (
@@ -394,6 +406,7 @@ export const CheckoutScreen: React.FC = () => {
             multiline
             numberOfLines={3}
             textAlign="right"
+            accessibilityLabel="ملاحظات للكابتن"
           />
         </View>
 
@@ -452,11 +465,17 @@ export const CheckoutScreen: React.FC = () => {
           onPress={handleConfirmOrder}
           disabled={isSubmitting || isDeliveryQuoteLoading || !hasDeliveryQuote}
           activeOpacity={0.88}
+          accessibilityRole="button"
+          accessibilityLabel="تأكيد الطلب وإرساله للكابتن"
+          accessibilityState={{ disabled: isSubmitting || isDeliveryQuoteLoading || !hasDeliveryQuote, busy: isSubmitting }}
         >
           {isSubmitting ? (
             <ActivityIndicator color={themeColors.onPrimary} size="small" />
           ) : (
-            <CheckoutText style={styles.confirmBtnText}>تأكيد الطلب وإرساله للكابتن 🚀</CheckoutText>
+            <>
+              <AppIcon name="check" size={19} color={themeColors.onPrimary} />
+              <CheckoutText style={styles.confirmBtnText}>تأكيد الطلب وإرساله للكابتن</CheckoutText>
+            </>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -772,6 +791,8 @@ const createStyles = (colors: ThemeColors) =>
     height: 54,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row-reverse',
+    gap: 8,
     ...shadows.floating,
     marginTop: spacing.baseXs,
   },
@@ -785,7 +806,7 @@ const createStyles = (colors: ThemeColors) =>
     borderRadius: borderRadius.md,
     padding: spacing.baseSm,
     borderWidth: 1,
-    borderColor: '#10B98150',
+    borderColor: colors.success + '50',
   },
   activePromoHeader: {
     flexDirection: 'row-reverse',
@@ -794,19 +815,22 @@ const createStyles = (colors: ThemeColors) =>
     marginBottom: 4,
   },
   promoBadge: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
     borderRadius: borderRadius.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   promoBadgeText: {
-    color: '#fff',
+    color: colors.onPrimary,
     fontSize: 12,
     fontWeight: typography.fontWeight.bold,
   },
   removePromoBtn: {
+    minHeight: 44,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
   },
   removePromoBtnText: {
     color: colors.error,
@@ -822,7 +846,7 @@ const createStyles = (colors: ThemeColors) =>
   },
   promoSavingText: {
     fontSize: 12,
-    color: '#10B981',
+    color: colors.success,
     textAlign: 'right',
     marginTop: 2,
     fontWeight: typography.fontWeight.bold,
@@ -840,7 +864,7 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
     paddingHorizontal: 14,
-    height: 42,
+    minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },

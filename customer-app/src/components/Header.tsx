@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Modal } from 'react-na
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { LocationPickerModal, LocationResult } from './LocationPickerModal';
+import { AppIcon } from './AppIcon';
 
 interface HeaderProps {
   title?: string;
@@ -36,8 +37,14 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
     <View style={styles.container}>
       {showBack ? (
         <View style={styles.inner}>
-          <TouchableOpacity style={styles.backBtn} onPress={onBack || (() => navigateTo('home'))}>
-            <Text style={styles.iconText}>➔</Text>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={onBack || (() => navigateTo('home'))}
+            accessibilityRole="button"
+            accessibilityLabel="رجوع"
+            hitSlop={8}
+          >
+            <AppIcon name="arrow-right" size={20} color={themeColors.onSurface} />
           </TouchableOpacity>
           <View style={styles.titleWrapper}>
             <Text style={styles.titleText}>{title}</Text>
@@ -76,8 +83,14 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
               {rightAction !== undefined ? (
                 rightAction
               ) : (
-                <TouchableOpacity style={styles.iconButton} onPress={() => navigateTo('tracking')}>
-                  <Text style={styles.actionIcon}>🔔</Text>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={() => navigateTo('tracking')}
+                  accessibilityRole="button"
+                  accessibilityLabel="الانتقال إلى طلباتي"
+                  hitSlop={4}
+                >
+                  <AppIcon name="bell" size={20} color={themeColors.onSurface} />
                   <View style={styles.notificationDot} />
                 </TouchableOpacity>
               )}
@@ -89,10 +102,14 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
             style={styles.deliveryBar}
             onPress={() => setAddressModalVisible(true)}
             activeOpacity={0.82}
+            accessibilityRole="button"
+            accessibilityLabel={'عنوان التوصيل: ' + (selectedAddress
+              ? selectedAddress.city + '، ' + selectedAddress.district
+              : 'لم يتم تحديد عنوان')}
           >
             <View style={styles.deliveryBarRight}>
               <View style={styles.locationIconWrap}>
-                <Text style={styles.locationIconText}>📍</Text>
+                <AppIcon name="map-pin" size={19} color={themeColors.primary} />
               </View>
               <View style={styles.deliveryBarInfo}>
                 <Text style={styles.deliverToLabel}>التوصيل إلى موقعك</Text>
@@ -104,14 +121,20 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
               </View>
             </View>
             <View style={styles.changeAddressTag}>
-              <Text style={styles.changeAddressText}>تغيير ▾</Text>
+              <Text style={styles.changeAddressText}>تغيير</Text>
+              <AppIcon name="chevron-down" size={14} color={themeColors.primary} />
             </View>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Address Selection Modal */}
-      <Modal visible={addressModalVisible} transparent animationType="fade">
+      <Modal
+        visible={addressModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAddressModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>اختر عنوان التوصيل</Text>
@@ -123,15 +146,21 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
                 <TouchableOpacity
                   key={addr.id}
                   style={[styles.addressItem, isSelected && styles.addressItemSelected]}
+                  activeOpacity={0.8}
                   onPress={() => {
                     setSelectedAddress(addr);
                     setAddressModalVisible(false);
                   }}
+                  accessibilityRole="radio"
+                  accessibilityLabel={addr.label + ': ' + addr.city + '، ' + addr.district + '، ' + addr.street}
+                  accessibilityState={{ checked: isSelected }}
                 >
                   <View style={styles.addressIconWrap}>
-                    <Text style={styles.addressTypeIcon}>
-                      {addr.label === 'المنزل' ? '🏠' : '🏢'}
-                    </Text>
+                    <AppIcon
+                      name={addr.label === 'المنزل' ? 'house' : 'building'}
+                      size={20}
+                      color={themeColors.primary}
+                    />
                   </View>
                   <View style={styles.addressItemContent}>
                     <View style={styles.addressItemHeader}>
@@ -156,8 +185,11 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
                 setShowMapPicker(true);
               }}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="تحديد موقع التوصيل على الخريطة"
             >
-              <Text style={styles.pickOnMapBtnText}>🗺️ تحديد موقعي على الخريطة التفاعلية</Text>
+              <AppIcon name="map" size={18} color={themeColors.primary} />
+              <Text style={styles.pickOnMapBtnText}>تحديد موقعي على الخريطة</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -203,17 +235,14 @@ const createStyles = (colors: ThemeColors) =>
     gap: spacing.baseXs,
   },
   locationIconWrap: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: borderRadius.full,
     backgroundColor: colors.primaryFixed + '25',
     borderWidth: 1,
     borderColor: colors.primaryFixed,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  locationIconText: {
-    fontSize: 16,
   },
   addressInfo: {
     alignItems: 'flex-end',
@@ -284,6 +313,9 @@ const createStyles = (colors: ThemeColors) =>
     borderRadius: borderRadius.sm,
     borderWidth: 1,
     borderColor: colors.outlineVariant + '40',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 3,
   },
   changeAddressText: {
     fontFamily: typography.fontFamily.bold,
@@ -339,9 +371,6 @@ const createStyles = (colors: ThemeColors) =>
     justifyContent: 'center',
     position: 'relative',
   },
-  actionIcon: {
-    fontSize: 18,
-  },
   notificationDot: {
     position: 'absolute',
     top: 8,
@@ -359,13 +388,9 @@ const createStyles = (colors: ThemeColors) =>
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconText: {
-    fontSize: 18,
-    color: colors.onSurface,
-  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(19, 27, 46, 0.55)',
+    backgroundColor: 'rgba(10, 24, 17, 0.48)',
     justifyContent: 'flex-end',
   },
   modalCard: {
@@ -389,6 +414,7 @@ const createStyles = (colors: ThemeColors) =>
     marginBottom: spacing.baseMd,
   },
   addressItem: {
+    minHeight: 64,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: colors.surfaceContainerLow,
@@ -410,9 +436,6 @@ const createStyles = (colors: ThemeColors) =>
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: spacing.baseSm,
-  },
-  addressTypeIcon: {
-    fontSize: 20,
   },
   addressItemContent: {
     flex: 1,
@@ -457,6 +480,10 @@ const createStyles = (colors: ThemeColors) =>
     paddingVertical: spacing.baseSm,
     borderRadius: borderRadius.lg,
     alignItems: 'center',
+    flexDirection: 'row-reverse',
+    justifyContent: 'center',
+    gap: spacing.baseSm,
+    minHeight: 50,
   },
   pickOnMapBtnText: {
     fontSize: typography.fontSize.sm,

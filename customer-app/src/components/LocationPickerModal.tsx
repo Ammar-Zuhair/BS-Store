@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,9 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
-import { colors, typography, borderRadius, shadows, spacing } from '../theme';
+import { typography, borderRadius, shadows, spacing, ThemeColors } from '../theme';
+import { useApp } from '../context/AppContext';
+import { AppIcon } from './AppIcon';
 
 export interface LocationResult {
   latitude: number;
@@ -50,7 +52,7 @@ const buildCustomerLeafletHtml = (lat: number, lng: number, apiKey: string = '')
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';"/>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #map { width: 100%; height: 100%; background: #E8EBEF; overflow: hidden; }
+    html, body, #map { width: 100%; height: 100%; background: #F0F4F0; overflow: hidden; }
     .leaflet-control-attribution { display: none !important; }
     .center-pin-container {
       position: absolute;
@@ -67,8 +69,8 @@ const buildCustomerLeafletHtml = (lat: number, lng: number, apiKey: string = '')
       width: 38px;
       height: 38px;
       border-radius: 50%;
-      background: #181A1E;
-      border: 3px solid #F59E0B;
+      background: #176B56;
+      border: 3px solid #F1B45D;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -85,7 +87,7 @@ const buildCustomerLeafletHtml = (lat: number, lng: number, apiKey: string = '')
       height: 0;
       border-left: 6px solid transparent;
       border-right: 6px solid transparent;
-      border-top: 10px solid #181A1E;
+      border-top: 10px solid #176B56;
       margin-top: -2px;
     }
     .gps-shadow {
@@ -217,6 +219,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   onConfirm,
   title = 'تحديد موقع التوصيل',
 }) => {
+  const { colors: themeColors, isDarkMode } = useApp();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [sessionKey, setSessionKey] = useState<number>(0);
   const initialCoordsRef = useRef({ lat: initialLat, lng: initialLng });
   const [currentLat, setCurrentLat] = useState<number>(initialLat);
@@ -469,7 +473,10 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       onRequestClose={onClose}
     >
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.surfaceContainerLowest} />
+        <StatusBar
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+          backgroundColor={themeColors.surfaceContainerLowest}
+        />
 
         {/* 1. Header Bar */}
         <View style={styles.topBar}>
@@ -477,8 +484,10 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             style={styles.topBarActionBtn}
             onPress={onClose}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="إغلاق محدد الموقع"
           >
-            <Text style={styles.topBarBackArrow}>✕</Text>
+            <AppIcon name="close" size={19} color={themeColors.onSurface} />
           </TouchableOpacity>
 
           <View style={styles.topBarTitleWrap}>
@@ -532,7 +541,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               startInLoadingState={true}
               renderLoading={() => (
                 <View style={styles.mapLoader}>
-                  <ActivityIndicator size="small" color={colors.primary} />
+                  <ActivityIndicator size="small" color={themeColors.primary} />
                   <Text style={styles.mapLoaderText}>جاري تحميل الخريطة...</Text>
                 </View>
               )}
@@ -543,17 +552,18 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           <View style={styles.searchFloatingWrap}>
             <View style={styles.searchBar}>
               {isSearching ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <ActivityIndicator size="small" color={themeColors.primary} />
               ) : (
-                <Text style={styles.searchIcon}>🔍</Text>
+                  <AppIcon name="search" size={18} color={themeColors.onSurfaceVariant} />
               )}
               <TextInput
                 style={styles.searchInput}
                 placeholder="ابحث عن اسم الحي، الشارع، أو المنطقة..."
-                placeholderTextColor={colors.outline}
+                placeholderTextColor={themeColors.outline}
                 value={searchQuery}
                 onChangeText={handleSearchChange}
                 textAlign="right"
+                accessibilityLabel="البحث عن اسم الحي أو الشارع"
               />
             </View>
 
@@ -565,10 +575,11 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                     style={styles.searchResultItem}
                     onPress={() => handleSelectSearchResult(item)}
                     activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={'تحديد الموقع: ' + item.name}
                   >
-                    <Text style={styles.searchResultText} numberOfLines={1}>
-                      📍 {item.name}
-                    </Text>
+                    <AppIcon name="map-pin" size={16} color={themeColors.primary} />
+                    <Text style={styles.searchResultText} numberOfLines={1}>{item.name}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -588,15 +599,18 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             onPress={handleDetectGPS}
             disabled={isLocating}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={isLocating ? 'جارٍ تحديد موقعك' : 'استخدام موقعي الحالي'}
+            accessibilityState={{ disabled: isLocating, busy: isLocating }}
           >
             <Text style={styles.currentLocationText}>
               {isLocating ? 'جاري تحديد GPS...' : 'موقعي الحالي (GPS)'}
             </Text>
             <View style={styles.gpsIconCircle}>
               {isLocating ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <ActivityIndicator size="small" color={themeColors.primary} />
               ) : (
-                <Text style={styles.gpsIcon}>🎯</Text>
+                <AppIcon name="navigation" size={17} color={themeColors.primary} />
               )}
             </View>
           </TouchableOpacity>
@@ -625,16 +639,17 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               <TextInput
                 style={styles.fullAddressInput}
                 placeholder="أدخل عنوان التوصيل بالتفصيل (مثل: المدينة، اسم الحي، الشارع، رقم المبنى، وأي علامة مميزة قريبة)"
-                placeholderTextColor={colors.outline}
+                placeholderTextColor={themeColors.outline}
                 value={fullAddress}
                 onChangeText={setFullAddress}
                 multiline={true}
                 numberOfLines={3}
                 textAlign="right"
                 textAlignVertical="top"
+                accessibilityLabel="عنوان التوصيل بالتفصيل"
               />
               <View style={styles.fullAddressIconBox}>
-                <Text style={styles.inputIcon}>📍</Text>
+                <AppIcon name="map-pin" size={18} color={themeColors.primary} />
               </View>
             </View>
 
@@ -643,6 +658,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               style={styles.saveLocationBtn}
               onPress={handleConfirm}
               activeOpacity={0.9}
+              accessibilityRole="button"
+              accessibilityLabel="تأكيد وحفظ موقع التوصيل"
             >
               <Text style={styles.saveLocationBtnText}>تأكيد وحفظ موقع التوصيل ✓</Text>
             </TouchableOpacity>
@@ -653,7 +670,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -745,7 +762,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
     paddingHorizontal: 14,
-    height: 48,
+    minHeight: 50,
+    height: 50,
     borderWidth: 1,
     borderColor: colors.outlineVariant + '50',
     ...shadows.card,
@@ -759,7 +777,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   searchIcon: {
-    fontSize: 15,
     marginRight: 6,
   },
   searchResultsDropdown: {
@@ -777,6 +794,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.outlineVariant + '25',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
   },
   searchResultText: {
     fontFamily: typography.fontFamily.medium,
@@ -826,9 +846,6 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  gpsIcon: {
-    fontSize: 15,
   },
   bottomCard: {
     backgroundColor: colors.surfaceContainerLowest,

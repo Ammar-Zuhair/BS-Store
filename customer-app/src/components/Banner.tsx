@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
+import { AppIcon } from './AppIcon';
 
 export const Banner: React.FC = () => {
-  const { navigateTo } = useApp();
+  const { navigateTo, colors } = useApp();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const handleCopy = () => navigateTo('cart');
 
   return (
@@ -12,10 +14,11 @@ export const Banner: React.FC = () => {
       <View style={styles.card}>
         <View style={styles.topRow}>
           <View style={styles.badgeWrap}>
-            <Text style={styles.badgeText}>⚡ عرض ترويجي حصري</Text>
+            <AppIcon name="sparkles" size={14} color={colors.onPrimary} />
+            <Text style={styles.badgeText}>عرض ترويجي حصري</Text>
           </View>
           <View style={styles.iconCircle}>
-            <Text style={styles.truckIcon}>🚚</Text>
+            <AppIcon name="truck" size={21} color={colors.onPrimary} />
           </View>
         </View>
 
@@ -24,7 +27,13 @@ export const Banner: React.FC = () => {
         </Text>
 
         <View style={styles.bottomRow}>
-          <TouchableOpacity style={styles.copyBtn} onPress={handleCopy} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.copyBtn}
+            onPress={handleCopy}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="إدخال كود الخصم في سلة الشراء"
+          >
             <Text style={styles.copyBtnText}>أدخل كود الخصم</Text>
           </TouchableOpacity>
 
@@ -40,7 +49,7 @@ export const Banner: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     paddingHorizontal: spacing.screenGutter,
     marginVertical: spacing.baseSm,
@@ -62,6 +71,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.baseXs,
     paddingVertical: 3,
     borderRadius: borderRadius.full,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 5,
   },
   badgeText: {
     color: colors.onPrimary,
@@ -75,9 +87,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  truckIcon: {
-    fontSize: 18,
   },
   headline: {
     fontSize: typography.fontSize.lg,
@@ -116,12 +125,13 @@ const styles = StyleSheet.create({
   copyBtn: {
     backgroundColor: colors.secondaryContainer,
     paddingHorizontal: spacing.baseSm,
-    paddingVertical: 6,
+    minHeight: 44,
+    justifyContent: 'center',
     borderRadius: borderRadius.full,
   },
   copyBtnText: {
     fontSize: typography.fontSize.xs,
     fontWeight: typography.fontWeight.bold,
-    color: colors.onSecondary,
+    color: colors.onSecondaryContainer,
   },
 });
