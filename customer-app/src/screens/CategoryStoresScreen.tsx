@@ -16,7 +16,7 @@ import { Store } from '../types';
 import { DealDetailsModal, DealItem } from '../components/DealDetailsModal';
 import { CategoryStoresSkeleton } from '../components/Shimmer';
 import { governorateApi } from '../api';
-import { AppIcon, categoryIconForName } from '../components/AppIcon';
+import { AppIcon } from '../components/AppIcon';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 
 export const CategoryStoresScreen: React.FC = () => {
@@ -168,11 +168,7 @@ export const CategoryStoresScreen: React.FC = () => {
                 accessibilityLabel={cat.name}
                 accessibilityState={{ selected: isSelected }}
               >
-                <AppIcon
-                  name={categoryIconForName(cat.name)}
-                  size={17}
-                  color={isSelected ? themeColors.onPrimary : themeColors.onSurfaceVariant}
-                />
+                <Text style={styles.tabCategoryIcon}>{cat.icon}</Text>
                 <Text style={[styles.tabText, isSelected && styles.tabTextActive]}>
                   {cat.name}
                 </Text>
@@ -468,6 +464,10 @@ const createStyles = (colors: ThemeColors) =>
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
     color: colors.onSurfaceVariant,
+  },
+  tabCategoryIcon: {
+    fontSize: 18,
+    lineHeight: 22,
   },
   tabTextActive: {
     color: colors.onPrimary,

@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { Category } from '../types';
-import { AppIcon, categoryIconForName } from './AppIcon';
 
 interface CategoryGridProps {
   onCategoryPress?: (cat: Category) => void;
@@ -49,9 +48,9 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryPress }) =
             accessibilityLabel={'تصفح فئة ' + cat.name}
             accessibilityHint="يفتح متاجر وعروض هذه الفئة"
           >
-            <View style={styles.iconContainer}>
-              <AppIcon name={categoryIconForName(cat.name)} size={32} color={themeColors.onPrimary} />
-            </View>
+            <Text style={styles.categoryIcon} accessible={false}>
+              {cat.icon}
+            </Text>
 
             <Text style={styles.categoryName} numberOfLines={1}>
               {cat.name}
@@ -117,32 +116,21 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
     padding: spacing.baseMd,
-    minHeight: 150,
+    minHeight: 132,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.outlineVariant,
     ...shadows.card,
   },
-  iconContainer: {
-    width: 66,
-    height: 66,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.baseSm,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
+  categoryIcon: {
+    fontSize: 34,
+    lineHeight: 42,
+    marginBottom: spacing.baseXs,
   },
   categoryName: {
     fontFamily: typography.fontFamily.bold,
-    fontSize: typography.fontSize.md,
+    fontSize: typography.fontSize.sm,
     color: colors.onSurface,
     textAlign: 'center',
     marginBottom: 6,
