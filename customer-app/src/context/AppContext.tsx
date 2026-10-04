@@ -798,7 +798,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser(userData);
       await AsyncStorage.setItem('@bs_customer_user', JSON.stringify(userData));
       setIsAuthenticated(true);
-      refreshOrders();
       navigateTo('home');
     } catch (err: any) {
       Alert.alert('خطأ في تسجيل الدخول', err.message || 'فشل تسجيل الدخول، تأكد من صحة رقم الهاتف وكلمة المرور');
@@ -819,20 +818,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser(userData);
       await AsyncStorage.setItem('@bs_customer_user', JSON.stringify(userData));
       setIsAuthenticated(true);
-
-      if (initialAddress) {
-        try {
-          const serverAddresses = await addressApi.getAddresses();
-          setAddresses(serverAddresses);
-          setSelectedAddress(serverAddresses.find((address) => address.isDefault) || serverAddresses[0] || null);
-        } catch (addressError) {
-          console.warn('Failed to load the registered address from backend:', addressError);
-          setAddresses([]);
-          setSelectedAddress(null);
-        }
-      }
-
-      refreshOrders();
       navigateTo('home');
     } catch (err: any) {
       Alert.alert('خطأ في إنشاء الحساب', err.message || 'فشل إنشاء الحساب، يرجى المحاولة برقم هاتف آخر');
