@@ -6,8 +6,9 @@
 export type SourceType = 'IN_STOCK' | 'EXTERNAL_STORE';
 
 export type PaymentMethodType = 'CASH_ON_DELIVERY' | 'MANUAL_TRANSFER';
+export type TransferProviderType = 'ALKURAIMI' | 'WALLET';
 
-export type PaymentStatusType = 'PENDING' | 'PAID' | 'REJECTED' | 'VERIFIED';
+export type PaymentStatusType = 'PENDING' | 'PENDING_VERIFICATION' | 'PAID' | 'REJECTED' | 'VERIFIED';
 
 export type OrderStatusType =
   | 'PENDING_PAYMENT'
@@ -116,6 +117,7 @@ export interface Order {
   address: Address;
   paymentMethod: PaymentMethodType;
   paymentStatus: PaymentStatusType;
+  transferProvider?: TransferProviderType;
   transferReceiptUrl?: string;
   transferReference?: string;
   driver?: {

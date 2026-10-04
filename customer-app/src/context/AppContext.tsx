@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { createContext, useContext, useState, useEffect } from 'react';
 import { Alert, AppState } from 'react-native';
-import { Product, CartItem, Address, Order, SubOrderGroup, PaymentMethodType, OrderStatusType, Store, BundlePiece, Category } from '../types';
+import { Product, CartItem, Address, Order, SubOrderGroup, PaymentMethodType, PaymentStatusType, OrderStatusType, Store, BundlePiece, Category, TransferProviderType } from '../types';
 import { DealItem } from '../components/DealDetailsModal';
 import { api, authApi, catalogApi, cartApi, ordersApi, addressApi, paymentsApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -64,7 +64,14 @@ interface AppContextType {
   orders: Order[];
   currentOrder: Order | null;
   setCurrentOrder: React.Dispatch<React.SetStateAction<Order | null>>;
-  placeOrder: (paymentMethod: PaymentMethodType, receiptUrl?: string, notes?: string) => Promise<Order>;
+  placeOrder: (paymentMethod: PaymentMethodType, options?: {
+    receiptUri?: string;
+    receiptFileName?: string;
+    receiptMimeType?: string;
+    transferProvider?: TransferProviderType;
+    transferReference?: string;
+    notes?: string;
+  }) => Promise<Order>;
   isAuthenticated: boolean;
   isAuthLoading: boolean;
   login: (phone: string, password?: string, name?: string) => Promise<void>;
@@ -446,7 +453,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           isDefault: true,
         },
         paymentMethod: o.paymentMethod === 1 ? 'MANUAL_TRANSFER' : 'CASH_ON_DELIVERY',
-        paymentStatus: o.paymentStatus === 2 ? 'VERIFIED' : o.paymentStatus === 3 ? 'REJECTED' : o.paymentStatus === 1 ? 'PAID' : 'PENDING',
+        paymentStatus: o.paymentStatus === 2 ? 'VERIFIED' : o.paymentStatus === 3 ? 'REJECTED' : o.paymentStatus === 1 ? 'PENDING_VERIFICATION' : 'PENDING',
         notes: o.notes,
         customerRating: o.customerRating,
         customerReview: o.customerReview,
@@ -747,8 +754,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const placeOrder = async (
     paymentMethod: PaymentMethodType,
-    receiptUrl?: string,
-    notes?: string
+    options?: {
+      receiptUri?: string;
+      receiptFileName?: string;
+      receiptMimeType?: string;
+      transferProvider?: TransferProviderType;
+      transferReference?: string;
+      notes?: string;
+    }
   ): Promise<Order> => {
     if (!isAuthenticated) {
       Alert.alert('تسجيل الدخول مطلوب', 'سجّل الدخول قبل إرسال الطلب.');
@@ -762,6 +775,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const isManual = paymentMethod === 'MANUAL_TRANSFER';
+    const receiptUri = options?.receiptUri;
+    const notes = options?.notes;
+    if (isManual && (!options?.transferProvider || !receiptUri)) {
+      const error = new Error('اختر طريقة التحويل وأرفق صورة الإيصال قبل إرسال الطلب.');
+      Alert.alert('بيانات التحويل ناقصة', error.message);
+      throw error;
+    }
 
     try {
       // Backend recalculates prices, promotions, store separation, and invoice totals.
@@ -779,6 +799,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deliveryDealId: deliveryPromoDealId || undefined,
         couponCode: promoCode || undefined,
         productDiscountDealId: productDiscountDealId || undefined,
+        transferProvider: isManual ? options?.transferProvider : undefined,
+        transferReference: isManual ? options?.transferReference?.trim() || undefined : undefined,
         idempotencyKey: `${Date.now()}-${Math.random()}`,
         items: cart.map((c) => ({
           productId: c.product.dealId ? undefined : c.product.id,
@@ -789,11 +811,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       // If manual transfer receipt exists, upload it to the backend
-      if (isManual && receiptUrl) {
+      let receiptUploaded = false;
+      let receiptUploadFailed = false;
+      let receiptUrl: string | undefined;
+      if (isManual && receiptUri) {
         try {
-          await paymentsApi.uploadReceipt(res.id, receiptUrl);
+          const uploadedReceipt = await paymentsApi.uploadReceipt(
+            res.id,
+            receiptUri,
+            options?.receiptFileName || 'transfer-receipt.jpg',
+            options?.receiptMimeType || 'image/jpeg'
+          );
+          receiptUploaded = true;
+          receiptUrl = uploadedReceipt?.receiptUrl;
         } catch (uploadErr) {
           console.warn('Receipt upload deferred:', uploadErr);
+          receiptUploadFailed = true;
         }
       }
 
@@ -801,7 +834,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: res.id,
         orderNumber: res.orderNumber,
         createdAt: new Date().toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
-        status: mapBackendOrderStatus(res.status),
+        status: isManual && receiptUploaded ? 'PAYMENT_PENDING_VERIFICATION' : mapBackendOrderStatus(res.status),
         items: [...cart],
         subtotal: res.subTotal,
         deliveryFee: res.deliveryFee,
@@ -809,8 +842,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         totalAmount: res.totalAmount,
         address: selectedAddress,
         paymentMethod,
-        paymentStatus: isManual ? 'PENDING' : 'PENDING',
+        paymentStatus: (isManual && receiptUploaded ? 'PENDING_VERIFICATION' : 'PENDING') as PaymentStatusType,
+        transferProvider: isManual ? options?.transferProvider : undefined,
         transferReceiptUrl: receiptUrl,
+        transferReference: options?.transferReference,
         notes,
       };
 
@@ -821,6 +856,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentOrder(newOrder);
       await clearCart();
       navigateTo('tracking');
+      if (receiptUploadFailed) {
+        Alert.alert('تم إنشاء الطلب', 'تعذر رفع صورة الإيصال حالياً. افتح تفاصيل الطلب وأعد رفع الصورة قبل مراجعة الإدارة.');
+      }
       return newOrder;
     } catch (err: any) {
       Alert.alert(

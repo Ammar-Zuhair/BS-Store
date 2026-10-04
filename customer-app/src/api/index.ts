@@ -257,6 +257,8 @@ export const ordersApi = {
     deliveryDealId?: string;
     couponCode?: string;
     productDiscountDealId?: string;
+    transferProvider?: 'ALKURAIMI' | 'WALLET';
+    transferReference?: string;
     items?: { productId?: string; dealId?: string; dealProductId?: string; quantity: number }[];
   }) => api.post<any>('/checkout/place-order', req),
 
@@ -276,12 +278,24 @@ export const paymentsApi = {
     transferAccountNumber?: string | null;
     transferAccountName?: string | null;
   }>('/payments/settings'),
-  getTransferInfo: (orderId: string) => api.get<any>(`/payments/${orderId}/transfer-info`),
-  uploadReceipt: (orderId: string, fileUri: string, fileName = 'receipt.jpg') => {
+  getTransferInfo: (orderId: string) => api.get<{
+    orderId: string;
+    orderNumber: string;
+    amount: number;
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+    status: number | string;
+    rejectionReason?: string | null;
+    transferProvider?: 'ALKURAIMI' | 'WALLET' | null;
+    transferReference?: string | null;
+    receiptUrl?: string | null;
+  }>(`/payments/${orderId}/transfer-info`),
+  uploadReceipt: (orderId: string, fileUri: string, fileName = 'receipt.jpg', mimeType = 'image/jpeg') => {
     const formData = new FormData();
     formData.append('file', {
       uri: fileUri,
-      type: 'image/jpeg',
+      type: mimeType,
       name: fileName,
     } as any);
     return api.post<any>(`/payments/${orderId}/upload-receipt`, formData);

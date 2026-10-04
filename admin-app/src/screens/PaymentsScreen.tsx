@@ -69,7 +69,8 @@ export const PaymentsScreen: React.FC = () => {
                   </Text>
                 </View>
                 <Text style={styles.info}>{item.customerName} · {item.customerPhone}</Text>
-                <Text style={styles.info}>قيمة الفاتورة عند التحويل: {item.amount.toLocaleString()} ر.ي · المرجع: {item.transferReference}</Text>
+                <Text style={styles.info}>طريقة التحويل: {item.transferProvider === 'ALKURAIMI' ? 'بنك الكريمي' : item.transferProvider === 'WALLET' ? 'محفظة إلكترونية' : 'غير محددة'}</Text>
+                <Text style={styles.info}>قيمة الفاتورة: {item.amount.toLocaleString()} ر.ي · رقم العملية: {item.transferReference || 'غير مسجل'}</Text>
                 {needsAmountEntry ? <>
                   <Text style={styles.info}>راجع الإيصال وسجل المبلغ الذي وصل فعلياً إلى الحساب البنكي.</Text>
                   <TextInput
@@ -85,7 +86,8 @@ export const PaymentsScreen: React.FC = () => {
                   source={{ uri: item.receiptImageUrl, headers: api.getToken() ? { Authorization: `Bearer ${api.getToken()}` } : {} }}
                   style={styles.receipt}
                   resizeMode="contain"
-                /> : null}
+                /> : <Text style={styles.info}>لم يرفع العميل صورة إيصال بعد.</Text>}
+                {item.rejectionReason ? <Text style={[styles.info, { color: colors.error }]}>سبب الرفض السابق: {item.rejectionReason}</Text> : null}
                 {(pending || needsAmountConfirmation) && <View style={styles.actions}>
                   {pending && <TouchableOpacity style={[styles.button, styles.rejectButton]} disabled={busyId === item.id}
                     onPress={() => Alert.alert('رفض الحوالة', 'هل تريد رفض إشعار التحويل؟', [

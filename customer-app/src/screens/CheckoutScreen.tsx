@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
-import { governorateApi, paymentsApi } from '../api';
-import { PaymentMethodType } from '../types';
+import { governorateApi } from '../api';
+import { PaymentMethodType, TransferProviderType } from '../types';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
 import { AppIcon } from '../components/AppIcon';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import { chooseTransferReceipt, TransferReceiptImage } from '../utils/transferReceipt';
 
 type CheckoutTextProps = React.ComponentProps<typeof Text>;
 
@@ -53,6 +54,8 @@ export const CheckoutScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('CASH_ON_DELIVERY');
+  const [transferProvider, setTransferProvider] = useState<TransferProviderType | null>(null);
+  const [transferReceipt, setTransferReceipt] = useState<TransferReceiptImage | null>(null);
   const [transferRef, setTransferRef] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,16 +63,7 @@ export const CheckoutScreen: React.FC = () => {
   const [inputCoupon, setInputCoupon] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [couponStatusMsg, setCouponStatusMsg] = useState<string | null>(null);
-  const [paymentSettings, setPaymentSettings] = useState<{
-    transferBankName?: string | null;
-    transferAccountNumber?: string | null;
-    transferAccountName?: string | null;
-  } | null>(null);
   const [hasSelectedGovernorate, setHasSelectedGovernorate] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    paymentsApi.getSettings().then(setPaymentSettings).catch(() => setPaymentSettings(null));
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,6 +99,15 @@ export const CheckoutScreen: React.FC = () => {
   const handleClearPromo = () => {
     clearPromoCode();
     setCouponStatusMsg(null);
+  };
+
+  const handleChooseReceipt = async () => {
+    try {
+      const image = await chooseTransferReceipt();
+      if (image) setTransferReceipt(image);
+    } catch (error: any) {
+      Alert.alert('تعذر اختيار الإيصال', error?.message || 'تحقق من صلاحية الوصول إلى الصور وحاول مجدداً.');
+    }
   };
 
   const handleLocationPicked = (loc: LocationResult) => {
@@ -145,11 +148,15 @@ export const CheckoutScreen: React.FC = () => {
     }
 
     if (paymentMethod === 'MANUAL_TRANSFER' && !transferRef.trim()) {
-      Alert.alert('تنبيه التحويل البنكي', 'أدخل رقم الحوالة أو العملية المسجل في بيانات الدفع');
+      Alert.alert('رقم العملية مطلوب', 'أدخل رقم الحوالة أو العملية الظاهر في الإيصال.');
       return;
     }
-    if (paymentMethod === 'MANUAL_TRANSFER' && !paymentSettings) {
-      Alert.alert('بيانات الدفع غير متاحة', 'لا توجد بيانات تحويل محفوظة في النظام حاليًا.');
+    if (paymentMethod === 'MANUAL_TRANSFER' && !transferProvider) {
+      Alert.alert('اختر طريقة التحويل', 'حدد بنك الكريمي أو التحويل من المحفظة لعرض بيانات الحساب.');
+      return;
+    }
+    if (paymentMethod === 'MANUAL_TRANSFER' && !transferReceipt) {
+      Alert.alert('صورة الإيصال مطلوبة', 'أرفق صورة واضحة لإيصال التحويل قبل إرسال الطلب.');
       return;
     }
 
@@ -157,10 +164,16 @@ export const CheckoutScreen: React.FC = () => {
     try {
       await placeOrder(
         paymentMethod,
-        undefined,
-        [notes, paymentMethod === 'MANUAL_TRANSFER' ? `رقم الحوالة: ${transferRef.trim()}` : '']
-          .filter(Boolean)
-          .join('\n')
+        {
+          receiptUri: transferReceipt?.uri,
+          receiptFileName: transferReceipt?.fileName,
+          receiptMimeType: transferReceipt?.mimeType,
+          transferProvider: paymentMethod === 'MANUAL_TRANSFER' ? transferProvider ?? undefined : undefined,
+          transferReference: paymentMethod === 'MANUAL_TRANSFER' ? transferRef.trim() : undefined,
+          notes: [notes, paymentMethod === 'MANUAL_TRANSFER' ? `رقم الحوالة: ${transferRef.trim()}` : '']
+            .filter(Boolean)
+            .join('\n'),
+        }
       );
     } catch {
       // error handled in context
@@ -296,7 +309,7 @@ export const CheckoutScreen: React.FC = () => {
                 <AppIcon name="bank" size={18} color={themeColors.primary} />
               </View>
               <CheckoutText style={styles.methodDesc}>
-                تحويل عبر الكريمي جوال أو المحافظ الإلكترونية
+                اختر بنك الكريمي أو التحويل من المحفظة، ثم أرفق صورة الإيصال
               </CheckoutText>
             </View>
           </TouchableOpacity>
@@ -304,17 +317,43 @@ export const CheckoutScreen: React.FC = () => {
           {/* Bank Transfer Details Form (When Manual Transfer is chosen) */}
           {paymentMethod === 'MANUAL_TRANSFER' && (
             <View style={styles.transferDetailsWrap}>
+              <CheckoutText style={styles.inputLabel}>اختر طريقة التحويل:</CheckoutText>
+              <TouchableOpacity
+                style={[styles.transferProviderOption, transferProvider === 'ALKURAIMI' && styles.transferProviderOptionActive]}
+                onPress={() => setTransferProvider('ALKURAIMI')}
+                activeOpacity={0.85}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: transferProvider === 'ALKURAIMI' }}
+              >
+                <View style={styles.radio}>
+                  {transferProvider === 'ALKURAIMI' && <View style={styles.radioInner} />}
+                </View>
+                <CheckoutText style={styles.transferProviderTitle}>بنك الكريمي</CheckoutText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.transferProviderOption, transferProvider === 'WALLET' && styles.transferProviderOptionActive]}
+                onPress={() => setTransferProvider('WALLET')}
+                activeOpacity={0.85}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: transferProvider === 'WALLET' }}
+              >
+                <View style={styles.radio}>
+                  {transferProvider === 'WALLET' && <View style={styles.radioInner} />}
+                </View>
+                <CheckoutText style={styles.transferProviderTitle}>محفظة إلكترونية</CheckoutText>
+              </TouchableOpacity>
+
               <View style={styles.bankAccountsCard}>
-                <CheckoutText style={styles.bankTitle}>بيانات الحسابات المعتمدة للمنصة:</CheckoutText>
-                {paymentSettings ? (
-                  <>
-                    {paymentSettings.transferBankName ? <CheckoutText style={styles.bankItem}>البنك: <CheckoutText style={styles.bankBold}>{paymentSettings.transferBankName}</CheckoutText></CheckoutText> : null}
-                    {paymentSettings.transferAccountNumber ? <CheckoutText style={styles.bankItem}>رقم الحساب: <CheckoutText style={styles.bankBold}>{paymentSettings.transferAccountNumber}</CheckoutText></CheckoutText> : null}
-                    {paymentSettings.transferAccountName ? <CheckoutText style={styles.bankItem}>اسم الحساب: <CheckoutText style={styles.bankBold}>{paymentSettings.transferAccountName}</CheckoutText></CheckoutText> : null}
-                  </>
-                ) : (
-                  <CheckoutText style={styles.bankItem}>بيانات التحويل غير مسجلة حاليًا.</CheckoutText>
-                )}
+                <CheckoutText style={styles.bankTitle}>حوّل إجمالي الفاتورة إلى:</CheckoutText>
+                <CheckoutText style={styles.bankItem}>المبلغ المطلوب: <CheckoutText style={styles.bankBold}>{cartTotal.toLocaleString()} ر.ي</CheckoutText></CheckoutText>
+                {transferProvider === 'ALKURAIMI' ? <>
+                  <CheckoutText style={styles.bankItem}>الجهة: <CheckoutText style={styles.bankBold}>نقطة حاسب التابعة لبنك الكريمي</CheckoutText></CheckoutText>
+                  <CheckoutText style={styles.bankItem}>رقم نقطة حاسب: <CheckoutText style={styles.bankBold}>1888356</CheckoutText></CheckoutText>
+                  <CheckoutText style={styles.bankItem}>باسم: <CheckoutText style={styles.bankBold}>متجر بي اس</CheckoutText></CheckoutText>
+                </> : transferProvider === 'WALLET' ? <>
+                  <CheckoutText style={styles.bankItem}>رقم المحفظة: <CheckoutText style={styles.bankBold}>783053937</CheckoutText></CheckoutText>
+                  <CheckoutText style={styles.bankItem}>اسم صاحب الحساب: <CheckoutText style={styles.bankBold}>بلال سعيد المقطري</CheckoutText></CheckoutText>
+                </> : <CheckoutText style={styles.bankItem}>اختر طريقة التحويل لعرض بيانات المستلم.</CheckoutText>}
               </View>
 
               <CheckoutText style={styles.inputLabel}>رقم الحوالة أو العملية:</CheckoutText>
@@ -327,6 +366,17 @@ export const CheckoutScreen: React.FC = () => {
                 textAlign="right"
                 accessibilityLabel="رقم الحوالة أو العملية"
               />
+
+              <TouchableOpacity
+                style={[styles.uploadBtn, transferReceipt && styles.uploadBtnAttached]}
+                onPress={() => void handleChooseReceipt()}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={transferReceipt ? 'تغيير صورة إيصال التحويل' : 'اختيار صورة إيصال التحويل'}
+              >
+                <CheckoutText style={styles.uploadBtnText}>{transferReceipt ? 'تغيير صورة الإيصال' : 'إرفاق صورة إيصال التحويل'}</CheckoutText>
+              </TouchableOpacity>
+              {transferReceipt && <Image source={{ uri: transferReceipt.uri }} style={styles.receiptPreview} resizeMode="cover" />}
 
             </View>
           )}
@@ -683,6 +733,28 @@ const createStyles = (colors: ThemeColors) =>
     padding: spacing.baseSm,
     marginTop: spacing.baseXs,
   },
+  transferProviderOption: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceContainerLow,
+    paddingHorizontal: spacing.baseSm,
+    paddingVertical: spacing.baseXs,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    marginBottom: spacing.baseXs,
+  },
+  transferProviderOptionActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFixedDim + '20',
+  },
+  transferProviderTitle: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.onSurface,
+  },
   bankAccountsCard: {
     backgroundColor: colors.surfaceContainerLow,
     padding: spacing.baseSm,
@@ -745,6 +817,13 @@ const createStyles = (colors: ThemeColors) =>
     fontSize: typography.fontSize.xs,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurface,
+  },
+  receiptPreview: {
+    width: '100%',
+    height: 170,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.baseXs,
+    backgroundColor: colors.surfaceContainerLow,
   },
   summaryRow: {
     flexDirection: 'row-reverse',

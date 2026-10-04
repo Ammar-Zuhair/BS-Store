@@ -16,11 +16,12 @@ import { typography, spacing, borderRadius, shadows, ThemeColors } from '../them
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { Order, OrderStatusType } from '../types';
-import { ordersApi } from '../api';
+import { ordersApi, paymentsApi } from '../api';
 import { AppIcon, AppIconName } from '../components/AppIcon';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { CachedImage } from '../components/CachedImage';
 import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
+import { chooseTransferReceipt } from '../utils/transferReceipt';
 
 export const TrackingScreen: React.FC = () => {
   const { orders, stores, navigateTo, currentOrder, setCurrentOrder, refreshOrders, colors: themeColors } = useApp();
@@ -35,11 +36,21 @@ export const TrackingScreen: React.FC = () => {
   const [priceComplaintReason, setPriceComplaintReason] = useState('');
   const [priceComplaintNotes, setPriceComplaintNotes] = useState('');
   const [isSubmittingPriceComplaint, setIsSubmittingPriceComplaint] = useState(false);
+  const [transferInfo, setTransferInfo] = useState<Awaited<ReturnType<typeof paymentsApi.getTransferInfo>> | null>(null);
+  const [isLoadingTransferInfo, setIsLoadingTransferInfo] = useState(false);
+  const [isUploadingTransferReceipt, setIsUploadingTransferReceipt] = useState(false);
+  const [transferInfoRefreshKey, setTransferInfoRefreshKey] = useState(0);
+
+  const selectedOrder =
+    (selectedOrderId ? orders.find((o) => o.id === selectedOrderId) : null) ||
+    currentOrder ||
+    null;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
       if (refreshOrders) await refreshOrders();
+      setTransferInfoRefreshKey((key) => key + 1);
     } catch (e) {
       console.warn('Failed to refresh orders:', e);
     } finally {
@@ -51,10 +62,44 @@ export const TrackingScreen: React.FC = () => {
     void handleRefresh();
   }, []);
 
-  const selectedOrder =
-    (selectedOrderId ? orders.find((o) => o.id === selectedOrderId) : null) ||
-    currentOrder ||
-    null;
+  useEffect(() => {
+    if (!selectedOrder || selectedOrder.paymentMethod !== 'MANUAL_TRANSFER') {
+      setTransferInfo(null);
+      setIsLoadingTransferInfo(false);
+      return;
+    }
+
+    let active = true;
+    setIsLoadingTransferInfo(true);
+    paymentsApi.getTransferInfo(selectedOrder.id)
+      .then((info) => { if (active) setTransferInfo(info); })
+      .catch((error) => {
+        if (active) {
+          setTransferInfo(null);
+          console.warn('Failed to load transfer details:', error);
+        }
+      })
+      .finally(() => { if (active) setIsLoadingTransferInfo(false); });
+    return () => { active = false; };
+  }, [selectedOrder?.id, selectedOrder?.paymentMethod, transferInfoRefreshKey]);
+
+  const handleUploadTransferReceipt = async () => {
+    if (!selectedOrder || selectedOrder.paymentMethod !== 'MANUAL_TRANSFER') return;
+    setIsUploadingTransferReceipt(true);
+    try {
+      const receipt = await chooseTransferReceipt();
+      if (!receipt) return;
+      await paymentsApi.uploadReceipt(selectedOrder.id, receipt.uri, receipt.fileName, receipt.mimeType);
+      const nextInfo = await paymentsApi.getTransferInfo(selectedOrder.id);
+      await refreshOrders?.();
+      setTransferInfo(nextInfo);
+      Alert.alert('تم رفع الإيصال', 'أرسلنا صورة التحويل إلى الإدارة لمراجعتها.');
+    } catch (error: any) {
+      Alert.alert('تعذر رفع الإيصال', error?.message || 'تحقق من الصورة والاتصال ثم حاول مجدداً.');
+    } finally {
+      setIsUploadingTransferReceipt(false);
+    }
+  };
 
   const getStatusInfo = (status: OrderStatusType) => {
     switch (status) {
@@ -99,6 +144,14 @@ export const TrackingScreen: React.FC = () => {
           bgColor: themeColors.tertiaryContainer,
           textColor: themeColors.onTertiaryContainer,
           borderColor: themeColors.tertiary + '55',
+          stepIndex: 0,
+        };
+      case 'PAYMENT_FAILED':
+        return {
+          label: 'تعذر تأكيد التحويل',
+          bgColor: themeColors.error + '20',
+          textColor: themeColors.error,
+          borderColor: themeColors.error + '50',
           stepIndex: 0,
         };
       case 'PENDING_ADMIN_APPROVAL':
@@ -208,6 +261,11 @@ export const TrackingScreen: React.FC = () => {
       'SEARCHING_DRIVER',
       'DRIVER_ASSIGNED',
     ].includes(selectedOrder.status);
+    const transferStatus = String(transferInfo?.status ?? '').toLowerCase();
+    const canUploadTransferReceipt = selectedOrder.paymentMethod === 'MANUAL_TRANSFER' && (
+      ['0', '3', 'pending', 'rejected'].includes(transferStatus) ||
+      (!transferInfo && ['PENDING_PAYMENT', 'PAYMENT_FAILED'].includes(selectedOrder.status))
+    );
 
     return (
       <View style={styles.container}>
@@ -486,6 +544,30 @@ export const TrackingScreen: React.FC = () => {
               </Text>
               <Text style={styles.detailLbl}>طريقة الدفع:</Text>
             </View>
+            {selectedOrder.paymentMethod === 'MANUAL_TRANSFER' && <View style={styles.transferCard}>
+              <Text style={styles.transferTitle}>تفاصيل التحويل</Text>
+              {isLoadingTransferInfo && <ActivityIndicator size="small" color={themeColors.primary} />}
+              {transferInfo ? <>
+                <Text style={styles.transferInfoText}>طريقة التحويل: {transferInfo.transferProvider === 'ALKURAIMI' ? 'بنك الكريمي' : transferInfo.transferProvider === 'WALLET' ? 'محفظة إلكترونية' : 'تحويل بنكي'}</Text>
+                {!!transferInfo.bankName && <Text style={styles.transferInfoText}>الجهة: {transferInfo.bankName}</Text>}
+                {!!transferInfo.accountNumber && <Text style={styles.transferInfoText}>رقم الحساب: {transferInfo.accountNumber}</Text>}
+                {!!transferInfo.accountName && <Text style={styles.transferInfoText}>اسم المستلم: {transferInfo.accountName}</Text>}
+                {!!transferInfo.transferReference && <Text style={styles.transferInfoText}>رقم العملية: {transferInfo.transferReference}</Text>}
+                {!!transferInfo.rejectionReason && <Text style={styles.transferRejection}>سبب الرفض: {transferInfo.rejectionReason}</Text>}
+              </> : !isLoadingTransferInfo && <Text style={styles.transferInfoText}>تعذر تحميل تفاصيل التحويل. حدّث الطلب للمحاولة مجدداً.</Text>}
+              {transferInfo?.receiptUrl && !canUploadTransferReceipt && <Text style={styles.transferInfoText}>تم استلام صورة الإيصال وهي بانتظار مراجعة الإدارة.</Text>}
+              {canUploadTransferReceipt && <TouchableOpacity
+                style={styles.transferUploadButton}
+                onPress={() => void handleUploadTransferReceipt()}
+                disabled={isUploadingTransferReceipt}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+              >
+                {isUploadingTransferReceipt
+                  ? <ActivityIndicator color={themeColors.onPrimary} />
+                  : <Text style={styles.transferUploadButtonText}>{transferStatus === '3' || transferStatus === 'rejected' ? 'إعادة رفع صورة الإيصال' : 'رفع صورة إيصال التحويل'}</Text>}
+              </TouchableOpacity>}
+            </View>}
             <View style={styles.detailItem}>
               <Text style={styles.detailTotal}>
                 {selectedOrder.totalAmount.toLocaleString()} ر.ي
@@ -1232,6 +1314,45 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.onSurface,
     textAlign: 'right',
     marginBottom: spacing.baseXs,
+  },
+  transferCard: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.md,
+    padding: spacing.baseSm,
+    marginVertical: spacing.baseXs,
+    gap: 5,
+  },
+  transferTitle: {
+    fontFamily: typography.fontFamily.bold,
+    fontSize: typography.fontSize.xs,
+    color: colors.onSurface,
+    textAlign: 'right',
+  },
+  transferInfoText: {
+    fontFamily: typography.fontFamily.medium,
+    fontSize: typography.fontSize.xs,
+    color: colors.onSurfaceVariant,
+    textAlign: 'right',
+  },
+  transferRejection: {
+    fontFamily: typography.fontFamily.bold,
+    fontSize: typography.fontSize.xs,
+    color: colors.error,
+    textAlign: 'right',
+  },
+  transferUploadButton: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
+    marginTop: spacing.baseXs,
+    paddingHorizontal: spacing.baseSm,
+  },
+  transferUploadButtonText: {
+    fontFamily: typography.fontFamily.bold,
+    fontSize: typography.fontSize.xs,
+    color: colors.onPrimary,
   },
   detailItem: {
     flexDirection: 'row-reverse',

@@ -45,6 +45,14 @@
       "expo-asset",
       "expo-font",
       "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "نحتاج إلى الوصول إلى صورك لاختيار صورة إيصال التحويل وإرسالها لمراجعة الإدارة.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
       "./plugins/withFirebaseAndroid"
     ],
     "androidStatusBar": {
