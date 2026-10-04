@@ -31,6 +31,18 @@ function isDevelopmentTunnel(value) {
   }
 }
 
+const approvedProductionApiHosts = new Set([
+  'implosive-exchange-compacter.ngrok-free.dev',
+]);
+
+function isApprovedProductionApi(value) {
+  try {
+    return approvedProductionApiHosts.has(new URL(value).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 module.exports = ({ config }) => {
   const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID || readEnvFile('EXPO_PUBLIC_EAS_PROJECT_ID') || config.extra?.eas?.projectId;
   if (!easProjectId && (process.env.EAS_BUILD === 'true' || process.env.EAS_BUILD === '1' || process.env.EAS_BUILD_PROFILE)) {
@@ -39,7 +51,7 @@ module.exports = ({ config }) => {
   const configuredApi = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_URL) || normalizeApiBaseUrl(readEnvFile('EXPO_PUBLIC_API_URL'));
   const isBuild = process.env.EAS_BUILD === 'true' || process.env.EAS_BUILD === '1' || Boolean(process.env.EAS_BUILD_PROFILE);
   const isProductionBuild = process.env.NODE_ENV === 'production' || isBuild;
-  const apiBaseUrl = configuredApi && (!isProductionBuild || !isDevelopmentTunnel(configuredApi)) ? configuredApi : undefined;
+  const apiBaseUrl = configuredApi && (!isProductionBuild || !isDevelopmentTunnel(configuredApi) || isApprovedProductionApi(configuredApi)) ? configuredApi : undefined;
   if (!apiBaseUrl && isProductionBuild) throw new Error('EXPO_PUBLIC_API_URL must be a stable HTTPS API URL for production/EAS builds.');
   const requiredPrivacyReasons = [
     { NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryFileTimestamp', NSPrivacyAccessedAPITypeReasons: ['C617.1'] },
