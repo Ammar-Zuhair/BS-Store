@@ -24,6 +24,13 @@ logs/
 node_modules/
 .expo/
 dist/
+# These vendored local-package entrypoints are required by Metro during EAS builds.
+!admin-app/lib/boosthis-checklist/dist/
+!admin-app/lib/boosthis-checklist/dist/**
+!customer-app/lib/boosthis-checklist/dist/
+!customer-app/lib/boosthis-checklist/dist/**
+!courier-app/lib/boosthis-checklist/dist/
+!courier-app/lib/boosthis-checklist/dist/**
 npm-debug.*
 yarn-debug.*
 yarn-error.*

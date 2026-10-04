@@ -6,6 +6,9 @@
 node_modules/
 .expo/
 dist/
+# This local package publishes its Metro entrypoint from the vendored dist folder.
+!lib/boosthis-checklist/dist/
+!lib/boosthis-checklist/dist/**
 npm-debug.*
 yarn-debug.*
 yarn-error.*
