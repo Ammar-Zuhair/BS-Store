@@ -36,9 +36,18 @@ import {
   AdminProduct,
   AdminFlashDeal,
 } from '../types';
+import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
 
 // ── Tab definitions ──────────────────────────────────────────────────────────
 type TabId = 'categories' | 'stores' | 'products' | 'deals' | 'governorates';
+
+const BOOSTHIS_TAB_NAMES: Record<TabId, string> = {
+  categories: 'Categories',
+  stores: 'Stores',
+  products: 'Products',
+  deals: 'Deals',
+  governorates: 'ServiceAreas',
+};
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'categories', label: 'الفئات', icon: '📁' },
@@ -527,15 +536,27 @@ export const InventoryScreen: React.FC = () => {
           return;
         }
         parsedTiers = dealTiers.map((t) => ({
-          minAmount: parseFloat(t.minAmount) || 0,
-          maxAmount: t.maxAmount.trim() ? parseFloat(t.maxAmount) || null : null,
-          discountPercent: Math.round(parseFloat(t.discountPercent) || 0),
+          minAmount: t.minAmount.trim() ? Number(t.minAmount) : Number.NaN,
+          maxAmount: t.maxAmount.trim() ? Number(t.maxAmount) : null,
+          discountPercent: t.discountPercent.trim() ? Number(t.discountPercent) : Number.NaN,
         }));
-        const invalidTier = parsedTiers.find((t) => t.discountPercent <= 0 || t.discountPercent > 100);
+        const invalidTier = parsedTiers.find((t) =>
+          !Number.isFinite(t.minAmount) || t.minAmount < 0 ||
+          !Number.isFinite(t.discountPercent) || t.discountPercent < 1 || t.discountPercent > 100 ||
+          (t.maxAmount != null && (!Number.isFinite(t.maxAmount) || t.maxAmount <= t.minAmount))
+        );
         if (invalidTier) {
-          Alert.alert('تنبيه', 'نسبة الخصم في كل شريحة يجب أن تكون بين 1% و 100%');
+          Alert.alert('تنبيه', 'تحقق من حدود كل شريحة: قيمة بداية غير سالبة، ونهاية أكبر منها، ونسبة بين 1% و100%');
           return;
         }
+        const orderedTiers = [...parsedTiers].sort((left, right) => left.minAmount - right.minAmount);
+        const overlapIndex = orderedTiers.findIndex((tier, index) => index > 0 &&
+          (orderedTiers[index - 1].maxAmount == null || orderedTiers[index - 1].maxAmount! > tier.minAmount));
+        if (overlapIndex >= 0) {
+          Alert.alert('تنبيه', 'شرائح الخصم متداخلة؛ اجعل نهاية كل شريحة عند بداية الشريحة التالية.');
+          return;
+        }
+        parsedTiers = orderedTiers;
         orderDiscountPct = parsedTiers[0].discountPercent;
       } else {
         orderDiscountPct = Math.round(parseFloat(dealDiscountPercent) || 0);
@@ -660,6 +681,7 @@ export const InventoryScreen: React.FC = () => {
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <View style={s.container}>
+      <BoosthisScreenTracker key={activeTab} screen={BOOSTHIS_TAB_NAMES[activeTab]} />
       <AdminHeader title="إدارة المنتجات" showBack onBack={() => navigateTo('dashboard')} />
 
       {/* Tab Bar */}

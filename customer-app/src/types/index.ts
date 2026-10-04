@@ -72,7 +72,6 @@ export interface Product {
   name: string;
   description: string;
   sellingPrice: number;
-  expectedPurchasePrice?: number; // Hidden from customer app, used for admin/driver
   imageUrl: string;
   images?: string[];
   sourceType: SourceType;
@@ -91,6 +90,8 @@ export interface CartItem {
   quantity: number;
   notes?: string;
   selectedPiece?: BundlePiece;
+  originalUnitPrice?: number;
+  priceChangeId?: string;
 }
 
 export interface SubOrderGroup {

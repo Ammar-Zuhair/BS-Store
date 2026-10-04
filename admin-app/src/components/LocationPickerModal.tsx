@@ -469,6 +469,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               ref: iframeRef,
               id: 'admin-leaflet-iframe',
               srcDoc: leafletHtml,
+              sandbox: 'allow-scripts',
               style: {
                 position: 'absolute',
                 top: 0,
@@ -485,7 +486,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             <WebView
               key={`admin-leaflet-webview-${sessionKey}`}
               ref={webViewRef}
-              originWhitelist={['*']}
+              originWhitelist={['https://unpkg.com']}
               source={{
                 html: leafletHtml,
                 baseUrl: 'https://unpkg.com',
@@ -494,13 +495,15 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               style={[styles.mapAbsolute, { width: '100%', height: '100%', flex: 1 }]}
               containerStyle={{ width: '100%', height: '100%', flex: 1 }}
               javaScriptEnabled={true}
-              domStorageEnabled={true}
+              domStorageEnabled={false}
               scalesPageToFit={false}
               scrollEnabled={false}
               overScrollMode="never"
-              mixedContentMode="always"
-              allowFileAccess={true}
-              allowUniversalAccessFromFileURLs={true}
+              mixedContentMode="never"
+              allowFileAccess={false}
+              allowUniversalAccessFromFileURLs={false}
+              javaScriptCanOpenWindowsAutomatically={false}
+              setSupportMultipleWindows={false}
               startInLoadingState={true}
               renderLoading={() => (
                 <View style={styles.mapLoader}>

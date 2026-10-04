@@ -228,6 +228,24 @@ export const FinancialsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        <View style={styles.systemShortcuts}>
+          <TouchableOpacity style={styles.systemShortcut} onPress={() => navigateTo('system_management')} activeOpacity={0.82}>
+            <Text style={styles.systemShortcutIcon}>⚙️</Text>
+            <View style={styles.systemShortcutCopy}>
+              <Text style={styles.systemShortcutTitle}>إدارة النظام</Text>
+              <Text style={styles.systemShortcutHint}>إصدارات التطبيقات ووضع الصيانة</Text>
+            </View>
+            <Text style={styles.systemShortcutArrow}>‹</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.systemShortcut} onPress={() => navigateTo('broadcasts')} activeOpacity={0.82}>
+            <Text style={styles.systemShortcutIcon}>🔔</Text>
+            <View style={styles.systemShortcutCopy}>
+              <Text style={styles.systemShortcutTitle}>إشعارات العملاء</Text>
+              <Text style={styles.systemShortcutHint}>إرسال رسالة وسجل البث</Text>
+            </View>
+            <Text style={styles.systemShortcutArrow}>‹</Text>
+          </TouchableOpacity>
+        </View>
         {/* Total Outstanding Custody Bento (4 Cards) */}
         <View style={styles.bentoGrid}>
           {/* Card 1: Net Outstanding (Primary Highlight) */}
@@ -709,6 +727,24 @@ export const FinancialsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  systemShortcuts: { gap: 10, marginBottom: spacing.baseMd },
+  systemShortcut: {
+    minHeight: 76,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    paddingHorizontal: spacing.baseMd,
+    paddingVertical: 12,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 12,
+  },
+  systemShortcutIcon: { fontSize: 25 },
+  systemShortcutCopy: { flex: 1, alignItems: 'flex-end' },
+  systemShortcutTitle: { color: colors.onSurface, fontFamily: typography.fontFamily.bold, fontSize: 16 },
+  systemShortcutHint: { color: colors.onSurfaceVariant, fontFamily: typography.fontFamily.regular, fontSize: 13, marginTop: 2 },
+  systemShortcutArrow: { fontSize: 28, color: colors.onSurfaceVariant },
   container: {
     flex: 1,
     backgroundColor: colors.background,

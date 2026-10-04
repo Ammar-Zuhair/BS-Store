@@ -13,6 +13,7 @@ export const AdminBottomNav: React.FC = () => {
     { id: 'orders', label: 'الطلبات', icon: '📋' },
     { id: 'payments', label: 'التحويلات', icon: '💳' },
     { id: 'inventory', label: 'المنتجات', icon: '🏷' },
+    { id: 'price_changes', label: 'تغييرات السعر', icon: '📈' },
     { id: 'financials', label: 'الضبط', icon: '⚙️' },
   ];
 

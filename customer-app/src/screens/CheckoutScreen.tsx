@@ -39,6 +39,7 @@ export const CheckoutScreen: React.FC = () => {
     cartDiscount,
     cartSubOrders,
     promoCode,
+    activeOrderDiscountDeal,
     promoMessage,
     applyPromoCode,
     clearPromoCode,
@@ -335,20 +336,20 @@ export const CheckoutScreen: React.FC = () => {
           <View style={styles.cardHeader}>
             <View />
             <View style={styles.headerRight}>
-              <CheckoutText style={styles.cardTitle}>كود الخصم / رمز الاسترداد</CheckoutText>
+              <CheckoutText style={styles.cardTitle}>كود أو عرض الخصم</CheckoutText>
               <AppIcon name="tag" size={19} color={themeColors.primary} />
             </View>
           </View>
 
-          {promoCode ? (
+          {promoCode || activeOrderDiscountDeal ? (
             <View style={styles.activePromoWrap}>
               <View style={styles.activePromoHeader}>
                 <TouchableOpacity onPress={handleClearPromo} style={styles.removePromoBtn} accessibilityRole="button" accessibilityLabel="إلغاء كود الخصم">
                   <AppIcon name="close" size={14} color={themeColors.error} />
-                  <CheckoutText style={styles.removePromoBtnText}>إلغاء الكود</CheckoutText>
+                  <CheckoutText style={styles.removePromoBtnText}>إلغاء الخصم</CheckoutText>
                 </TouchableOpacity>
                 <View style={styles.promoBadge}>
-                  <CheckoutText style={styles.promoBadgeText}>✓ {promoCode}</CheckoutText>
+                <CheckoutText style={styles.promoBadgeText}>✓ {promoCode || activeOrderDiscountDeal?.title}</CheckoutText>
                 </View>
               </View>
               {!!promoMessage && (

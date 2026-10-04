@@ -20,6 +20,7 @@ import { ordersApi } from '../api';
 import { AppIcon, AppIconName } from '../components/AppIcon';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { CachedImage } from '../components/CachedImage';
+import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
 
 export const TrackingScreen: React.FC = () => {
   const { orders, stores, navigateTo, currentOrder, setCurrentOrder, refreshOrders, colors: themeColors } = useApp();
@@ -29,6 +30,11 @@ export const TrackingScreen: React.FC = () => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
+  const [priceComplaintFor, setPriceComplaintFor] = useState<{ id: string; name: string } | null>(null);
+  const [priceComplaintReason, setPriceComplaintReason] = useState('');
+  const [priceComplaintNotes, setPriceComplaintNotes] = useState('');
+  const [isSubmittingPriceComplaint, setIsSubmittingPriceComplaint] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -168,13 +174,44 @@ export const TrackingScreen: React.FC = () => {
     }
   };
 
+  const confirmCancelOrder = (order: Order) => {
+    Alert.alert('إلغاء الطلب', 'هل تريد إلغاء هذا الطلب؟', [
+      { text: 'متابعة الطلب', style: 'cancel' },
+      {
+        text: 'إلغاء الطلب',
+        style: 'destructive',
+        onPress: async () => {
+          setIsCancellingOrder(true);
+          try {
+            await ordersApi.cancelOrder(order.id, 'CUSTOMER_REQUEST', 'إلغاء بطلب العميل قبل قبول السائق');
+            await refreshOrders?.();
+            Alert.alert('تم إلغاء الطلب', 'تم إلغاء طلبك بنجاح');
+          } catch (error) {
+            Alert.alert('تعذر إلغاء الطلب', error instanceof Error ? error.message : 'يرجى المحاولة مرة أخرى');
+          } finally {
+            setIsCancellingOrder(false);
+          }
+        },
+      },
+    ]);
+  };
+
   // View: Order Details and Live Tracking
   if (selectedOrder) {
     const statusInfo = getStatusInfo(selectedOrder.status);
     const currentStepIndex = statusInfo.stepIndex;
+    const canCancelOrder = [
+      'PENDING_PAYMENT',
+      'PENDING_ADMIN_APPROVAL',
+      'PAYMENT_PENDING_VERIFICATION',
+      'CONFIRMED',
+      'SEARCHING_DRIVER',
+      'DRIVER_ASSIGNED',
+    ].includes(selectedOrder.status);
 
     return (
       <View style={styles.container}>
+        <BoosthisScreenTracker screen="OrderDetails" />
         <Header
           title={`تفاصيل طلب #${selectedOrder.orderNumber}`}
           showBack
@@ -240,6 +277,21 @@ export const TrackingScreen: React.FC = () => {
               </Text>
             </View>
           </View>
+
+          {canCancelOrder && (
+            <TouchableOpacity
+              onPress={() => confirmCancelOrder(selectedOrder)}
+              disabled={isCancellingOrder}
+              accessibilityRole="button"
+              accessibilityLabel="إلغاء الطلب"
+              accessibilityState={{ disabled: isCancellingOrder, busy: isCancellingOrder }}
+              style={{ minHeight: 48, borderWidth: 1, borderColor: themeColors.error, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 14, opacity: isCancellingOrder ? 0.6 : 1 }}
+            >
+              {isCancellingOrder
+                ? <ActivityIndicator color={themeColors.error} />
+                : <Text style={{ color: themeColors.error, fontWeight: '700' }}>إلغاء الطلب</Text>}
+            </TouchableOpacity>
+          )}
 
           {/* Driver Card */}
           {selectedOrder.driver && (
@@ -366,6 +418,7 @@ export const TrackingScreen: React.FC = () => {
               const itemPrice = item.selectedPiece
                 ? item.selectedPiece.price
                 : (item.product.discountPrice ?? item.product.sellingPrice);
+              const originalPrice = item.originalUnitPrice ?? itemPrice;
               return (
                 <View key={idx} style={styles.orderItemRow}>
                   <Text style={styles.orderItemPrice}>
@@ -379,10 +432,41 @@ export const TrackingScreen: React.FC = () => {
                     <Text style={styles.orderItemQty}>
                       الكمية: {item.quantity} × {itemPrice.toLocaleString()} ر.ي
                     </Text>
+                    {originalPrice !== itemPrice && (
+                      <>
+                        <Text style={styles.stepDesc}>تم تحديث السعر أثناء الشراء</Text>
+                        <Text style={styles.orderItemQty}>السابق: {originalPrice.toLocaleString()} ر.ي · الجديد: {itemPrice.toLocaleString()} ر.ي</Text>
+                        {!!item.priceChangeId && <TouchableOpacity
+                          onPress={() => { setPriceComplaintFor({ id: item.priceChangeId!, name: item.product.name }); setPriceComplaintReason(''); setPriceComplaintNotes(''); }}
+                          accessibilityRole="button"
+                          style={{ minHeight: 40, alignSelf: 'flex-end', justifyContent: 'center', paddingHorizontal: 10 }}
+                        ><Text style={{ color: themeColors.error, fontFamily: 'Tajawal_700Bold' }}>الإبلاغ عن مشكلة في تغيير السعر</Text></TouchableOpacity>}
+                      </>
+                    )}
                   </View>
                 </View>
               );
             })}
+            {priceComplaintFor && <View style={styles.priceComplaintForm}>
+              <Text style={styles.timelineTitle}>بلاغ عن سعر {priceComplaintFor.name}</Text>
+              <TextInput value={priceComplaintReason} onChangeText={setPriceComplaintReason} placeholder="سبب البلاغ" placeholderTextColor={themeColors.outline} accessibilityLabel="سبب بلاغ السعر" style={styles.priceComplaintInput} />
+              <TextInput value={priceComplaintNotes} onChangeText={setPriceComplaintNotes} placeholder="تفاصيل إضافية (اختياري)" placeholderTextColor={themeColors.outline} accessibilityLabel="تفاصيل إضافية لبلاغ السعر" multiline style={[styles.priceComplaintInput, { minHeight: 72 }]} />
+              <View style={{ flexDirection: 'row-reverse', gap: 8 }}>
+                <TouchableOpacity onPress={() => setPriceComplaintFor(null)} style={styles.priceComplaintCancel}><Text style={{ color: themeColors.onSurface }}>إلغاء</Text></TouchableOpacity>
+                <TouchableOpacity disabled={isSubmittingPriceComplaint || !priceComplaintReason.trim()} onPress={async () => {
+                  if (!priceComplaintFor || !selectedOrder) return;
+                  setIsSubmittingPriceComplaint(true);
+                  try {
+                    await ordersApi.reportPriceChange(selectedOrder.id, priceComplaintFor.id, priceComplaintReason.trim(), priceComplaintNotes.trim());
+                    Alert.alert('تم استلام البلاغ', 'ستراجعه الإدارة.');
+                    setPriceComplaintFor(null);
+                  } catch (error: any) { Alert.alert('تعذر إرسال البلاغ', error?.message || 'حاول مرة أخرى.'); }
+                  finally { setIsSubmittingPriceComplaint(false); }
+                }} style={[styles.priceComplaintSubmit, (!priceComplaintReason.trim() || isSubmittingPriceComplaint) && { opacity: 0.55 }]}>
+                  <Text style={{ color: '#fff', fontFamily: 'Tajawal_700Bold' }}>{isSubmittingPriceComplaint ? 'جارٍ الإرسال...' : 'إرسال البلاغ'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>}
           </View>
 
           {/* Address & Payment Details */}
@@ -1130,6 +1214,10 @@ const createStyles = (colors: ThemeColors) =>
     fontWeight: typography.fontWeight.bold,
     color: colors.primary,
   },
+  priceComplaintForm: { marginTop: spacing.baseSm, padding: spacing.baseMd, gap: spacing.baseSm, borderRadius: borderRadius.lg, backgroundColor: colors.surfaceContainerHigh },
+  priceComplaintInput: { minHeight: 48, borderWidth: 1, borderColor: colors.outlineVariant, borderRadius: borderRadius.md, padding: 12, color: colors.onSurface, textAlign: 'right', backgroundColor: colors.surfaceContainerLowest },
+  priceComplaintCancel: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: colors.outlineVariant, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  priceComplaintSubmit: { flex: 1, minHeight: 44, borderRadius: borderRadius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   detailsCard: {
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,

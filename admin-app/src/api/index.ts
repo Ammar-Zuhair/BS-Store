@@ -9,6 +9,14 @@ import {
   AdminCategory,
   AdminStore,
   AdminFlashDeal,
+  AdminPriceChangeComplaint,
+  AdminProductPriceChange,
+  AdminAppVersionConfiguration,
+  AdminMaintenanceState,
+  AdminBroadcastHistoryItem,
+  ManagedAppType,
+  ManagedPlatform,
+  BroadcastType,
 } from '../types';
 
 export { api };
@@ -22,8 +30,8 @@ export const authApi = {
       refreshToken: string;
       user: { id: string; fullName?: string; name?: string; phone: string; email?: string; role: string };
     }>('/auth/bootstrap-admin', { fullName, phone, password });
-    api.setToken(res.accessToken);
-    api.setRefreshToken(res.refreshToken);
+    await api.setToken(res.accessToken);
+    await api.setRefreshToken(res.refreshToken);
     return res;
   },
 
@@ -37,8 +45,8 @@ export const authApi = {
       '/auth/login',
       { phone, password }
     );
-    api.setToken(res.accessToken);
-    api.setRefreshToken(res.refreshToken);
+    await api.setToken(res.accessToken);
+    await api.setRefreshToken(res.refreshToken);
     return res;
   },
 
@@ -62,7 +70,6 @@ export const adminApi = {
       pendingPayments: number;
       searchingDriverOrders: number;
       activeDrivers: number;
-      lowStock: number;
     }>('/admin/dashboard'),
 
   getOrders: (status?: string) => {
@@ -83,8 +90,8 @@ export const adminApi = {
   getPendingPayments: () =>
     api.get<any[]>('/admin/payments/pending').catch(() => api.get<any[]>('/admin/payments')),
 
-  approvePayment: (paymentId: string) =>
-    api.post<any>(`/admin/payments/${paymentId}/approve`),
+  approvePayment: (paymentId: string, amountReceived: number) =>
+    api.post<any>(`/admin/payments/${paymentId}/approve`, { amountReceived }),
 
   rejectPayment: (paymentId: string, reason: string) =>
     api.post<any>(`/admin/payments/${paymentId}/reject`, { reason }),
@@ -103,17 +110,6 @@ export const adminApi = {
 
   createSettlement: (driverId: string, amount: number, note?: string) =>
     api.post<any>(`/admin/drivers/${driverId}/settlement`, { amount, note }),
-
-  getInventory: () =>
-    api.get<any[]>('/admin/inventory'),
-
-  addInventoryTransaction: (data: {
-    productId: string;
-    type: number;
-    quantity: number;
-    reference?: string;
-    note?: string;
-  }) => api.post<any>('/admin/inventory/transactions', data),
 
   getDeliverySettings: () =>
     api.get<any>('/admin/settings/delivery'),
@@ -142,7 +138,7 @@ export const adminApi = {
     if (params?.page) query.append('page', params.page.toString());
     if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
     const qs = query.toString();
-    return api.get<{ items: any[]; page: number; totalCount: number }>(`/products${qs ? `?${qs}` : ''}`);
+    return api.get<{ items: any[]; page: number; totalCount: number }>(`/admin/products${qs ? `?${qs}` : ''}`);
   },
 
   createProduct: (data: any) =>
@@ -195,4 +191,36 @@ export const adminApi = {
 
   saveDeals: (deals: any[]) =>
     api.post<any>('/admin/deals', deals),
+
+  getProductPriceChanges: (flaggedForReview?: boolean) => {
+    const query = flaggedForReview === undefined ? '' : `?flaggedForReview=${flaggedForReview}`;
+    return api.get<{
+      items: AdminProductPriceChange[];
+      reviewThresholdConfigured: boolean;
+      reviewThresholdPercentage: number | null;
+    }>(`/admin/price-changes${query}`);
+  },
+  getPriceChangeComplaints: () => api.get<AdminPriceChangeComplaint[]>('/admin/price-changes/complaints'),
+  updatePriceChangeComplaint: (id: string, status: 'REVIEWING' | 'RESOLVED', resolutionNotes?: string) =>
+    api.patch<any>(`/admin/price-changes/complaints/${id}/status`, { status, resolutionNotes }),
+  setPriceChangeReviewThreshold: (percentage: number | null) =>
+    api.put<{ reviewThresholdConfigured: boolean; reviewThresholdPercentage: number | null }>(
+      '/admin/price-changes/review-threshold', { percentage }
+    ),
+
+  getAppVersionConfigurations: () => api.get<AdminAppVersionConfiguration[]>('/admin/app-versions'),
+  updateAppVersionConfiguration: (
+    appType: ManagedAppType,
+    platform: ManagedPlatform,
+    data: Omit<AdminAppVersionConfiguration, 'id' | 'appType' | 'platform' | 'updatedAt'>,
+  ) => api.put<AdminAppVersionConfiguration>(`/admin/app-versions/${appType}/${platform}`, data),
+  getMaintenanceState: () => api.get<AdminMaintenanceState>('/admin/system/maintenance'),
+  setMaintenanceState: (data: Pick<AdminMaintenanceState, 'maintenance' | 'title' | 'message' | 'expectedEndAt'>) =>
+    api.put<AdminMaintenanceState>('/admin/system/maintenance', data),
+  getBroadcastHistory: (page = 1, pageSize = 30) =>
+    api.get<{ items: AdminBroadcastHistoryItem[]; page: number; pageSize: number }>(`/admin/notifications/broadcasts?page=${page}&pageSize=${pageSize}`),
+  createCustomerBroadcast: (data: { type: BroadcastType; title: string; body: string }) =>
+    api.post<{ id: string; type: BroadcastType; title: string; body: string; status: string; createdAt: string }>(
+      '/admin/notifications/broadcasts', data,
+    ),
 };

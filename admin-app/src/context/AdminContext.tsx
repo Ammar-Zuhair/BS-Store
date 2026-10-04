@@ -16,6 +16,7 @@ import {
   FlaggedUser,
 } from '../types';
 import { adminApi, authApi, api } from '../api';
+import { API_BASE_URL } from '../api/client';
 import { unregisterPushDevice } from '../notifications';
 
 export type AdminScreenName =
@@ -26,6 +27,9 @@ export type AdminScreenName =
   | 'add_product'
   | 'categories'
   | 'financials'
+  | 'price_changes'
+  | 'system_management'
+  | 'broadcasts'
   | 'auth';
 
 export type AdminInventoryTab = 'categories' | 'stores' | 'products' | 'deals';
@@ -82,7 +86,7 @@ interface AdminContextType {
   setSelectedOrder: (ord: AdminOrder | null) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus, driverName?: string, driverId?: string) => Promise<void>;
   bankTransfers: BankTransferRequest[];
-  verifyBankTransfer: (id: string, approved: boolean, reason?: string) => Promise<void>;
+  verifyBankTransfer: (id: string, approved: boolean, reason?: string, amountReceived?: number) => Promise<void>;
   driverSettlementRequests: DriverSettlementRequest[];
   approveDriverSettlement: (id: string) => Promise<void>;
   rejectDriverSettlement: (id: string, reason?: string) => Promise<void>;
@@ -96,7 +100,6 @@ interface AdminContextType {
   deleteProduct: (productId: string) => Promise<void>;
   editingProduct: AdminProduct | null;
   setEditingProduct: (prod: AdminProduct | null) => void;
-  adjustInventory: (productId: string, newAvailable: number) => Promise<void>;
   categories: AdminCategory[];
   addCategory: (category: { name: string; icon: string; displayOrder?: number; isActive?: boolean }) => Promise<void>;
   updateCategory: (categoryId: string, data: Partial<AdminCategory>) => Promise<void>;
@@ -294,10 +297,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const receipt = p.receipts?.[0];
           let receiptUrl = receipt?.url;
           if (receiptUrl && !receiptUrl.startsWith('http')) {
-            receiptUrl = `http://localhost:5295${receiptUrl}`;
-          }
-          if (!receiptUrl) {
-            receiptUrl = 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80';
+            receiptUrl = `${API_BASE_URL}/${receiptUrl.replace(/^\/+/, '')}`;
           }
 
           return {
@@ -307,6 +307,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             customerName: p.customerName || 'عميل المتجر',
             customerPhone: p.customerPhone || '777000111',
             amount: p.amount || 0,
+            amountReceived: p.amountReceived == null ? null : Number(p.amountReceived),
+            amountReceivedAt: p.amountReceivedAt || null,
+            amountReceivedBy: p.amountReceivedBy || null,
             transferReference: receipt?.storageKey || `TRF-${p.orderNumber || 'BK'}`,
             receiptImageUrl: receiptUrl,
             uploadedAt: p.createdAt || receipt?.uploadedAt || new Date().toISOString(),
@@ -355,8 +358,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               ? Number(p.expectedPurchasePrice)
               : Number(p.sellingPrice || 0),
             sellingPrice: Number(p.sellingPrice || 0),
-            availableQuantity: p.availableStock || 0,
-            reservedQuantity: 0,
             isActive: p.isActive,
             isTopPick: true,
             imageUrl: p.images?.[0] || 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=400&q=80',
@@ -742,7 +743,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sourceType: 1, // دائماً متجر خارجي حسب المتطلب
         expectedPurchasePrice: Number(prodData.expectedPurchasePrice || 0),
         sellingPrice: Number(prodData.sellingPrice || 0),
-        initialStock: prodData.availableQuantity || 0,
         images: imageList,
       });
       await refreshData();
@@ -807,10 +807,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const verifyBankTransfer = async (id: string, approved: boolean, reason?: string) => {
+  const verifyBankTransfer = async (id: string, approved: boolean, reason?: string, amountReceived?: number) => {
     try {
       if (approved) {
-        await adminApi.approvePayment(id);
+        if (amountReceived == null) throw new Error('أدخل المبلغ الذي تم التحقق منه في الإيصال');
+        await adminApi.approvePayment(id, amountReceived);
       } else {
         await adminApi.rejectPayment(id, reason || 'إشعار غير مطابق');
       }
@@ -846,22 +847,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const createAdmin = async (fullName: string, phone: string, password: string) => {
     await adminApi.createAdmin(fullName, phone, password);
     await refreshData();
-  };
-
-  const adjustInventory = async (productId: string, newAvailable: number) => {
-    try {
-      await adminApi.addInventoryTransaction({
-        productId,
-        type: 4, // Adjustment
-        quantity: newAvailable,
-        reference: 'تسوية إدارة',
-        note: `تعديل الرصيد إلى ${newAvailable}`,
-      });
-      await refreshData();
-    } catch (e) {
-      console.error('Failed to adjust inventory:', e);
-      throw e;
-    }
   };
 
   const settleDriverCash = async (driverId: string, receivedAmount: number, notes?: string) => {
@@ -1132,7 +1117,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteProduct,
         editingProduct,
         setEditingProduct,
-        adjustInventory,
         categories,
         addCategory,
         updateCategory,

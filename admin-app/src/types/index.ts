@@ -94,6 +94,9 @@ export interface BankTransferRequest {
   customerName: string;
   customerPhone: string;
   amount: number;
+  amountReceived?: number | null;
+  amountReceivedAt?: string | null;
+  amountReceivedBy?: string | null;
   transferReference: string;
   receiptImageUrl: string;
   uploadedAt: string;
@@ -182,6 +185,57 @@ export interface AdminFlashDeal {
   products?: { id: string; name: string; price: number; description?: string; imageUrl?: string }[];
 }
 
+export interface AdminProductPriceChange {
+  id: string;
+  productId: string;
+  productName: string;
+  storeId: string;
+  storeName: string;
+  orderId: string;
+  orderNumber: string;
+  subOrderId: string;
+  orderItemId: string;
+  driverId: string;
+  driverName: string;
+  observedPrice: number;
+  currentCatalogPrice: number;
+  newStorePrice: number;
+  orderItemOriginalPrice: number;
+  orderItemFinalPrice: number;
+  percentageChange: number;
+  flagForAdminReview: boolean;
+  customerContactConfirmed: boolean;
+  contactInitiatedAt: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface AdminPriceChangeComplaint {
+  id: string;
+  customerId: string;
+  customerName: string;
+  orderId: string;
+  orderNumber: string;
+  productId: string;
+  productName: string;
+  storeName: string;
+  priceChangeId: string;
+  driverId: string;
+  driverName: string;
+  oldPrice: number;
+  newPrice: number;
+  percentageChange: number;
+  customerContactConfirmed: boolean;
+  contactInitiatedAt: string | null;
+  reason: string;
+  customerNotes?: string | null;
+  status: 'OPEN' | 'REVIEWING' | 'RESOLVED';
+  createdAt: string;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  resolutionNotes?: string | null;
+}
+
 export interface AdminProduct {
   id: string;
   name: string;
@@ -197,9 +251,6 @@ export interface AdminProduct {
   sourceType: 'IN_STOCK' | 'EXTERNAL_STORE';
   expectedPurchasePrice: number;
   sellingPrice: number;
-  availableQuantity: number;
-  reservedQuantity: number;
-  minStockAlert?: number;
   isActive: boolean;
   isTopPick?: boolean;
   isBundle?: boolean;
@@ -246,4 +297,47 @@ export interface AuditLog {
   entityId: string;
   details: string;
   timestamp: string;
+}
+
+export type ManagedAppType = 'customer' | 'admin' | 'courier';
+export type ManagedPlatform = 'android' | 'ios';
+export type BroadcastType = 'offer' | 'announcement' | 'update' | 'maintenance' | 'alert';
+
+export interface AdminAppVersionConfiguration {
+  id: string;
+  appType: ManagedAppType;
+  platform: ManagedPlatform;
+  latestVersion: string;
+  minimumSupportedVersion: string;
+  latestBuildNumber: number | null;
+  minimumBuildNumber: number | null;
+  updateUrl: string | null;
+  updateTitle: string;
+  updateMessage: string;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface AdminMaintenanceState {
+  maintenance: boolean;
+  title: string | null;
+  message: string | null;
+  expectedEndAt: string | null;
+  startedAt?: string | null;
+  updatedAt?: string;
+  updatedBy?: string | null;
+}
+
+export interface AdminBroadcastHistoryItem {
+  id: string;
+  type: BroadcastType;
+  title: string;
+  body: string;
+  createdByAdminId: string;
+  createdAt: string;
+  status: 'Pending' | 'Processing' | 'Completed' | 'Partial' | 'Failed';
+  targetCount: number;
+  successCount: number;
+  failureCount: number;
+  failureSummary?: string | null;
 }

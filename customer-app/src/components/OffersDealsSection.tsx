@@ -16,6 +16,7 @@ export const OffersDealsSection: React.FC = () => {
     removeFromCart,
     applyPromoCode,
     activateDeliveryDeal,
+    activateProductDiscountDeal,
     deals,
     colors: themeColors,
   } = useApp();
@@ -61,6 +62,10 @@ export const OffersDealsSection: React.FC = () => {
       activateDeliveryDeal(deal.id, 100);
       return;
     }
+    if (deal.dealType === 'PRODUCT_DISCOUNT') {
+      activateProductDiscountDeal(deal.id);
+      return;
+    }
     setSelectedDeal(deal);
     setModalVisible(true);
   };
@@ -72,6 +77,10 @@ export const OffersDealsSection: React.FC = () => {
     }
     if (deal.couponCode) {
       void applyPromoCode(deal.couponCode);
+      return;
+    }
+    if (deal.dealType === 'PRODUCT_DISCOUNT') {
+      activateProductDiscountDeal(deal.id);
       return;
     }
     if (!deal.storeId) return;
@@ -232,7 +241,7 @@ export const OffersDealsSection: React.FC = () => {
                       accessibilityLabel={'فتح العرض ' + deal.title}
                     >
                       <Text style={styles.actionBtnText}>
-                        {deal.dealType === 'DELIVERY_DISCOUNT' ? 'تفعيل الخصم' : (deal.products.length > 0 ? 'عرض الباقة ➔' : (deal.couponCode ? 'تفعيل الكود' : '+ إضافة'))}
+                        {deal.dealType === 'DELIVERY_DISCOUNT' || deal.dealType === 'PRODUCT_DISCOUNT' ? 'تفعيل الخصم' : (deal.products.length > 0 ? 'عرض الباقة ➔' : (deal.couponCode ? 'تفعيل الكود' : '+ إضافة'))}
                       </Text>
                     </TouchableOpacity>
                   )}

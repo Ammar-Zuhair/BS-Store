@@ -1,17 +1,20 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { tokenStorage } from './tokenStorage';
 
-const DEFAULT_API_BASE_URL = 'https://implosive-exchange-compacter.ngrok-free.dev/api';
+const DEVELOPMENT_API_BASE_URL = 'https://implosive-exchange-compacter.ngrok-free.dev/api';
 const isPrivateOrInsecureApiUrl = (value: string) =>
   !/^https:\/\//i.test(value) ||
   /^https:\/\/(?:localhost|127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|169\.254(?:\.\d{1,3}){2}|0\.\d{1,3}(?:\.\d{1,3}){2})(?::\d+)?(?:\/|$)|^https:\/\/[^/]+\.(?:local|internal)(?::\d+)?(?:\/|$)/i.test(value);
+const isDevelopmentTunnel = (value: string) => /(?:^|\.)(?:[^./]+\.)*(?:ngrok(?:-free)?\.(?:app|dev|io)|trycloudflare\.com)(?::\d+)?(?:\/|$)/i.test(value.replace(/^https:\/\//i, ''));
 const configuredApiBaseUrl = [Constants.expoConfig?.extra?.apiBaseUrl, process.env.EXPO_PUBLIC_API_URL]
   .map((value) => value?.trim().replace(/\/+$/, ''))
-  .find((value) => value && !isPrivateOrInsecureApiUrl(value));
+  .find((value) => value && !isPrivateOrInsecureApiUrl(value) && (__DEV__ || !isDevelopmentTunnel(value)));
 
 export const API_BASE_URL = configuredApiBaseUrl && !isPrivateOrInsecureApiUrl(configuredApiBaseUrl)
   ? configuredApiBaseUrl
-  : DEFAULT_API_BASE_URL;
+  : __DEV__
+    ? DEVELOPMENT_API_BASE_URL
+    : (() => { throw new Error('EXPO_PUBLIC_API_URL is required for production builds.'); })();
 
 function getSafeHttpErrorMessage(status: number): string {
   if (status === 401) return 'تعذر تسجيل الدخول أو انتهت الجلسة. يرجى تسجيل الدخول مجدداً.';
@@ -33,7 +36,7 @@ class ApiClient {
   async initToken(): Promise<string | null> {
     if (this.isInitialized) return this.token;
     try {
-      const stored = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      const stored = await tokenStorage.get(TOKEN_STORAGE_KEY);
       if (stored) {
         this.token = stored;
       }
@@ -45,17 +48,9 @@ class ApiClient {
     return this.token;
   }
 
-  setToken(token: string | null) {
+  async setToken(token: string | null): Promise<void> {
     this.token = token;
-    try {
-      if (token) {
-        AsyncStorage.setItem(TOKEN_STORAGE_KEY, token);
-      } else {
-        AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
-      }
-    } catch (e) {
-      console.warn('Failed to persist token to storage:', e);
-    }
+    await tokenStorage.set(TOKEN_STORAGE_KEY, token);
   }
 
   getToken(): string | null {

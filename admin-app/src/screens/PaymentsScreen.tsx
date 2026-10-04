@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 import { AdminHeader } from '../components/AdminHeader';
 import { useAdmin } from '../context/AdminContext';
+import { api } from '../api';
+import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
 
 type Tab = 'transfers' | 'custody';
 
@@ -13,6 +15,7 @@ export const PaymentsScreen: React.FC = () => {
   } = useAdmin();
   const [tab, setTab] = useState<Tab>('transfers');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [receivedAmounts, setReceivedAmounts] = useState<Record<string, string>>({});
 
   const run = async (id: string, action: () => Promise<void>, success: string) => {
     setBusyId(id);
@@ -28,6 +31,7 @@ export const PaymentsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <BoosthisScreenTracker key={tab} screen={tab === 'transfers' ? 'BankTransfers' : 'DriverCustody'} />
       <AdminHeader title="التحويلات والمدفوعات" showBack onBack={() => navigateTo('dashboard')} />
       <View style={styles.tabs}>
         <TouchableOpacity style={[styles.tab, tab === 'transfers' && styles.tabActive]} onPress={() => setTab('transfers')}>
@@ -45,6 +49,18 @@ export const PaymentsScreen: React.FC = () => {
             {bankTransfers.length === 0 && <Text style={styles.empty}>لا توجد حوالات عملاء في قاعدة البيانات حالياً.</Text>}
             {bankTransfers.map((item) => {
               const pending = item.status === 'PENDING';
+              const needsAmountConfirmation = item.status === 'VERIFIED' && item.amountReceived == null;
+              const needsAmountEntry = pending || needsAmountConfirmation;
+              const amountInput = receivedAmounts[item.id] ?? '';
+              const saveReceivedAmount = () => {
+                const normalized = amountInput.trim();
+                if (!/^\d+(?:\.\d{1,2})?$/.test(normalized) || !Number.isFinite(Number(normalized)) || Number(normalized) <= 0) {
+                  Alert.alert('مبلغ غير صالح', 'أدخل المبلغ الفعلي في الإيصال، بدقة لا تتجاوز منزلتين عشريتين.');
+                  return;
+                }
+                void run(item.id, () => verifyBankTransfer(item.id, true, undefined, Number(normalized)),
+                  pending ? 'تم اعتماد الحوالة وتسجيل المبلغ المستلم' : 'تم تسجيل المبلغ المستلم للحوالة السابقة');
+              };
               return <View key={item.id} style={styles.card}>
                 <View style={styles.row}>
                   <Text style={styles.title}>طلب #{item.orderNumber}</Text>
@@ -53,16 +69,31 @@ export const PaymentsScreen: React.FC = () => {
                   </Text>
                 </View>
                 <Text style={styles.info}>{item.customerName} · {item.customerPhone}</Text>
-                <Text style={styles.info}>المبلغ: {item.amount.toLocaleString()} ر.ي · المرجع: {item.transferReference}</Text>
-                {item.receiptImageUrl ? <Image source={{ uri: item.receiptImageUrl }} style={styles.receipt} resizeMode="contain" /> : null}
-                {pending && <View style={styles.actions}>
-                  <TouchableOpacity style={[styles.button, styles.rejectButton]} disabled={busyId === item.id}
+                <Text style={styles.info}>قيمة الفاتورة عند التحويل: {item.amount.toLocaleString()} ر.ي · المرجع: {item.transferReference}</Text>
+                {needsAmountEntry ? <>
+                  <Text style={styles.info}>راجع الإيصال وسجل المبلغ الذي وصل فعلياً إلى الحساب البنكي.</Text>
+                  <TextInput
+                    value={amountInput}
+                    onChangeText={(value) => setReceivedAmounts((current) => ({ ...current, [item.id]: value }))}
+                    keyboardType="decimal-pad"
+                    placeholder="المبلغ المستلم فعلياً"
+                    accessibilityLabel="المبلغ المستلم فعلياً"
+                    style={styles.amountInput}
+                  />
+                </> : <Text style={styles.info}>المبلغ المستلم المؤكد: {item.amountReceived!.toLocaleString()} ر.ي{item.amountReceivedAt ? ` · ${new Date(item.amountReceivedAt).toLocaleString('ar')}` : ''}</Text>}
+                {item.receiptImageUrl ? <Image
+                  source={{ uri: item.receiptImageUrl, headers: api.getToken() ? { Authorization: `Bearer ${api.getToken()}` } : {} }}
+                  style={styles.receipt}
+                  resizeMode="contain"
+                /> : null}
+                {(pending || needsAmountConfirmation) && <View style={styles.actions}>
+                  {pending && <TouchableOpacity style={[styles.button, styles.rejectButton]} disabled={busyId === item.id}
                     onPress={() => Alert.alert('رفض الحوالة', 'هل تريد رفض إشعار التحويل؟', [
                       { text: 'إلغاء', style: 'cancel' },
                       { text: 'رفض', style: 'destructive', onPress: () => run(item.id, () => verifyBankTransfer(item.id, false, 'إشعار غير مطابق'), 'تم رفض الحوالة') },
-                    ])}><Text style={styles.buttonText}>{busyId === item.id ? 'جارٍ...' : 'رفض'}</Text></TouchableOpacity>
+                    ])}><Text style={styles.buttonText}>{busyId === item.id ? 'جارٍ...' : 'رفض'}</Text></TouchableOpacity>}
                   <TouchableOpacity style={[styles.button, styles.approveButton]} disabled={busyId === item.id}
-                    onPress={() => run(item.id, () => verifyBankTransfer(item.id, true), 'تم اعتماد الحوالة')}><Text style={styles.buttonText}>اعتماد الحوالة</Text></TouchableOpacity>
+                    onPress={saveReceivedAmount}><Text style={styles.buttonText}>{busyId === item.id ? 'جارٍ...' : pending ? 'اعتماد وتسجيل المبلغ' : 'تسجيل المبلغ المستلم'}</Text></TouchableOpacity>
                 </View>}
               </View>;
             })}
@@ -151,6 +182,7 @@ const styles = StyleSheet.create({
   approved: { backgroundColor: '#DCFCE7', color: '#166534' },
   rejected: { backgroundColor: '#FEE2E2', color: '#991B1B' },
   info: { fontFamily: typography.fontFamily.regular, color: colors.onSurfaceVariant, fontSize: typography.fontSize.sm, textAlign: 'right' },
+  amountInput: { borderWidth: 1, borderColor: colors.outlineVariant, borderRadius: borderRadius.md, padding: 10, color: colors.onSurface, textAlign: 'right', fontFamily: typography.fontFamily.medium },
   amount: { fontFamily: typography.fontFamily.bold, color: colors.primary, fontSize: 22, textAlign: 'right' },
   date: { fontFamily: typography.fontFamily.regular, color: colors.onSurfaceVariant, fontSize: 12, textAlign: 'right' },
   receipt: { width: '100%', height: 170, backgroundColor: colors.surfaceContainerLow, borderRadius: borderRadius.md },

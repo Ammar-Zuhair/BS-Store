@@ -44,7 +44,7 @@ export const DriverDashboardScreen: React.FC = () => {
         .filter((s) => s.type === 'PICKUP_STORE')
         .map((store) => {
           const items = activeTask.itemsToPurchase.filter(
-            (it) => it.storeId === store.id || it.storeName === store.name
+            (it) => it.storeId === store.id.replace('stop-store-', '') || it.storeName === store.name
           );
           const storeTotal = items.reduce(
             (sum, it) => sum + (it.actualPrice || it.expectedPrice) * it.quantity,
@@ -214,6 +214,7 @@ export const DriverDashboardScreen: React.FC = () => {
                               : `سعر الشراء المتوقع للوحدة: ${it.expectedPrice.toLocaleString()} ر.ي`}
                           </Text>
                           <Text style={styles.itemUnit}>سعر الوحدة على العميل: {it.customerPrice.toLocaleString()} ر.ي</Text>
+                          {it.originalCustomerPrice !== it.customerPrice && <Text style={styles.itemUnit}>السعر قبل التحديث: {it.originalCustomerPrice.toLocaleString()} ر.ي</Text>}
                         </View>
                         <Image source={{ uri: it.imageUrl }} style={styles.itemThumb} />
                       </View>
@@ -236,7 +237,7 @@ export const DriverDashboardScreen: React.FC = () => {
             <View style={styles.costSummaryCard}>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryVal}>
-                  {(activeTask.subtotalProducts ?? 0).toLocaleString()} ر.ي
+                    {(activeTask.subtotalProducts ?? 0).toLocaleString()} ر.ي
                 </Text>
                 <Text style={styles.summaryLabel}>قيمة المنتجات على العميل (قبل التوصيل):</Text>
               </View>
@@ -438,8 +439,10 @@ export const DriverDashboardScreen: React.FC = () => {
                       <Text style={styles.modalPaymentType}>
                         {activeTask.paymentMethod === 'CASH_ON_DELIVERY'
                           ? '💵 دفع عند الاستلام نقداً'
-                          : '✓ تحويل بنكي مدفوع مسبقاً'}
+                          : `✓ تحويل بنكي مسبق ${activeTask.transferredAmount.toLocaleString()} ر.ي`}
                       </Text>
+                      {activeTask.paymentMethod === 'MANUAL_TRANSFER' && activeTask.amountToCollect > 0 && <Text style={styles.modalPaymentType}>المتبقي نقداً عند التسليم: {activeTask.amountToCollect.toLocaleString()} ر.ي</Text>}
+                      {activeTask.paymentMethod === 'MANUAL_TRANSFER' && activeTask.cashRefundAtDelivery > 0 && <Text style={styles.modalPaymentType}>أعد للعميل نقداً: {activeTask.cashRefundAtDelivery.toLocaleString()} ر.ي</Text>}
                     </View>
                   </View>
                 </View>

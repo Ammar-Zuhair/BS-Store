@@ -14,8 +14,8 @@ export const authApi = {
       { phone, password }
     );
     if (res.user?.role !== 'Driver') throw new Error('هذا الحساب غير مسجل كموصل.');
-    api.setToken(res.accessToken);
-    api.setRefreshToken(res.refreshToken);
+    await api.setToken(res.accessToken);
+    await api.setRefreshToken(res.refreshToken);
     return res;
   },
 
@@ -69,14 +69,27 @@ export const driverApi = {
   acceptOrder: (orderId: string) =>
     api.put<any>(`/driver/orders/${orderId}/accept`),
 
+  startPriceChangeContact: (orderId: string, data: {
+    subOrderId: string;
+    orderItemId: string;
+    observedCatalogPrice: number;
+    proposedStorePrice: number;
+  }) => api.post<{ id: string; contactInitiatedAt: string }>(`/driver/orders/${orderId}/price-change-contact`, data),
+
   recordPurchase: (orderId: string, data: {
     subOrderId: string;
-    actualPurchasePrice: number;
-    itemDetails?: { orderItemId: string; actualPrice: number }[];
+    idempotencyKey: string;
+    itemDetails: {
+      orderItemId: string;
+      actualPrice: number;
+      observedCatalogPrice?: number;
+      priceChangeContactAttemptId?: string;
+      customerContactConfirmed?: boolean;
+    }[];
   }) => api.post<any>(`/driver/orders/${orderId}/record-purchase`, data),
 
-  confirmDelivered: (orderId: string) =>
-    api.put<any>(`/driver/orders/${orderId}/delivered`),
+  confirmDelivered: (orderId: string, cashAdjustmentSettled: boolean) =>
+    api.put<any>(`/driver/orders/${orderId}/delivered`, { cashAdjustmentSettled }),
 
   getFinancialSummary: () =>
     api.get<{

@@ -36,6 +36,8 @@ export interface TaskPurchasedItem {
   quantity: number;
   expectedPrice: number;
   customerPrice: number;
+  originalCustomerPrice: number;
+  catalogPrice: number;
   actualPrice?: number;
   imageUrl: string;
   storeId?: string;
@@ -57,6 +59,8 @@ export interface ActiveDeliveryTask {
   subtotalProducts?: number;
   deliveryFee?: number;
   amountToCollect: number;
+  transferredAmount: number;
+  isTransferAmountConfirmed: boolean;
   paymentMethod: 'CASH_ON_DELIVERY' | 'MANUAL_TRANSFER';
   isPaymentVerified: boolean;
   totalDistanceKm: number;
@@ -64,6 +68,7 @@ export interface ActiveDeliveryTask {
   status: 'ASSIGNED' | 'EN_ROUTE_PICKUP' | 'PURCHASING' | 'EN_ROUTE_DELIVERY' | 'DELIVERED';
   driverProfitSharePercent: number;
   driverEstimatedEarnings: number;
+  cashRefundAtDelivery: number;
 }
 
 export interface DriverTransaction {

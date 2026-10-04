@@ -5,21 +5,12 @@ export { api };
 
 // ─── Auth API ────────────────────────────────────────────────────────────────
 export const authApi = {
-  checkPhone: async (phone: string): Promise<boolean> => {
-    try {
-      const res = await api.get<boolean>(`/auth/check-phone?phone=${encodeURIComponent(phone.trim())}`);
-      return Boolean(res);
-    } catch {
-      return false;
-    }
-  },
-
   login: async (phone: string, password = 'Password123!') => {
     const res = await api.post<{ accessToken: string; user: { id: string; name?: string; fullName?: string; phone: string; role: string } }>(
       '/auth/login',
       { phone, password }
     );
-    api.setToken(res.accessToken);
+    await api.setToken(res.accessToken);
     return res;
   },
 
@@ -59,7 +50,7 @@ export const authApi = {
           : undefined,
       }
     );
-    api.setToken(res.accessToken);
+    await api.setToken(res.accessToken);
     return res;
   },
 
@@ -69,7 +60,7 @@ export const authApi = {
     try {
       await api.post('/auth/logout');
     } finally {
-      api.setToken(null);
+      await api.setToken(null);
     }
   },
 };
@@ -112,7 +103,6 @@ export interface ApiProduct {
   storeName: string;
   sourceType: string;
   sellingPrice: number;
-  availableStock?: number;
   isActive: boolean;
   images: string[];
 }
@@ -262,12 +252,15 @@ export const ordersApi = {
     idempotencyKey?: string;
     deliveryDealId?: string;
     couponCode?: string;
+    productDiscountDealId?: string;
     items?: { productId?: string; dealId?: string; dealProductId?: string; quantity: number }[];
   }) => api.post<any>('/checkout/place-order', req),
 
   getMyOrders: () => api.get<any[]>('/orders'),
   getOrderDetails: (id: string) => api.get<any>(`/orders/${id}`),
   submitReview: (id: string, rating: number, comment: string) => api.post<any>(`/orders/${id}/review`, { rating, comment }),
+  reportPriceChange: (orderId: string, priceChangeId: string, reason: string, customerNotes: string) =>
+    api.post<any>(`/orders/${orderId}/price-changes/${priceChangeId}/complaints`, { reason, customerNotes }),
   cancelOrder: (id: string, reasonCode: string, description?: string) =>
     api.post<any>(`/orders/${id}/cancel`, { reasonCode, description }),
 };

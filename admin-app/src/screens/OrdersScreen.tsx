@@ -463,9 +463,7 @@ export const OrdersScreen: React.FC = () => {
 
                   {/* Assign driver */}
                   {!detailOrder.assignedDriverName &&
-                    detailOrder.status !== 'DELIVERED' &&
-                    detailOrder.status !== 'CANCELLED' &&
-                    detailOrder.status !== 'PENDING_ADMIN_APPROVAL' && (
+                    ['CONFIRMED', 'SEARCHING_DRIVER'].includes(detailOrder.status) && (
                     <TouchableOpacity
                       style={styles.assignBtn}
                       onPress={() => {

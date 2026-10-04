@@ -16,7 +16,8 @@ echo "Triggering backend restart..."
 # 1. Update the restart trigger file (systemd watcher will automatically restart if active)
 touch /workspace/backend/.restart-trigger
 
-# 2. Attempt systemctl restart if D-Bus is permitted, otherwise trigger HTTP restart or process signal
+# 2. Attempt systemctl restart if D-Bus is permitted. Otherwise the host-level
+#    path watcher handles the trigger file; this script does not expose a restart API.
 RESTARTED=false
 if systemctl restart bsstore-backend.service 2>/dev/null; then
   echo "Restarted via systemctl (root)."
@@ -27,11 +28,7 @@ elif command -v sudo >/dev/null 2>&1 && sudo systemctl restart bsstore-backend.s
 fi
 
 if [ "$RESTARTED" = false ]; then
-  echo "systemctl unavailable or D-Bus access restricted. Using programmatic / file watcher restart..."
-  # Call graceful shutdown API if running
-  curl -s -X POST http://localhost:5295/api/system/restart >/dev/null 2>&1 || true
-  # Fallback signal if PID namespace is shared
-  pkill -f 'BSStore.API.dll' 2>/dev/null || true
+  echo "systemctl unavailable or D-Bus access restricted. Waiting for the host-level path watcher."
 fi
 
 echo "Verifying backend health..."
@@ -50,5 +47,5 @@ if [ "$READY" = true ]; then
   HEALTH_JSON=$(curl -s http://localhost:5295/health 2>/dev/null || true)
   echo "Health status: $HEALTH_JSON"
 else
-  echo "⚠️ Backend restart initiated; service is starting up..."
+  echo "⚠️ Backend is not healthy yet. Check the host-level path watcher and systemd service."
 fi

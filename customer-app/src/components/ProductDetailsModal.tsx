@@ -5,6 +5,7 @@ import { Product } from '../types';
 import { borderRadius, spacing, ThemeColors, typography } from '../theme';
 import { useApp } from '../context/AppContext';
 import { AppIcon } from './AppIcon';
+import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
 
 interface Props { product: Product | null; onClose: () => void }
 
@@ -20,6 +21,7 @@ export const ProductDetailsModal: React.FC<Props> = ({ product, onClose }) => {
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
+        <BoosthisScreenTracker screen="ProductDetails" />
         <View style={styles.sheet}>
           <View style={styles.header}>
             <TouchableOpacity

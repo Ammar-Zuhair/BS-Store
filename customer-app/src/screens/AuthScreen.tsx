@@ -30,7 +30,6 @@ export const AuthScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [mode, setMode] = useState<AuthMode>('phone');
-  const [isCheckingPhone, setIsCheckingPhone] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Phone Step State
@@ -171,7 +170,7 @@ export const AuthScreen: React.FC = () => {
   };
 
   // ─── 1. Check Phone Number & Smart Routing ────────────────────────────────
-  const handleCheckPhone = async () => {
+  const handleChooseAccountPath = () => {
     const cleanPhone = phone.trim();
     if (!cleanPhone) {
       Alert.alert('تنبيه', 'يرجى إدخال رقم الهاتف أولاً');
@@ -182,40 +181,15 @@ export const AuthScreen: React.FC = () => {
       return;
     }
 
-    setIsCheckingPhone(true);
-    try {
-      const exists = await authApi.checkPhone(cleanPhone);
-      setIsCheckingPhone(false);
-
-      if (exists) {
-        // Phone is in database -> prompt for password
-        switchMode('password');
-      } else {
-        // Phone does not exist -> smooth transfer to register
-        setRegPhone(cleanPhone);
-        Alert.alert(
-          'مرحباً بك في BS Store',
-          'هذا الرقم غير مسجل لدينا حالياً. سننتقل الآن لإنشاء حسابك الجديد للاستمتاع بالتسوق.',
-          [
-            {
-              text: 'إنشاء حساب جديد ➔',
-              onPress: () => switchMode('register'),
-            },
-          ]
-        );
-      }
-    } catch {
-      setIsCheckingPhone(false);
-      // Fallback in case of offline/network glitch: offer password or register
-      Alert.alert(
-        'خيارات الحساب',
-        'تعذر التحقق التلقائي، يمكنك تسجيل الدخول بكلمة المرور أو إنشاء حساب جديد:',
-        [
-          { text: 'إنشاء حساب جديد', onPress: () => { setRegPhone(cleanPhone); switchMode('register'); } },
-          { text: 'تسجيل الدخول', onPress: () => switchMode('password') },
-        ]
-      );
-    }
+    setRegPhone(cleanPhone);
+    Alert.alert(
+      'خيارات الحساب',
+      'اختر تسجيل الدخول أو إنشاء حساب جديد للمتابعة.',
+      [
+        { text: 'إنشاء حساب جديد', onPress: () => switchMode('register') },
+        { text: 'تسجيل الدخول', onPress: () => switchMode('password') },
+      ]
+    );
   };
 
   // ─── 2. Login with Password ──────────────────────────────────────────────
@@ -428,25 +402,16 @@ export const AuthScreen: React.FC = () => {
 
                 {/* Primary Action: Continue */}
                 <TouchableOpacity
-                  style={[styles.primaryActionBtn, isCheckingPhone && { opacity: 0.75 }]}
-                  onPress={handleCheckPhone}
-                  disabled={isCheckingPhone}
+                  style={styles.primaryActionBtn}
+                  onPress={handleChooseAccountPath}
                   activeOpacity={0.88}
                   accessibilityRole="button"
-                  accessibilityLabel="متابعة والتحقق من رقم الهاتف"
-                  accessibilityState={{ disabled: isCheckingPhone, busy: isCheckingPhone }}
+                  accessibilityLabel="اختيار تسجيل الدخول أو إنشاء حساب"
                 >
-                  {isCheckingPhone ? (
-                    <View style={styles.btnRow}>
-                      <ActivityIndicator color={themeColors.onPrimary} size="small" />
-                      <Text style={styles.primaryBtnText}>جاري التحقق...</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.btnRow}>
-                      <Text style={styles.primaryBtnText}>متابعة</Text>
-                      <AppIcon name="arrow-right" size={17} color={themeColors.onPrimary} />
-                    </View>
-                  )}
+                  <View style={styles.btnRow}>
+                    <Text style={styles.primaryBtnText}>متابعة</Text>
+                    <AppIcon name="arrow-right" size={17} color={themeColors.onPrimary} />
+                  </View>
                 </TouchableOpacity>
 
                 {/* Register Account Button (Directly Underneath as Requested) */}

@@ -41,6 +41,7 @@ export interface DealItem {
   isFreeDelivery?: boolean;
   expiresAt?: string;
   couponCode?: string;
+  discountTiers?: { minAmount: number; maxAmount?: number | null; discountPercent: number }[];
   isPublic?: boolean;
   visibility?: string;
 }

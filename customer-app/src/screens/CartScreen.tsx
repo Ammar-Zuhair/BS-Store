@@ -18,6 +18,7 @@ export const CartScreen: React.FC = () => {
     cartDiscount,
     cartTotal,
     promoCode,
+    activeOrderDiscountDeal,
     promoMessage: contextPromoMessage,
     applyPromoCode,
     clearPromoCode,
@@ -29,6 +30,7 @@ export const CartScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [inputCode, setInputCode] = useState(promoCode);
+  const hasActivePromo = Boolean(promoCode || activeOrderDiscountDeal);
   const [localPromoMessage, setLocalPromoMessage] = useState<string | null>(null);
 
   const handleApplyPromo = async () => {
@@ -151,9 +153,9 @@ export const CartScreen: React.FC = () => {
 
           {/* Promo Code Input */}
           <View style={styles.promoCard}>
-            <Text style={styles.promoTitle}>كوبون الخصم</Text>
+            <Text style={styles.promoTitle}>كوبون أو عرض الخصم</Text>
             <View style={styles.promoInputRow}>
-              {promoCode ? (
+              {hasActivePromo ? (
                 <TouchableOpacity
                   style={[styles.applyBtn, { backgroundColor: themeColors.error }]}
                   onPress={handleClearPromo}
@@ -178,8 +180,8 @@ export const CartScreen: React.FC = () => {
                 style={styles.promoInput}
                 placeholder="أدخل رمز الاسترداد أو كود الخصم"
                 placeholderTextColor={themeColors.outline}
-                value={promoCode || inputCode}
-                editable={!promoCode}
+                value={promoCode || activeOrderDiscountDeal?.title || inputCode}
+                editable={!hasActivePromo}
                 onChangeText={(val) => {
                   setInputCode(val);
                   setLocalPromoMessage(null);
@@ -193,7 +195,7 @@ export const CartScreen: React.FC = () => {
               <Text
                 style={[
                   styles.promoMsgText,
-                  promoCode ? styles.promoSuccess : styles.promoError,
+                  hasActivePromo ? styles.promoSuccess : styles.promoError,
                 ]}
               >
                 {contextPromoMessage || localPromoMessage}

@@ -14,12 +14,43 @@ export const ActiveTaskRouteScreen: React.FC = () => {
     isRefreshing,
   } = useDriver();
   const [isCompletingDelivery, setIsCompletingDelivery] = useState(false);
-  const handleCompleteDelivery = async () => {
-    if (isCompletingDelivery) return;
+  const submitDelivery = async (cashAdjustmentSettled: boolean) => {
+    if (!activeTask || isCompletingDelivery) return;
     setIsCompletingDelivery(true);
-    try { await completeDeliveryAndCollect(); }
+    try { await completeDeliveryAndCollect(cashAdjustmentSettled); }
     catch (error: any) { Alert.alert('تعذر إتمام التسليم', error?.message || 'حاول مرة أخرى'); }
     finally { setIsCompletingDelivery(false); }
+  };
+
+  const handleCompleteDelivery = () => {
+    if (!activeTask) return;
+    if (activeTask.paymentMethod === 'MANUAL_TRANSFER' && !activeTask.isTransferAmountConfirmed) {
+      Alert.alert('قيمة التحويل غير مؤكدة', 'راجع الإدارة لتسجيل المبلغ الفعلي في الإيصال قبل إتمام التسليم.');
+      return;
+    }
+    if (activeTask.paymentMethod === 'MANUAL_TRANSFER' && activeTask.amountToCollect > 0) {
+      Alert.alert(
+        'تحصيل فارق التحويل',
+        `تم تحويل ${activeTask.transferredAmount.toLocaleString()} ر.ي. يجب تحصيل ${activeTask.amountToCollect.toLocaleString()} ر.ي نقداً من العميل عند التسليم.`,
+        [
+          { text: 'إلغاء', style: 'cancel' },
+          { text: 'تم تحصيل الفارق', onPress: () => void submitDelivery(true) },
+        ]
+      );
+      return;
+    }
+    if (activeTask.paymentMethod === 'MANUAL_TRANSFER' && activeTask.cashRefundAtDelivery > 0) {
+      Alert.alert(
+        'إعادة المبلغ الزائد',
+        `تم تحويل ${activeTask.transferredAmount.toLocaleString()} ر.ي، بينما الفاتورة النهائية أقل. أعد ${activeTask.cashRefundAtDelivery.toLocaleString()} ر.ي للعميل نقداً عند التسليم.`,
+        [
+          { text: 'إلغاء', style: 'cancel' },
+          { text: 'تمت إعادة المبلغ', onPress: () => void submitDelivery(true) },
+        ]
+      );
+      return;
+    }
+    void submitDelivery(false);
   };
 
   if (!activeTask) {
@@ -159,17 +190,28 @@ export const ActiveTaskRouteScreen: React.FC = () => {
 
               <Text style={styles.stopAddress}>📍 {stop.address}</Text>
 
+              {stop.type === 'DELIVERY_CUSTOMER' && activeTask.paymentMethod === 'MANUAL_TRANSFER' && (
+                <View style={styles.cashAdjustmentBox}>
+                  {!activeTask.isTransferAmountConfirmed && <Text style={styles.cashRefundText}>لم تسجل الإدارة المبلغ المستلم من الحوالة بعد. لا يتم إتمام التسليم حتى تأكيده.</Text>}
+                  <Text style={styles.cashAdjustmentText}>المبلغ المحول: {activeTask.transferredAmount.toLocaleString()} ر.ي</Text>
+                  {activeTask.amountToCollect > 0 && <Text style={styles.cashDueText}>المطلوب تحصيله نقداً: {activeTask.amountToCollect.toLocaleString()} ر.ي</Text>}
+                  {activeTask.cashRefundAtDelivery > 0 && <Text style={styles.cashRefundText}>المطلوب إعادته نقداً للعميل: {activeTask.cashRefundAtDelivery.toLocaleString()} ر.ي</Text>}
+                  {activeTask.amountToCollect === 0 && activeTask.cashRefundAtDelivery === 0 && <Text style={styles.cashAdjustmentText}>لا يوجد فرق نقدي بعد تحديث الفاتورة.</Text>}
+                </View>
+              )}
+
               {/* Items for this stop if pickup store */}
               {stop.type === 'PICKUP_STORE' && (
                 <View style={styles.stopItemsBox}>
                   <Text style={styles.stopItemsHeading}>الأصناف المطلوبة من هذا المحل:</Text>
                   {activeTask.itemsToPurchase
-                    .filter((it) => it.storeId === stop.id || it.storeName === stop.name)
+                    .filter((it) => it.storeId === stop.id.replace('stop-store-', '') || it.storeName === stop.name)
                     .map((it) => (
                       <View key={it.id} style={styles.stopItemRow}>
-                        <Text style={styles.stopItemPrice}>
-                          {((it.actualPrice ?? it.expectedPrice) * it.quantity).toLocaleString()} ر.ي
-                        </Text>
+                        <View style={styles.stopItemPriceWrap}>
+                          <Text style={styles.stopItemPrice}>{(it.customerPrice * it.quantity).toLocaleString()} ر.ي</Text>
+                          {it.originalCustomerPrice !== it.customerPrice && <Text style={styles.stopItemOldPrice}>السابق {it.originalCustomerPrice.toLocaleString()}</Text>}
+                        </View>
                         <Text style={styles.stopItemName}>
                           {it.name} <Text style={styles.stopItemQty}>× {it.quantity}</Text>
                         </Text>
@@ -210,9 +252,17 @@ export const ActiveTaskRouteScreen: React.FC = () => {
                   <TouchableOpacity
                     style={[styles.deliverFinalBtn, isCompletingDelivery && { opacity: 0.7 }]}
                     onPress={handleCompleteDelivery}
-                    disabled={isCompletingDelivery}
+                    disabled={isCompletingDelivery || (activeTask.paymentMethod === 'MANUAL_TRANSFER' && !activeTask.isTransferAmountConfirmed)}
                   >
-                    {isCompletingDelivery ? <ActivityIndicator color="#fff" /> : <Text style={styles.deliverFinalBtnText}>إتمام التسليم وتحصيل {activeTask.amountToCollect.toLocaleString()} ر.ي ✓</Text>}
+                    {isCompletingDelivery ? <ActivityIndicator color="#fff" /> : <Text style={styles.deliverFinalBtnText}>
+                      {activeTask.paymentMethod === 'CASH_ON_DELIVERY'
+                        ? `إتمام التسليم وتحصيل ${activeTask.amountToCollect.toLocaleString()} ر.ي ✓`
+                        : activeTask.amountToCollect > 0
+                          ? `إتمام التسليم بعد تحصيل ${activeTask.amountToCollect.toLocaleString()} ر.ي ✓`
+                          : activeTask.cashRefundAtDelivery > 0
+                            ? `إتمام التسليم بعد إعادة ${activeTask.cashRefundAtDelivery.toLocaleString()} ر.ي ✓`
+                            : 'إتمام التسليم ✓'}
+                    </Text>}
                   </TouchableOpacity>
                 )}
               </View>
@@ -433,6 +483,10 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: 2,
   },
+  cashAdjustmentBox: { marginTop: 10, padding: 12, borderRadius: borderRadius.md, backgroundColor: colors.surfaceContainerHigh, gap: 5 },
+  cashAdjustmentText: { color: colors.onSurface, fontSize: typography.fontSize.sm, textAlign: 'right' },
+  cashDueText: { color: colors.error, fontSize: typography.fontSize.md, textAlign: 'right', fontWeight: '700' },
+  cashRefundText: { color: colors.primary, fontSize: typography.fontSize.md, textAlign: 'right', fontWeight: '700' },
   stopActions: {
     flexDirection: 'row-reverse',
     gap: spacing.baseXs,
@@ -521,4 +575,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.outline,
   },
+  stopItemPriceWrap: { alignItems: 'flex-start' },
+  stopItemOldPrice: { color: colors.onSurfaceVariant, fontSize: 11, textDecorationLine: 'line-through' },
 });

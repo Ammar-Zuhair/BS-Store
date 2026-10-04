@@ -54,6 +54,8 @@ interface AppContextType {
   applyPromoCode: (code: string) => Promise<boolean>;
   clearPromoCode: () => void;
   activateDeliveryDeal: (dealId: string, percent: number) => void;
+  activeOrderDiscountDeal: { id: string; title: string } | null;
+  activateProductDiscountDeal: (dealId: string) => void;
   addresses: Address[];
   selectedAddress: Address | null;
   setSelectedAddress: React.Dispatch<React.SetStateAction<Address | null>>;
@@ -109,6 +111,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isFreeDeliveryPromo, setIsFreeDeliveryPromo] = useState<boolean>(false);
   const [deliveryDiscountPercent, setDeliveryDiscountPercent] = useState(0);
   const [deliveryPromoDealId, setDeliveryPromoDealId] = useState<string | null>(null);
+  const [productDiscountDealId, setProductDiscountDealId] = useState<string | null>(null);
   const [deliveryQuote, setDeliveryQuote] = useState<{ fee: number; farthestDistanceKm: number; storeFees: Record<string, number> } | null>(null);
   const [isDeliveryQuoteLoading, setIsDeliveryQuoteLoading] = useState(false);
   const [deliveryQuoteRetryKey, setDeliveryQuoteRetryKey] = useState(0);
@@ -158,7 +161,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           imageUrl: p.images?.[0] || '',
           images: Array.isArray(p.images) ? p.images.filter(Boolean) : [],
           sourceType: (p.sourceType === 'ExternalStore' ? 'EXTERNAL_STORE' : 'IN_STOCK'),
-          inStock: Boolean(p.isActive) && (p.availableStock == null || Number(p.availableStock) > 0),
+          inStock: Boolean(p.isActive),
         };
       });
 
@@ -199,7 +202,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       const mappedDeals: DealItem[] = (Array.isArray(dealsRes) ? dealsRes : []).flatMap((d: any) => {
-        if (!d?.id || !d?.title || (!d?.storeId && d?.discountKind !== 'DELIVERY_DISCOUNT' && !d?.couponCode && !d?.isFreeDelivery)) return [];
+        const kind = d?.discountKind || d?.dealType || d?.dealKind;
+        const isOrderDiscount = kind === 'PRODUCT_DISCOUNT';
+        if (!d?.id || !d?.title || (!d?.storeId && d?.discountKind !== 'DELIVERY_DISCOUNT' && !isOrderDiscount && !d?.couponCode && !d?.isFreeDelivery)) return [];
         const rawProducts = Array.isArray(d.products)
           ? d.products
           : Array.isArray(d.bundleItems)
@@ -228,6 +233,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           offerPrice: Number(d.offerPrice ?? d.discountPrice) || 0,
           discountPercent: Number(d.discountPercent) || 0,
           couponCode: d.couponCode,
+          discountTiers: Array.isArray(d.discountTiers) ? d.discountTiers : undefined,
           isFreeDelivery: d.isFreeDelivery,
           dealType: d.discountKind || d.dealType || d.dealKind,
           discountKind: d.discountKind,
@@ -285,7 +291,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setIsAuthenticated(true);
             setCurrentScreen('home');
           } catch {
-            api.setToken(null);
+            await api.setToken(null);
             setUser(null);
             setIsAuthenticated(false);
             setCurrentScreen('auth');
@@ -392,6 +398,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               inStock: false,
             },
             quantity: i.quantity || 1,
+            originalUnitPrice: Number(i.originalUnitPrice ?? i.unitPrice) || 0,
+            priceChangeId: i.priceChangeId || undefined,
           }))
         ),
         subtotal: o.subTotal || 0,
@@ -589,12 +597,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const cartFarthestStoreDistanceKm = deliveryQuote?.farthestDistanceKm ?? 0;
   const cartDiscount = Math.round(cartSubtotal * (discountPercent / 100));
   const cartTotal = Math.max(0, cartSubtotal + cartDeliveryFee - cartDiscount);
+  const selectedProductDiscountDeal = productDiscountDealId
+    ? deals.find((deal) => deal.id === productDiscountDealId) || null
+    : null;
+
+  useEffect(() => {
+    if (!productDiscountDealId || !selectedProductDiscountDeal) return;
+    const tiers = [...(selectedProductDiscountDeal.discountTiers || [])].sort((left, right) => left.minAmount - right.minAmount);
+    let percent = Number(selectedProductDiscountDeal.discountPercent) || 0;
+    if (tiers.length > 0) {
+      const matched = tiers.find((tier) => cartSubtotal >= tier.minAmount &&
+        (tier.maxAmount == null || tier.maxAmount <= 0 || cartSubtotal < tier.maxAmount));
+      percent = matched?.discountPercent ?? (cartSubtotal >= tiers[tiers.length - 1].minAmount
+        ? tiers[tiers.length - 1].discountPercent
+        : tiers[0].discountPercent);
+    }
+    setDiscountPercent(Math.max(0, Math.min(100, Number(percent) || 0)));
+    setPromoMessage(`تم تفعيل العرض: ${selectedProductDiscountDeal.title}`);
+  }, [cartSubtotal, deals, productDiscountDealId, selectedProductDiscountDeal]);
 
   const applyPromoCode = async (code: string): Promise<boolean> => {
     try {
       const result = await ordersApi.validateCouponCode(code.trim(), cartSubtotal);
       const percent = Math.min(100, Math.max(0, Number(result.discountPercent) || 0));
       setPromoCode(result.code);
+      setProductDiscountDealId(null);
       setDeliveryPromoDealId(null);
       setIsTieredPromo(Boolean(result.isTiered));
       setPromoMessage(result.message || null);
@@ -616,6 +643,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const clearPromoCode = () => {
     setPromoCode('');
+    setProductDiscountDealId(null);
     setDiscountPercent(0);
     setDeliveryDiscountPercent(0);
     setIsFreeDeliveryPromo(false);
@@ -642,8 +670,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDiscountPercent(0);
     setIsFreeDeliveryPromo(percent >= 100);
     setPromoCode('');
+    setProductDiscountDealId(null);
     setPromoMessage(null);
     setIsTieredPromo(false);
+  };
+
+  const activateProductDiscountDeal = (dealId: string) => {
+    const deal = deals.find((item) => item.id === dealId);
+    if (!deal || deal.couponCode || deal.dealType !== 'PRODUCT_DISCOUNT') return;
+    setProductDiscountDealId(dealId);
+    setPromoCode('');
+    setDeliveryPromoDealId(null);
+    setDeliveryDiscountPercent(0);
+    setIsFreeDeliveryPromo(false);
+    setDiscountPercent(Number(deal.discountPercent) || 0);
+    setPromoMessage(`تم تفعيل العرض: ${deal.title}`);
+    setIsTieredPromo(Boolean(deal.discountTiers?.length));
   };
 
   const addNewAddress = async (addr: Omit<Address, 'id'>) => {
@@ -682,7 +724,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isManual = paymentMethod === 'MANUAL_TRANSFER';
 
     try {
-      // Backend handles complete validation, price freezing, store separation, and inventory reservation
+      // Backend recalculates prices, promotions, store separation, and invoice totals.
       const res = await ordersApi.placeOrder({
         newAddress: {
           label: selectedAddress.label === 'العمل' ? 1 : selectedAddress.label === 'أخرى' ? 2 : 0,
@@ -696,6 +738,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         notes,
         deliveryDealId: deliveryPromoDealId || undefined,
         couponCode: promoCode || undefined,
+        productDiscountDealId: productDiscountDealId || undefined,
         idempotencyKey: `${Date.now()}-${Math.random()}`,
         items: cart.map((c) => ({
           productId: c.product.dealId ? undefined : c.product.id,
@@ -805,7 +848,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await AsyncStorage.removeItem('@bs_customer_user');
     await AsyncStorage.removeItem('@bs_customer_orders');
     await AsyncStorage.removeItem('@bs_customer_addresses');
-    api.setToken(null);
+    await api.setToken(null);
     setUser(null);
     setIsAuthenticated(false);
     setOrders([]);
@@ -851,6 +894,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         applyPromoCode,
         clearPromoCode,
         activateDeliveryDeal,
+        activeOrderDiscountDeal: selectedProductDiscountDeal
+          ? { id: selectedProductDiscountDeal.id, title: selectedProductDiscountDeal.title }
+          : null,
+        activateProductDiscountDeal,
         isFreeDeliveryPromo,
         addresses,
         selectedAddress,

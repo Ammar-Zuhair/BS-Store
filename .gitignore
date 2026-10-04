@@ -1,7 +1,7 @@
 # Environment files (NEVER COMMIT SENSITIVE KEYS)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 *.env
 
 # Private credentials and uploaded attachment staging

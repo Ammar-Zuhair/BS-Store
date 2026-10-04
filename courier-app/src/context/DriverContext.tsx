@@ -19,8 +19,14 @@ interface DriverContextType {
   toggleShiftStatus: () => Promise<void>;
   activeTask: ActiveDeliveryTask | null;
   completeStop: (stopId: string) => void;
-  recordStorePurchase: (items: { id: string; actualPrice: number }[]) => Promise<void>;
-  completeDeliveryAndCollect: () => Promise<void>;
+  recordStorePurchase: (items: {
+    id: string;
+    actualPrice: number;
+    priceChangeContactAttemptId?: string;
+    customerContactConfirmed?: boolean;
+  }[]) => Promise<void>;
+  startPriceChangeContact: (itemId: string, proposedStorePrice: number) => Promise<{ id: string; contactInitiatedAt: string }>;
+  completeDeliveryAndCollect: (cashAdjustmentSettled: boolean) => Promise<void>;
   wallet: DriverWalletSummary;
   transactions: DriverTransaction[];
   requestSettlement: (amount: number) => Promise<void>;
@@ -117,6 +123,8 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         quantity: i.quantity,
         expectedPrice: Number(i.expectedPurchasePrice) || 0,
         customerPrice: Number(i.unitPrice) || 0,
+        originalCustomerPrice: Number(i.originalUnitPrice ?? i.unitPrice) || 0,
+        catalogPrice: Number(i.productCurrentPrice ?? i.unitPrice) || 0,
         actualPrice: i.actualPurchasePrice,
         imageUrl: i.imageUrl || '',
         storeId: so.storeId,
@@ -125,6 +133,14 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
 
     const completedStops = stops.filter((s) => s.status === 'COMPLETED').length;
+    const rawStatus = String(order.status ?? '').toLowerCase();
+    const numericStatus = Number(order.status);
+    const taskStatus: ActiveDeliveryTask['status'] =
+      numericStatus === 9 || rawStatus === 'delivered' ? 'DELIVERED' :
+      numericStatus === 8 || rawStatus === 'outfordelivery' ? 'EN_ROUTE_DELIVERY' :
+      numericStatus === 7 || rawStatus === 'warehousepickup' ? 'EN_ROUTE_PICKUP' :
+      numericStatus === 5 || numericStatus === 6 || rawStatus === 'driveraccepted' || rawStatus === 'purchasing' ? 'PURCHASING' :
+      'ASSIGNED';
 
     return {
       id: order.id,
@@ -139,13 +155,18 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       deliveryFee: order.deliveryFee,
       driverProfitSharePercent: Number(order.driverProfitSharePercent ?? 10),
       driverEstimatedEarnings: Number(order.driverEstimatedEarnings ?? 0),
-      amountToCollect: order.totalAmount,
+      amountToCollect: Number(order.cashDueAtDelivery ?? order.totalAmount) || 0,
+      transferredAmount: Number(order.transferredAmount ?? 0) || 0,
+      cashRefundAtDelivery: Number(order.cashRefundAtDelivery ?? 0) || 0,
       paymentMethod: order.paymentMethod === 1 || order.paymentMethod === 'ManualTransfer' ? 'MANUAL_TRANSFER' : 'CASH_ON_DELIVERY',
+      isTransferAmountConfirmed: order.paymentMethod === 1 || order.paymentMethod === 'ManualTransfer'
+        ? order.transferAmountConfirmed === true
+        : true,
       isPaymentVerified: order.paymentStatus === 1 || order.paymentStatus === 'Verified',
       deliveryNotes: order.notes,
       totalDistanceKm: 4.8,
       estimatedMinutes: 25,
-      status: order.status === 4 || order.status === 'Purchasing' ? 'PURCHASING' : order.status === 5 || order.status === 'OutForDelivery' ? 'EN_ROUTE_DELIVERY' : 'ASSIGNED',
+      status: taskStatus,
     };
   };
 
@@ -274,22 +295,38 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
-  const recordStorePurchase = async (items: { id: string; actualPrice: number }[]) => {
+  const startPriceChangeContact = async (itemId: string, proposedStorePrice: number) => {
+    if (!activeTask) throw new Error('لا توجد مهمة شراء نشطة');
+    const storeStop = activeTask.stops.find((stop) => stop.type === 'PICKUP_STORE' && stop.status !== 'COMPLETED');
+    const item = activeTask.itemsToPurchase.find((candidate) => candidate.id === itemId);
+    if (!storeStop || !item) throw new Error('تعذر تحديد الصنف أو المتجر الحالي');
+    return driverApi.startPriceChangeContact(activeTask.id, {
+      subOrderId: storeStop.id.replace('stop-store-', ''),
+      orderItemId: item.id,
+      observedCatalogPrice: item.catalogPrice,
+      proposedStorePrice,
+    });
+  };
+
+  const recordStorePurchase = async (items: {
+    id: string;
+    actualPrice: number;
+    priceChangeContactAttemptId?: string;
+    customerContactConfirmed?: boolean;
+  }[]) => {
     if (!activeTask) return;
 
     try {
       const subOrderId = activeTask.stops.find((s) => s.type === 'PICKUP_STORE' && s.status !== 'COMPLETED')?.id.replace('stop-store-', '') || '';
-      const totalSpent = items.reduce((acc, it) => {
-        const taskItem = activeTask.itemsToPurchase.find((item) => item.id === it.id);
-        return acc + it.actualPrice * (taskItem?.quantity || 1);
-      }, 0);
-
       await driverApi.recordPurchase(activeTask.id, {
         subOrderId,
-        actualPurchasePrice: totalSpent,
+        idempotencyKey: `${activeTask.id}:${subOrderId}:${Date.now()}`,
         itemDetails: items.map((it) => ({
           orderItemId: it.id,
           actualPrice: it.actualPrice,
+          observedCatalogPrice: activeTask.itemsToPurchase.find((item) => item.id === it.id)?.catalogPrice,
+          priceChangeContactAttemptId: it.priceChangeContactAttemptId,
+          customerContactConfirmed: it.customerContactConfirmed,
         })),
       });
 
@@ -301,11 +338,11 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const completeDeliveryAndCollect = async () => {
+  const completeDeliveryAndCollect = async (cashAdjustmentSettled: boolean) => {
     if (!activeTask) return;
 
     try {
-      await driverApi.confirmDelivered(activeTask.id);
+      await driverApi.confirmDelivered(activeTask.id, cashAdjustmentSettled);
       await refreshData();
       navigateTo('dashboard');
     } catch (e) {
@@ -334,6 +371,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         activeTask,
         completeStop,
         recordStorePurchase,
+        startPriceChangeContact,
         completeDeliveryAndCollect,
         wallet,
         transactions,

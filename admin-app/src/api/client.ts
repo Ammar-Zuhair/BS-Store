@@ -1,17 +1,20 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { tokenStorage } from './tokenStorage';
 
-const DEFAULT_API_BASE_URL = 'https://implosive-exchange-compacter.ngrok-free.dev/api';
+const DEVELOPMENT_API_BASE_URL = 'https://implosive-exchange-compacter.ngrok-free.dev/api';
 const isPrivateOrInsecureApiUrl = (value: string) =>
   !/^https:\/\//i.test(value) ||
   /^https:\/\/(?:localhost|127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|169\.254(?:\.\d{1,3}){2}|0\.\d{1,3}(?:\.\d{1,3}){2})(?::\d+)?(?:\/|$)|^https:\/\/[^/]+\.(?:local|internal)(?::\d+)?(?:\/|$)/i.test(value);
+const isDevelopmentTunnel = (value: string) => /(?:^|\.)(?:[^./]+\.)*(?:ngrok(?:-free)?\.(?:app|dev|io)|trycloudflare\.com)(?::\d+)?(?:\/|$)/i.test(value.replace(/^https:\/\//i, ''));
 const configuredApiBaseUrl = [Constants.expoConfig?.extra?.apiBaseUrl, process.env.EXPO_PUBLIC_API_URL]
   .map((value) => value?.trim().replace(/\/+$/, ''))
-  .find((value) => value && !isPrivateOrInsecureApiUrl(value));
+  .find((value) => value && !isPrivateOrInsecureApiUrl(value) && (__DEV__ || !isDevelopmentTunnel(value)));
 
 export const API_BASE_URL = configuredApiBaseUrl && !isPrivateOrInsecureApiUrl(configuredApiBaseUrl)
   ? configuredApiBaseUrl
-  : DEFAULT_API_BASE_URL;
+  : __DEV__
+    ? DEVELOPMENT_API_BASE_URL
+    : (() => { throw new Error('EXPO_PUBLIC_API_URL is required for production builds.'); })();
 
 function getSafeHttpErrorMessage(status: number): string {
   if (status === 401) return 'يلزم تسجيل الدخول بحساب مدير صالح لإجراء هذه العملية.';
@@ -37,33 +40,36 @@ class ApiClient {
     if (!this.sessionReady) {
       this.sessionReady = (async () => {
         try {
-          const [access, refresh] = await AsyncStorage.multiGet([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]);
-          this.token = access[1];
-          this.refreshToken = refresh[1];
-        } catch (error) { console.warn('تعذر استعادة جلسة المدير:', error); }
+          [this.token, this.refreshToken] = await Promise.all([
+            tokenStorage.get(ACCESS_TOKEN_KEY),
+            tokenStorage.get(REFRESH_TOKEN_KEY),
+          ]);
+        } catch (error) {
+          this.token = null;
+          this.refreshToken = null;
+          console.warn('تعذر استعادة جلسة المدير:', error);
+        }
       })();
     }
     await this.sessionReady;
     return this.token;
   }
 
-  setToken(token: string | null) {
+  async setToken(token: string | null): Promise<void> {
     this.token = token;
-    if (token) void AsyncStorage.setItem(ACCESS_TOKEN_KEY, token).catch((error) => console.warn('تعذر حفظ جلسة المدير:', error));
-    else void AsyncStorage.removeItem(ACCESS_TOKEN_KEY).catch((error) => console.warn('تعذر حذف جلسة المدير:', error));
+    await tokenStorage.set(ACCESS_TOKEN_KEY, token);
   }
 
-  setRefreshToken(token: string | null) {
+  async setRefreshToken(token: string | null): Promise<void> {
     this.refreshToken = token;
-    if (token) void AsyncStorage.setItem(REFRESH_TOKEN_KEY, token).catch((error) => console.warn('تعذر حفظ تجديد جلسة المدير:', error));
-    else void AsyncStorage.removeItem(REFRESH_TOKEN_KEY).catch((error) => console.warn('تعذر حذف تجديد جلسة المدير:', error));
+    await tokenStorage.set(REFRESH_TOKEN_KEY, token);
   }
 
   async clearSession() {
     this.token = null;
     this.refreshToken = null;
     this.sessionReady = Promise.resolve();
-    try { await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]); }
+    try { await tokenStorage.remove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]); }
     catch (error) { console.warn('تعذر حذف رموز جلسة المدير من الجهاز:', error); }
   }
 
@@ -132,8 +138,8 @@ class ApiClient {
         const payload = await response.json().catch(() => null);
         const session = payload?.data ?? payload;
         if (!response.ok || !session?.accessToken || !session?.refreshToken) return false;
-        this.setToken(session.accessToken);
-        this.setRefreshToken(session.refreshToken);
+        await this.setToken(session.accessToken);
+        await this.setRefreshToken(session.refreshToken);
         return true;
       } catch {
         return false;

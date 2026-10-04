@@ -445,9 +445,6 @@ export const AddEditProductScreen: React.FC = () => {
       sourceType: 'EXTERNAL_STORE' as const, // دائماً متجر خارجي
       expectedPurchasePrice: costNum,
       sellingPrice: sellNum,
-      availableQuantity: 999, // متوفر دائماً للطلب من المتجر
-      reservedQuantity: 0,
-      minStockAlert: 0,
       isActive: isActiveForOrder,
       imageUrl: finalImages[0],
       images: finalImages,

@@ -9,7 +9,7 @@ import {
   Tajawal_800ExtraBold,
   Tajawal_900Black,
 } from '@expo-google-fonts/tajawal';
-import { AdminProvider, useAdmin } from './src/context/AdminContext';
+import { AdminProvider, useAdmin, type AdminScreenName } from './src/context/AdminContext';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { OrdersScreen } from './src/screens/OrdersScreen';
 import { PaymentsScreen } from './src/screens/PaymentsScreen';
@@ -18,10 +18,29 @@ import { AddEditProductScreen } from './src/screens/AddEditProductScreen';
 import { CategoriesScreen } from './src/screens/CategoriesScreen';
 import { FinancialsScreen } from './src/screens/FinancialsScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
+import { AdminPriceChangesScreen } from './src/screens/AdminPriceChangesScreen';
+import { AdminSystemManagementScreen } from './src/screens/AdminSystemManagementScreen';
+import { AdminBroadcastScreen } from './src/screens/AdminBroadcastScreen';
 import { AdminBottomNav } from './src/components/AdminBottomNav';
 import { colors } from './src/theme';
 import { usePushNotifications } from './src/notifications';
 import { api } from './src/api';
+import { SystemGate } from './src/system/SystemGate';
+import { BoosthisRuntime, BoosthisScreenTracker } from './src/monitoring/BoosthisRuntime';
+
+const BOOSTHIS_SCREEN_NAMES: Record<AdminScreenName, string> = {
+  dashboard: 'Dashboard',
+  orders: 'Orders',
+  payments: 'Payments',
+  inventory: 'Inventory',
+  add_product: 'ProductEditor',
+  categories: 'Categories',
+  financials: 'Financials',
+  price_changes: 'PriceChanges',
+  system_management: 'SystemManagement',
+  broadcasts: 'Notifications',
+  auth: 'Authentication',
+};
 
 const AdminNavigator: React.FC = () => {
   const { currentScreen, navigateTo, isSessionRestoring, currentUser, refreshData } = useAdmin();
@@ -76,6 +95,12 @@ const AdminNavigator: React.FC = () => {
         return <CategoriesScreen />;
       case 'financials':
         return <FinancialsScreen />;
+      case 'price_changes':
+        return <AdminPriceChangesScreen />;
+      case 'system_management':
+        return <AdminSystemManagementScreen />;
+      case 'broadcasts':
+        return <AdminBroadcastScreen />;
       case 'auth':
         return <AuthScreen />;
       default:
@@ -84,11 +109,14 @@ const AdminNavigator: React.FC = () => {
   };
 
   return (
-    <View style={[styles.appContainer, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surfaceContainerLowest} translucent={true} />
-      {renderScreen()}
-      {currentScreen !== 'auth' && <AdminBottomNav />}
-    </View>
+    <SystemGate palette={colors} appType="admin" safeToReload={currentScreen === 'dashboard' || currentScreen === 'auth'} showMaintenance={false}>
+      <View style={[styles.appContainer, { paddingTop: insets.top }]}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.surfaceContainerLowest} translucent={true} />
+        {renderScreen()}
+        <BoosthisScreenTracker key={currentScreen} screen={BOOSTHIS_SCREEN_NAMES[currentScreen]} />
+        {currentScreen !== 'auth' && <AdminBottomNav />}
+      </View>
+    </SystemGate>
   );
 };
 
@@ -113,7 +141,9 @@ export default function App() {
     <SafeAreaProvider>
       <View style={styles.safeArea}>
         <AdminProvider>
-          <AdminNavigator />
+          <BoosthisRuntime>
+            <AdminNavigator />
+          </BoosthisRuntime>
         </AdminProvider>
       </View>
     </SafeAreaProvider>

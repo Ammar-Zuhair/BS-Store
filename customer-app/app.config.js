@@ -1,7 +1,5 @@
 const fs = require('node:fs');
 
-const DEFAULT_API_BASE_URL = 'https://implosive-exchange-compacter.ngrok-free.dev/api';
-
 function readEnvFile(name) {
   try {
     const contents = fs.readFileSync(`${__dirname}/.env`, 'utf8');
@@ -25,11 +23,55 @@ function normalizeApiBaseUrl(value) {
   }
 }
 
+function isDevelopmentTunnel(value) {
+  try {
+    return /(?:^|\.)(?:ngrok(?:-free)?\.(?:app|dev|io)|trycloudflare\.com)$/i.test(new URL(value).hostname);
+  } catch {
+    return false;
+  }
+}
+
 module.exports = ({ config }) => {
   const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID || readEnvFile('EXPO_PUBLIC_EAS_PROJECT_ID') || config.extra?.eas?.projectId;
-  const apiBaseUrl = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_URL) || normalizeApiBaseUrl(readEnvFile('EXPO_PUBLIC_API_URL')) || DEFAULT_API_BASE_URL;
+  if (!easProjectId && (process.env.EAS_BUILD === 'true' || process.env.EAS_BUILD === '1' || process.env.EAS_BUILD_PROFILE)) {
+    throw new Error('An existing Expo EAS project ID is required for EAS Update configuration.');
+  }
+  const configuredApi = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_URL) || normalizeApiBaseUrl(readEnvFile('EXPO_PUBLIC_API_URL'));
+  const isBuild = process.env.EAS_BUILD === 'true' || process.env.EAS_BUILD === '1' || Boolean(process.env.EAS_BUILD_PROFILE);
+  const isProductionBuild = process.env.NODE_ENV === 'production' || isBuild;
+  const apiBaseUrl = configuredApi && (!isProductionBuild || !isDevelopmentTunnel(configuredApi)) ? configuredApi : undefined;
+  if (!apiBaseUrl && isProductionBuild) throw new Error('EXPO_PUBLIC_API_URL must be a stable HTTPS API URL for production/EAS builds.');
+  const requiredPrivacyReasons = [
+    { NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryFileTimestamp', NSPrivacyAccessedAPITypeReasons: ['C617.1'] },
+    { NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategorySystemBootTime', NSPrivacyAccessedAPITypeReasons: ['35F9.1'] },
+  ];
+  const privacyEntries = new Map();
+  for (const entry of [...(config.ios?.privacyManifests?.NSPrivacyAccessedAPITypes || []), ...requiredPrivacyReasons]) {
+    const existing = privacyEntries.get(entry.NSPrivacyAccessedAPIType);
+    privacyEntries.set(entry.NSPrivacyAccessedAPIType, {
+      ...existing,
+      ...entry,
+      NSPrivacyAccessedAPITypeReasons: Array.from(new Set([...(existing?.NSPrivacyAccessedAPITypeReasons || []), ...(entry.NSPrivacyAccessedAPITypeReasons || [])])),
+    });
+  }
   return {
     ...config,
+    runtimeVersion: { policy: 'appVersion' },
+    updates: {
+      ...config.updates,
+      ...(easProjectId ? { url: `https://u.expo.dev/${easProjectId}` } : {}),
+      enabled: true,
+      checkAutomatically: 'ON_LOAD',
+      fallbackToCacheTimeout: 0,
+    },
+    plugins: Array.from(new Set([...(config.plugins || []), 'expo-secure-store'])),
+    ios: {
+      ...config.ios,
+      privacyManifests: {
+        ...config.ios?.privacyManifests,
+        NSPrivacyAccessedAPITypes: Array.from(privacyEntries.values()),
+      },
+    },
     name: 'متجر بي اس',
     extra: {
       ...config.extra,

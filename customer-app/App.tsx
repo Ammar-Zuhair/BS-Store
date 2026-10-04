@@ -16,7 +16,7 @@ import {
   Tajawal_800ExtraBold,
   Tajawal_900Black,
 } from '@expo-google-fonts/tajawal';
-import { AppProvider, useApp } from './src/context/AppContext';
+import { AppProvider, useApp, type ScreenName } from './src/context/AppContext';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { CategoryStoresScreen } from './src/screens/CategoryStoresScreen';
 import { StoreDetailScreen } from './src/screens/StoreDetailScreen';
@@ -31,6 +31,20 @@ import { BottomNav } from './src/components/BottomNav';
 import { colors } from './src/theme';
 import { usePushNotifications } from './src/notifications';
 import { api } from './src/api';
+import { SystemGate } from './src/system/SystemGate';
+import { BoosthisRuntime, BoosthisScreenTracker } from './src/monitoring/BoosthisRuntime';
+
+const BOOSTHIS_SCREEN_NAMES: Record<ScreenName, string> = {
+  home: 'Home',
+  category: 'Categories',
+  category_stores: 'Stores',
+  store_detail: 'StoreDetails',
+  cart: 'Cart',
+  checkout: 'Checkout',
+  tracking: 'Orders',
+  profile: 'Profile',
+  auth: 'Authentication',
+};
 
 const MainNavigator: React.FC = () => {
   const {
@@ -41,6 +55,7 @@ const MainNavigator: React.FC = () => {
     isDarkMode,
     colors: themeColors,
     refreshOrders,
+    currentOrder,
   } = useApp();
   const onNotificationOpen = useCallback((type: string) => {
     navigateTo(type === 'order_status' ? 'tracking' : 'home');
@@ -83,9 +98,11 @@ const MainNavigator: React.FC = () => {
 
   if (isAuthLoading) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
-        <ActivityIndicator size="large" color={themeColors.primary} />
-      </View>
+      <SystemGate palette={themeColors} appType="customer" safeToReload={false}>
+        <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
+          <ActivityIndicator size="large" color={themeColors.primary} />
+        </View>
+      </SystemGate>
     );
   }
 
@@ -117,35 +134,42 @@ const MainNavigator: React.FC = () => {
   const showNav = currentScreen !== 'auth' && currentScreen !== 'checkout';
 
   return (
-    <SafeAreaView
-      style={[
-        styles.safeArea,
-        {
-          backgroundColor: themeColors.surfaceContainerLowest,
-        },
-      ]}
-      edges={['top', 'left', 'right']}
+    <SystemGate
+      palette={themeColors}
+      appType="customer"
+      safeToReload={!currentOrder && (currentScreen === 'home' || currentScreen === 'auth' || currentScreen === 'profile')}
     >
-      <View
-        key={isDarkMode ? 'dark' : 'light'}
+      <SafeAreaView
         style={[
-          styles.appContainer,
+          styles.safeArea,
           {
-            backgroundColor: themeColors.background,
+            backgroundColor: themeColors.surfaceContainerLowest,
           },
         ]}
+        edges={['top', 'left', 'right']}
       >
-        <StatusBar
-          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-          backgroundColor="transparent"
-          translucent={true}
-          hidden={false}
-        />
-        {renderScreen()}
-        {currentScreen !== 'auth' && <FloatingCartBar />}
-        {showNav && <BottomNav />}
-      </View>
-    </SafeAreaView>
+        <View
+          key={isDarkMode ? 'dark' : 'light'}
+          style={[
+            styles.appContainer,
+            {
+              backgroundColor: themeColors.background,
+            },
+          ]}
+        >
+          <StatusBar
+            barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+            backgroundColor="transparent"
+            translucent={true}
+            hidden={false}
+          />
+          {renderScreen()}
+          <BoosthisScreenTracker key={currentScreen} screen={BOOSTHIS_SCREEN_NAMES[currentScreen]} />
+          {currentScreen !== 'auth' && <FloatingCartBar />}
+          {showNav && <BottomNav />}
+        </View>
+      </SafeAreaView>
+    </SystemGate>
   );
 };
 
@@ -169,7 +193,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <MainNavigator />
+        <BoosthisRuntime>
+          <MainNavigator />
+        </BoosthisRuntime>
       </AppProvider>
     </SafeAreaProvider>
   );
