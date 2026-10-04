@@ -31,6 +31,7 @@ export const AuthScreen: React.FC = () => {
 
   const [mode, setMode] = useState<AuthMode>('phone');
   const [isLoading, setIsLoading] = useState(false);
+  const [phoneLookupMessage, setPhoneLookupMessage] = useState<string | null>(null);
 
   // Phone Step State
   const [phone, setPhone] = useState(registeredUser ? registeredUser.phone : '');
@@ -170,7 +171,7 @@ export const AuthScreen: React.FC = () => {
   };
 
   // ─── 1. Check Phone Number & Smart Routing ────────────────────────────────
-  const handleChooseAccountPath = () => {
+  const handleChooseAccountPath = async () => {
     const cleanPhone = phone.trim();
     if (!cleanPhone) {
       Alert.alert('تنبيه', 'يرجى إدخال رقم الهاتف أولاً');
@@ -181,15 +182,23 @@ export const AuthScreen: React.FC = () => {
       return;
     }
 
+    setPhone(cleanPhone);
     setRegPhone(cleanPhone);
-    Alert.alert(
-      'خيارات الحساب',
-      'اختر تسجيل الدخول أو إنشاء حساب جديد للمتابعة.',
-      [
-        { text: 'إنشاء حساب جديد', onPress: () => switchMode('register') },
-        { text: 'تسجيل الدخول', onPress: () => switchMode('password') },
-      ]
-    );
+    setPhoneLookupMessage(null);
+    setIsLoading(true);
+    try {
+      const result = await authApi.checkPhone(cleanPhone);
+      if (result.exists) {
+        switchMode('password');
+      } else {
+        setPhoneLookupMessage('لا يوجد حساب مرتبط بهذا الرقم. أكمل البيانات لإنشاء حساب جديد.');
+        switchMode('register');
+      }
+    } catch (error: any) {
+      Alert.alert('تعذر التحقق من الرقم', error?.message || 'تحقق من اتصالك وحاول مرة أخرى.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // ─── 2. Login with Password ──────────────────────────────────────────────
@@ -389,7 +398,7 @@ export const AuthScreen: React.FC = () => {
                       placeholder="770 000 000"
                       placeholderTextColor={themeColors.outline}
                       value={phone}
-                      onChangeText={setPhone}
+                      onChangeText={(value) => { setPhone(value); setPhoneLookupMessage(null); }}
                       keyboardType="phone-pad"
                       textAlign="left"
                       accessibilityLabel="رقم الهاتف المحمول"
@@ -402,15 +411,26 @@ export const AuthScreen: React.FC = () => {
 
                 {/* Primary Action: Continue */}
                 <TouchableOpacity
-                  style={styles.primaryActionBtn}
+                  style={[styles.primaryActionBtn, isLoading && { opacity: 0.75 }]}
                   onPress={handleChooseAccountPath}
+                  disabled={isLoading}
                   activeOpacity={0.88}
                   accessibilityRole="button"
-                  accessibilityLabel="اختيار تسجيل الدخول أو إنشاء حساب"
+                  accessibilityLabel="تسجيل الدخول أو إنشاء حساب حسب رقم الهاتف"
+                  accessibilityState={{ disabled: isLoading, busy: isLoading }}
                 >
                   <View style={styles.btnRow}>
-                    <Text style={styles.primaryBtnText}>متابعة</Text>
-                    <AppIcon name="arrow-right" size={17} color={themeColors.onPrimary} />
+                    {isLoading ? (
+                      <>
+                        <ActivityIndicator color={themeColors.onPrimary} size="small" />
+                        <Text style={styles.primaryBtnText}>جاري التحقق...</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.primaryBtnText}>تسجيل الدخول</Text>
+                        <AppIcon name="arrow-right" size={17} color={themeColors.onPrimary} />
+                      </>
+                    )}
                   </View>
                 </TouchableOpacity>
 
@@ -419,6 +439,7 @@ export const AuthScreen: React.FC = () => {
                   style={styles.registerUnderneathBtn}
                   onPress={() => {
                     setRegPhone(phone);
+                    setPhoneLookupMessage(null);
                     switchMode('register');
                   }}
                   activeOpacity={0.85}
@@ -587,6 +608,12 @@ export const AuthScreen: React.FC = () => {
                   <AppIcon name="arrow-right" size={15} color={themeColors.primary} />
                   <Text style={styles.backRowText}>الرجوع لتسجيل الدخول</Text>
                 </TouchableOpacity>
+
+                {phoneLookupMessage && (
+                  <View style={styles.phoneLookupNotice} accessibilityRole="alert">
+                    <Text style={styles.phoneLookupNoticeText}>{phoneLookupMessage}</Text>
+                  </View>
+                )}
 
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle}>إنشاء حساب عميل جديد</Text>
@@ -1001,6 +1028,20 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 4,
+  },
+  phoneLookupNotice: {
+    backgroundColor: colors.primaryContainer,
+    borderColor: colors.outlineVariant,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  phoneLookupNoticeText: {
+    fontFamily: typography.fontFamily.medium,
+    fontSize: 13,
+    color: colors.onSurface,
+    textAlign: 'right',
   },
   inputGroup: {
     marginBottom: 14,
