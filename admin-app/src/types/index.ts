@@ -7,12 +7,14 @@ export type OrderStatus =
   | 'ALL'
   | 'PENDING_ADMIN_APPROVAL'
   | 'PAYMENT_PENDING_VERIFICATION'
+  | 'PAYMENT_FAILED'
   | 'CONFIRMED'
   | 'SEARCHING_DRIVER'
   | 'DRIVER_ASSIGNED'
   | 'PURCHASING'
   | 'OUT_FOR_DELIVERY'
   | 'DELIVERED'
+  | 'RETURNED'
   | 'CANCELLED';
 
 /** نظام سير الطلبات: يدوي = موافقة المدير أولاً ، تلقائي = تعيين مباشر */

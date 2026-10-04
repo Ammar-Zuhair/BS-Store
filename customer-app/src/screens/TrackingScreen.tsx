@@ -262,7 +262,9 @@ export const TrackingScreen: React.FC = () => {
       'DRIVER_ASSIGNED',
     ].includes(selectedOrder.status);
     const transferStatus = String(transferInfo?.status ?? '').toLowerCase();
-    const canUploadTransferReceipt = selectedOrder.paymentMethod === 'MANUAL_TRANSFER' && (
+    const canUploadTransferReceipt = selectedOrder.status !== 'CANCELLED' &&
+      selectedOrder.status !== 'DELIVERED' &&
+      selectedOrder.paymentMethod === 'MANUAL_TRANSFER' && (
       ['0', '3', 'pending', 'rejected'].includes(transferStatus) ||
       (!transferInfo && ['PENDING_PAYMENT', 'PAYMENT_FAILED'].includes(selectedOrder.status))
     );

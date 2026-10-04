@@ -135,6 +135,7 @@ interface AdminContextType {
   unbanUser: (userId: string) => void;
   approveOrder: (orderId: string) => Promise<void>;
   rejectOrder: (orderId: string, reason: string) => Promise<void>;
+  cancelOrder: (orderId: string, reasonCode: string, description?: string) => Promise<void>;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
@@ -188,8 +189,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (s.includes('purchas') || s.includes('warehouse')) return 'PURCHASING';
       if (s.includes('outfordelivery')) return 'OUT_FOR_DELIVERY';
       if (s.includes('delivered')) return 'DELIVERED';
+      if (s.includes('returned')) return 'RETURNED';
       if (s.includes('cancel')) return 'CANCELLED';
       if (s.includes('pendingadminapproval')) return 'PENDING_ADMIN_APPROVAL';
+      if (s.includes('paymentfailed')) return 'PAYMENT_FAILED';
       if (s.includes('pendingpayment') || s.includes('pendingverification')) return 'PAYMENT_PENDING_VERIFICATION';
       return 'CONFIRMED';
     }
@@ -206,6 +209,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       case 8: return 'OUT_FOR_DELIVERY';
       case 9: return 'DELIVERED';
       case 10: return 'CANCELLED';
+      case 11: return 'PAYMENT_FAILED';
+      case 12: return 'RETURNED';
       case 13: return 'PENDING_ADMIN_APPROVAL';
       default:
         return 'CONFIRMED';
@@ -253,7 +258,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           discount: o.discount,
           totalAmount: o.totalAmount,
           paymentMethod: o.paymentMethod === 1 || o.paymentMethod === 'ManualTransfer' ? 'MANUAL_TRANSFER' : 'CASH_ON_DELIVERY',
-          paymentStatus: o.paymentStatus === 1 || o.paymentStatus === 'Verified' ? 'VERIFIED' : o.paymentStatus === 2 || o.paymentStatus === 'Rejected' ? 'REJECTED' : 'PENDING',
+          paymentStatus: o.paymentStatus === 2 || o.paymentStatus === 'Verified' ? 'VERIFIED' : o.paymentStatus === 3 || o.paymentStatus === 'Rejected' ? 'REJECTED' : 'PENDING',
           assignedDriverName: o.driverName,
           addressSummary: o.deliveryAddress || o.addressSummary || 'صنعاء، اليمن',
           customerRating: o.customerRating,
@@ -1080,6 +1085,16 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const cancelOrder = async (orderId: string, reasonCode: string, description?: string) => {
+    try {
+      await adminApi.cancelOrder(orderId, reasonCode, description);
+      await refreshData();
+    } catch (e) {
+      console.warn('cancelOrder error:', e);
+      throw e;
+    }
+  };
+
   return (
     <AdminContext.Provider
       value={{
@@ -1153,6 +1168,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         unbanUser,
         approveOrder,
         rejectOrder,
+        cancelOrder,
       }}
     >
       {children}

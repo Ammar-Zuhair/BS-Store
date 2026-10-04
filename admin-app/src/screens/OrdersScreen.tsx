@@ -16,18 +16,22 @@ import { AdminHeader } from '../components/AdminHeader';
 import { useAdmin } from '../context/AdminContext';
 import { AdminOrder, OrderStatus, FlaggedUser } from '../types';
 
+type AdminOrderCancellationReason = 'PRODUCT_UNAVAILABLE' | 'CUSTOMER_REQUEST' | 'OTHER';
+
 // ── Status helpers ──────────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   ALL: 'الكل',
   PENDING_ADMIN_APPROVAL: 'انتظار الموافقة',
   PAYMENT_PENDING_VERIFICATION: 'بانتظار مراجعة التحويل',
+  PAYMENT_FAILED: 'تعذر تأكيد التحويل',
   CONFIRMED: 'مؤكد',
   SEARCHING_DRIVER: 'بحث عن كابتن',
   DRIVER_ASSIGNED: 'تم تعيين كابتن',
   PURCHASING: 'جاري الشراء',
   OUT_FOR_DELIVERY: 'في الطريق',
   DELIVERED: 'تم التسليم',
+  RETURNED: 'مرتجع',
   CANCELLED: 'ملغي',
 };
 
@@ -35,12 +39,14 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   ALL: '#6B7280',
   PENDING_ADMIN_APPROVAL: '#F59E0B',
   PAYMENT_PENDING_VERIFICATION: '#8B5CF6',
+  PAYMENT_FAILED: '#B91C1C',
   CONFIRMED: '#10B981',
   SEARCHING_DRIVER: '#3B82F6',
   DRIVER_ASSIGNED: '#06B6D4',
   PURCHASING: '#F97316',
   OUT_FOR_DELIVERY: '#0EA5E9',
   DELIVERED: '#22C55E',
+  RETURNED: '#78716C',
   CANCELLED: '#EF4444',
 };
 
@@ -52,7 +58,7 @@ export const OrdersScreen: React.FC = () => {
     driverCustodies,
     updateOrderStatus,
     approveOrder,
-    rejectOrder,
+    cancelOrder,
     navigateTo,
     orderWorkflowMode,
     setOrderWorkflowMode,
@@ -68,8 +74,10 @@ export const OrdersScreen: React.FC = () => {
   const [assignModalOrder, setAssignModalOrder] = useState<AdminOrder | null>(null);
   const [flagModalUser, setFlagModalUser] = useState<{ name: string; phone: string } | null>(null);
   const [flagReason, setFlagReason] = useState('');
-  const [rejectModalOrder, setRejectModalOrder] = useState<AdminOrder | null>(null);
-  const [rejectReasonInput, setRejectReasonInput] = useState('');
+  const [cancelModalOrder, setCancelModalOrder] = useState<AdminOrder | null>(null);
+  const [cancelReasonCode, setCancelReasonCode] = useState<AdminOrderCancellationReason>('PRODUCT_UNAVAILABLE');
+  const [cancelDescription, setCancelDescription] = useState('');
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
   const [showWorkflowSettings, setShowWorkflowSettings] = useState(false);
   const [showFraudPanel, setShowFraudPanel] = useState(false);
   const [isApprovingOrder, setIsApprovingOrder] = useState(false);
@@ -80,9 +88,11 @@ export const OrdersScreen: React.FC = () => {
     { id: 'ALL', label: 'الكل' },
     { id: 'PENDING_ADMIN_APPROVAL', label: 'تنتظر الموافقة' },
     { id: 'PAYMENT_PENDING_VERIFICATION', label: 'انتظار التحويل' },
+    { id: 'PAYMENT_FAILED', label: 'تعذر تأكيد التحويل' },
     { id: 'SEARCHING_DRIVER', label: 'بانتظار كابتن' },
     { id: 'OUT_FOR_DELIVERY', label: 'جاري التوصيل' },
     { id: 'DELIVERED', label: 'مكتملة' },
+    { id: 'RETURNED', label: 'مرتجعة' },
     { id: 'CANCELLED', label: 'ملغاة' },
   ];
 
@@ -121,17 +131,25 @@ export const OrdersScreen: React.FC = () => {
     } finally { setIsApprovingOrder(false); }
   };
 
-  const handleRejectOrder = async () => {
-    if (!rejectModalOrder) return;
-    if (!rejectReasonInput.trim()) {
-      Alert.alert('تنبيه', 'يرجى كتابة سبب الرفض');
+  const handleCancelOrder = async () => {
+    if (!cancelModalOrder || isCancellingOrder) return;
+    if (cancelReasonCode === 'OTHER' && !cancelDescription.trim()) {
+      Alert.alert('سبب الإلغاء مطلوب', 'اكتب تفاصيل سبب الإلغاء.');
       return;
     }
-    await rejectOrder(rejectModalOrder.id, rejectReasonInput);
-    Alert.alert('تم الرفض', `تم رفض الطلب #${rejectModalOrder.orderNumber}`);
-    setRejectModalOrder(null);
-    setRejectReasonInput('');
-    setDetailOrder(null);
+
+    setIsCancellingOrder(true);
+    try {
+      await cancelOrder(cancelModalOrder.id, cancelReasonCode, cancelDescription.trim() || undefined);
+      Alert.alert('تم إلغاء الطلب', `تم إلغاء الطلب #${cancelModalOrder.orderNumber} وإشعار العميل.`);
+      setCancelModalOrder(null);
+      setCancelDescription('');
+      setDetailOrder(null);
+    } catch (error: any) {
+      Alert.alert('تعذر إلغاء الطلب', error?.message || 'حدّث الطلب وحاول مجدداً.');
+    } finally {
+      setIsCancellingOrder(false);
+    }
   };
 
   const handleFlagUser = () => {
@@ -449,16 +467,21 @@ export const OrdersScreen: React.FC = () => {
                       >
                         {isApprovingOrder ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.approveBtnText}>✓ قبول الطلب واختيار الموصل</Text>}
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.rejectBtn}
-                        onPress={() => {
-                          setRejectModalOrder(detailOrder);
-                          setDetailOrder(null);
-                        }}
-                      >
-                        <Text style={styles.rejectBtnText}>✕ رفض الطلب</Text>
-                      </TouchableOpacity>
                     </>
+                  )}
+
+                  {!['DELIVERED', 'RETURNED', 'CANCELLED'].includes(detailOrder.status) && (
+                    <TouchableOpacity
+                      style={styles.cancelOrderBtn}
+                      onPress={() => {
+                        setCancelModalOrder(detailOrder);
+                        setCancelReasonCode('PRODUCT_UNAVAILABLE');
+                        setCancelDescription('');
+                        setDetailOrder(null);
+                      }}
+                    >
+                      <Text style={styles.cancelOrderBtnText}>✕ إلغاء الطلب</Text>
+                    </TouchableOpacity>
                   )}
 
                   {/* Assign driver */}
@@ -575,34 +598,66 @@ export const OrdersScreen: React.FC = () => {
         </Modal>
       )}
 
-      {/* ════════════════ Reject Order Modal ════════════════ */}
-      {rejectModalOrder && (
+      {/* ════════════════ Cancel Order Modal ════════════════ */}
+      {cancelModalOrder && (
         <Modal visible transparent animationType="fade">
           <View style={styles.alertOverlay}>
             <View style={styles.alertCard}>
-              <Text style={styles.alertCardTitle}>رفض الطلب #{rejectModalOrder.orderNumber}</Text>
-              <Text style={styles.alertCardSubtitle}>يرجى كتابة سبب الرفض ليتم إشعار العميل:</Text>
+              <Text style={styles.alertCardTitle}>إلغاء الطلب #{cancelModalOrder.orderNumber}</Text>
+              <Text style={styles.alertCardSubtitle}>اختر سبب الإلغاء ليصل التوضيح للعميل:</Text>
+              {([
+                ['PRODUCT_UNAVAILABLE', 'المنتج غير متوفر في المتجر'],
+                ['CUSTOMER_REQUEST', 'بطلب العميل'],
+                ['OTHER', 'سبب آخر'],
+              ] as const).map(([code, label]) => (
+                <TouchableOpacity
+                  key={code}
+                  style={[styles.cancelReasonOption, cancelReasonCode === code && styles.cancelReasonOptionActive]}
+                  onPress={() => setCancelReasonCode(code)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: cancelReasonCode === code }}
+                >
+                  <Text style={[styles.cancelReasonRadio, cancelReasonCode === code && styles.cancelReasonRadioActive]}>
+                    {cancelReasonCode === code ? '●' : '○'}
+                  </Text>
+                  <Text style={styles.cancelReasonLabel}>{label}</Text>
+                </TouchableOpacity>
+              ))}
               <TextInput
                 style={styles.reasonInput}
-                placeholder="سبب الرفض..."
+                placeholder={cancelReasonCode === 'OTHER' ? 'اكتب سبب الإلغاء...' : 'تفاصيل إضافية (اختياري)'}
                 placeholderTextColor={colors.outline}
-                value={rejectReasonInput}
-                onChangeText={setRejectReasonInput}
+                value={cancelDescription}
+                onChangeText={setCancelDescription}
                 multiline
                 textAlign="right"
               />
+              {cancelModalOrder.paymentMethod === 'MANUAL_TRANSFER' && cancelModalOrder.paymentStatus === 'VERIFIED' && (
+                <Text style={styles.refundWarning}>
+                  تم اعتماد التحويل؛ إلغاء الطلب لا يعيد المبلغ تلقائياً، لذا يلزم متابعة ردّه للعميل.
+                </Text>
+              )}
+              {['DRIVER_ASSIGNED', 'PURCHASING', 'OUT_FOR_DELIVERY'].includes(cancelModalOrder.status) && (
+                <Text style={styles.refundWarning}>
+                  إذا بدأ شراء المنتجات أو تحصيل أي مبلغ، راجع تسوية المشتريات والمبالغ يدوياً بعد الإلغاء.
+                </Text>
+              )}
               <View style={styles.alertCardBtns}>
                 <TouchableOpacity
                   style={styles.alertCancelBtn}
-                  onPress={() => setRejectModalOrder(null)}
+                  disabled={isCancellingOrder}
+                  onPress={() => setCancelModalOrder(null)}
                 >
                   <Text style={styles.alertCancelText}>إلغاء</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.alertConfirmRejectBtn}
-                  onPress={handleRejectOrder}
+                  style={styles.alertConfirmCancelBtn}
+                  disabled={isCancellingOrder}
+                  onPress={() => void handleCancelOrder()}
                 >
-                  <Text style={styles.alertConfirmRejectText}>تأكيد الرفض</Text>
+                  {isCancellingOrder
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={styles.alertConfirmRejectText}>تأكيد الإلغاء</Text>}
                 </TouchableOpacity>
               </View>
             </View>
@@ -1043,6 +1098,16 @@ const styles = StyleSheet.create({
   },
   rejectBtnText: { fontFamily: 'Tajawal_700Bold', fontSize: 15, color: colors.error },
 
+  cancelOrderBtn: {
+    backgroundColor: colors.errorContainer + '35',
+    borderRadius: borderRadius.lg,
+    paddingVertical: 13,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.error + '50',
+  },
+  cancelOrderBtnText: { fontFamily: 'Tajawal_700Bold', fontSize: 15, color: colors.error },
+
   assignBtn: {
     backgroundColor: colors.secondaryContainer,
     borderRadius: borderRadius.lg,
@@ -1124,6 +1189,33 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlignVertical: 'top',
   },
+  cancelReasonOption: {
+    minHeight: 44,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 10,
+    marginBottom: 6,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant + '50',
+    backgroundColor: colors.surfaceContainerLow,
+  },
+  cancelReasonOptionActive: { borderColor: colors.error, backgroundColor: colors.errorContainer + '22' },
+  cancelReasonRadio: { fontSize: 18, color: colors.outline },
+  cancelReasonRadioActive: { color: colors.error },
+  cancelReasonLabel: { flex: 1, color: colors.onSurface, fontFamily: 'Tajawal_500Medium', fontSize: 14, textAlign: 'right' },
+  refundWarning: {
+    color: '#92400E',
+    backgroundColor: '#FEF3C7',
+    fontFamily: 'Tajawal_500Medium',
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'right',
+    padding: 9,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.baseSm,
+  },
   alertCardBtns: { flexDirection: 'row-reverse', gap: spacing.baseSm },
   alertCancelBtn: {
     flex: 1,
@@ -1139,6 +1231,14 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingVertical: 12,
     alignItems: 'center',
+  },
+  alertConfirmCancelBtn: {
+    flex: 1,
+    backgroundColor: colors.error,
+    borderRadius: borderRadius.lg,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   alertConfirmRejectText: { fontFamily: 'Tajawal_700Bold', fontSize: 15, color: '#fff' },
 

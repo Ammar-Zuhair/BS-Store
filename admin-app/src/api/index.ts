@@ -81,6 +81,8 @@ export const adminApi = {
     api.post<any>(`/admin/orders/${orderId}/assign-driver`, { driverId }),
   approveOrder: (orderId: string) => api.post<any>(`/admin/orders/${orderId}/approve`),
   rejectOrder: (orderId: string, reason: string) => api.post<any>(`/admin/orders/${orderId}/reject`, { reason }),
+  cancelOrder: (orderId: string, reasonCode: string, description?: string) =>
+    api.post<any>(`/orders/${orderId}/cancel`, { reasonCode, description }),
 
   getPayments: (status?: string) => {
     const qs = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
