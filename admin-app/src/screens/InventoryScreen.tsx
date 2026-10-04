@@ -36,18 +36,9 @@ import {
   AdminProduct,
   AdminFlashDeal,
 } from '../types';
-import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
 
 // ── Tab definitions ──────────────────────────────────────────────────────────
 type TabId = 'categories' | 'stores' | 'products' | 'deals' | 'governorates';
-
-const BOOSTHIS_TAB_NAMES: Record<TabId, string> = {
-  categories: 'Categories',
-  stores: 'Stores',
-  products: 'Products',
-  deals: 'Deals',
-  governorates: 'ServiceAreas',
-};
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'categories', label: 'الفئات', icon: '📁' },
@@ -681,7 +672,6 @@ export const InventoryScreen: React.FC = () => {
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <View style={s.container}>
-      <BoosthisScreenTracker key={activeTab} screen={BOOSTHIS_TAB_NAMES[activeTab]} />
       <AdminHeader title="إدارة المنتجات" showBack onBack={() => navigateTo('dashboard')} />
 
       {/* Tab Bar */}

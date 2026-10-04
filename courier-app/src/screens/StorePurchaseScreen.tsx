@@ -3,7 +3,6 @@ import { ActivityIndicator, Alert, Image, RefreshControl, ScrollView, StyleSheet
 import { DriverHeader } from '../components/DriverHeader';
 import { useDriver } from '../context/DriverContext';
 import { borderRadius, colors, shadows, spacing, typography } from '../theme';
-import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
 
 export const StorePurchaseScreen: React.FC = () => {
   const { activeTask, recordStorePurchase, navigateBack, refreshData, isRefreshing } = useDriver();
@@ -42,7 +41,6 @@ export const StorePurchaseScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <BoosthisScreenTracker screen="Purchase" />
       <DriverHeader title="تأكيد شراء المتجر" showBack onBack={navigateBack} />
       <ScrollView
         contentContainerStyle={styles.content}
