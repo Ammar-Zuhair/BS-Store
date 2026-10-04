@@ -124,6 +124,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [registeredUser, setRegisteredUser] = useState<{ name: string; phone: string; email: string } | null>(null);
   const [user, setUser] = useState<{ name: string; phone: string; email?: string } | null>(null);
 
+  useEffect(() => {
+    api.setSessionExpiredHandler(() => {
+      setUser(null);
+      setIsAuthenticated(false);
+      setOrders([]);
+      setAddresses([]);
+      setSelectedAddress(null);
+      setCurrentOrder(null);
+      setCurrentScreen('auth');
+      void AsyncStorage.multiRemove(['@bs_customer_user', '@bs_customer_orders', '@bs_customer_addresses']);
+    });
+    return () => api.setSessionExpiredHandler(null);
+  }, []);
+
   // ─── Fetch live catalog from Backend ───────────────────────────────────────
   const refreshCatalog = async () => {
     try {

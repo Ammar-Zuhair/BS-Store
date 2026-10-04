@@ -8,11 +8,12 @@ export const authApi = {
   checkPhone: (phone: string) => api.post<{ exists: boolean }>('/auth/check-phone', { phone }),
 
   login: async (phone: string, password = 'Password123!') => {
-    const res = await api.post<{ accessToken: string; user: { id: string; name?: string; fullName?: string; phone: string; role: string } }>(
+    const res = await api.post<{ accessToken: string; refreshToken: string; user: { id: string; name?: string; fullName?: string; phone: string; role: string } }>(
       '/auth/login',
       { phone, password }
     );
     await api.setToken(res.accessToken);
+    await api.setRefreshToken(res.refreshToken);
     return res;
   },
 
@@ -31,7 +32,7 @@ export const authApi = {
       governorateId?: string;
     }
   ) => {
-    const res = await api.post<{ accessToken: string; user: { id: string; name?: string; fullName?: string; phone: string; role: string } }>(
+    const res = await api.post<{ accessToken: string; refreshToken: string; user: { id: string; name?: string; fullName?: string; phone: string; role: string } }>(
       '/auth/register',
       {
         fullName,
@@ -53,6 +54,7 @@ export const authApi = {
       }
     );
     await api.setToken(res.accessToken);
+    await api.setRefreshToken(res.refreshToken);
     return res;
   },
 
