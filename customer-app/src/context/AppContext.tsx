@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { createContext, useContext, useState, useEffect } from 'react';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { Product, CartItem, Address, Order, SubOrderGroup, PaymentMethodType, OrderStatusType, Store, BundlePiece, Category } from '../types';
 import { DealItem } from '../components/DealDetailsModal';
 import { api, authApi, catalogApi, cartApi, ordersApi, addressApi, paymentsApi } from '../api';
@@ -139,6 +139,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     return () => api.setSessionExpiredHandler(null);
   }, []);
+
+  useEffect(() => {
+    let previousState = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      const resumed = (previousState === 'inactive' || previousState === 'background') && nextState === 'active';
+      previousState = nextState;
+      if (resumed && isAuthenticated) void api.refreshSession();
+    });
+    return () => subscription.remove();
+  }, [isAuthenticated]);
 
   // ─── Fetch live catalog from Backend ───────────────────────────────────────
   const refreshCatalog = async () => {
@@ -302,6 +312,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const token = await api.initToken();
         if (token) {
           try {
+            // Refresh on app launch so the seven-day idle window starts from
+            // the customer's most recent app use, even if access is still valid.
+            await api.refreshSession();
             const serverUser = await authApi.me();
             setUser({ name: serverUser.fullName || serverUser.name || '', phone: serverUser.phone });
             setIsAuthenticated(true);

@@ -77,6 +77,10 @@ class ApiClient {
     return this.token;
   }
 
+  refreshSession(): Promise<boolean> {
+    return this.refreshAccessToken();
+  }
+
   private async clearStoredTokens(): Promise<void> {
     this.token = null;
     await tokenStorage.remove([TOKEN_STORAGE_KEY, REFRESH_TOKEN_STORAGE_KEY]);
