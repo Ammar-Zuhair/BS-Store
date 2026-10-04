@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   DriverProfile,
   ActiveDeliveryTask,
@@ -15,6 +15,7 @@ export type CourierScreenName = 'dashboard' | 'route' | 'purchase' | 'wallet';
 interface DriverContextType {
   currentScreen: CourierScreenName;
   navigateTo: (screen: CourierScreenName) => void;
+  navigateBack: () => void;
   driver: DriverProfile;
   toggleShiftStatus: () => Promise<void>;
   activeTask: ActiveDeliveryTask | null;
@@ -57,6 +58,8 @@ const DriverContext = createContext<DriverContextType | undefined>(undefined);
 
 export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentScreen, setCurrentScreen] = useState<CourierScreenName>('dashboard');
+  const currentScreenRef = useRef<CourierScreenName>('dashboard');
+  const screenHistoryRef = useRef<CourierScreenName[]>([]);
   const [driver, setDriver] = useState<DriverProfile>(DEFAULT_PROFILE);
   const [activeTask, setActiveTask] = useState<ActiveDeliveryTask | null>(null);
   const [wallet, setWallet] = useState<DriverWalletSummary>(DEFAULT_WALLET);
@@ -76,7 +79,16 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const navigateTo = (screen: CourierScreenName) => {
+    if (currentScreenRef.current === screen) return;
+    screenHistoryRef.current.push(currentScreenRef.current);
+    currentScreenRef.current = screen;
     setCurrentScreen(screen);
+  };
+
+  const navigateBack = () => {
+    const previousScreen = screenHistoryRef.current.pop() ?? 'dashboard';
+    currentScreenRef.current = previousScreen;
+    setCurrentScreen(previousScreen);
   };
 
   const mapOrderToTask = (order: any): ActiveDeliveryTask | null => {
@@ -117,8 +129,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         quantity: i.quantity,
         customerPrice: Number(i.unitPrice) || 0,
         imageUrl: i.imageUrl || '',
-        storeId: so.storeId,
-        storeName: so.storeName,
+        subOrderId: so.id,
       }))
     );
 
@@ -266,6 +277,8 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       await refreshData();
     } catch (e) {
       console.error('Failed to accept order:', e);
+      if ((e as any)?.status === 409) await refreshData();
+      throw e;
     }
   };
 
@@ -302,7 +315,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       await refreshData();
-      navigateTo('route');
+      navigateBack();
     } catch (e) {
       console.error('Failed to record purchase:', e);
       if ((e as any)?.status === 409) await refreshData();
@@ -316,7 +329,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       await driverApi.confirmDelivered(activeTask.id, cashAdjustmentSettled);
       await refreshData();
-      navigateTo('dashboard');
+      navigateBack();
     } catch (e) {
       console.error('Failed to complete delivery:', e);
       if ((e as any)?.status === 409) await refreshData();
@@ -333,6 +346,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <DriverContext.Provider
       value={{
       currentScreen,
+        navigateBack,
         authenticated,
         isRefreshing,
         isSessionRestoring,

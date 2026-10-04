@@ -19,17 +19,33 @@ import { useDriver } from '../context/DriverContext';
 import { driverApi } from '../api';
 
 export const DriverDashboardScreen: React.FC = () => {
-  const { driver, activeTask, wallet, toggleShiftStatus, navigateTo, refreshData, isRefreshing } = useDriver();
+  const { driver, activeTask, wallet, toggleShiftStatus, acceptCurrentOrder, navigateTo, refreshData, isRefreshing } = useDriver();
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [governorates, setGovernorates] = useState<{id:string;name:string}[]>([]);
   const [governorateId, setGovernorateId] = useState('');
   const [showGovernorates, setShowGovernorates] = useState(false);
   const [isChangingGovernorate, setIsChangingGovernorate] = useState(false);
   const [isTogglingShift, setIsTogglingShift] = useState(false);
+  const [isStartingTask, setIsStartingTask] = useState(false);
   useEffect(() => { void Promise.all([driverApi.governorates(), driverApi.myGovernorate()]).then(([list, mine]) => { setGovernorates(list); setGovernorateId(mine.governorateId || ''); }).catch(() => {}); }, []);
   const changeGovernorate = async (id:string) => { if (isChangingGovernorate) return; setIsChangingGovernorate(true); try { await driverApi.updateGovernorate(id); setGovernorateId(id); setShowGovernorates(false); Alert.alert('تم التحديث','تم تغيير محافظة عملك.'); } catch (e:any) { Alert.alert('تعذر التحديث',e?.message || 'حاول مرة أخرى.'); } finally { setIsChangingGovernorate(false); } };
   const handleToggleShift = async () => { if (isTogglingShift) return; setIsTogglingShift(true); try { await toggleShiftStatus(); } finally { setIsTogglingShift(false); } };
   const isOnline = driver.shiftStatus === 'ONLINE';
+  const hasPendingStorePurchase = activeTask?.stops.some((stop) => stop.type === 'PICKUP_STORE' && stop.status !== 'COMPLETED') === true;
+
+  const startTaskAt = async (destination: 'route' | 'purchase') => {
+    if (!activeTask || isStartingTask) return;
+    setIsStartingTask(true);
+    try {
+      if (activeTask.status === 'ASSIGNED') await acceptCurrentOrder();
+      navigateTo('route');
+      if (destination === 'purchase') navigateTo('purchase');
+    } catch (error: any) {
+      Alert.alert('تعذر بدء المهمة', error?.message || 'حدّث الطلب وحاول مرة أخرى.');
+    } finally {
+      setIsStartingTask(false);
+    }
+  };
 
   const handleCall = (phone: string, name: string) => {
     Alert.alert('اتصال هاتفي', `الاتصال بـ ${name} (${phone})؟`, [
@@ -44,7 +60,7 @@ export const DriverDashboardScreen: React.FC = () => {
         .filter((s) => s.type === 'PICKUP_STORE')
         .map((store) => {
           const items = activeTask.itemsToPurchase.filter(
-            (it) => it.storeId === store.id.replace('stop-store-', '') || it.storeName === store.name
+            (it) => it.subOrderId === store.id.replace('stop-store-', '')
           );
           return {
             ...store,
@@ -261,8 +277,9 @@ export const DriverDashboardScreen: React.FC = () => {
             {/* Action Buttons */}
             <View style={styles.actionButtonsCol}>
               <TouchableOpacity
-                style={styles.startTaskBtn}
-                onPress={() => navigateTo('route')}
+                style={[styles.startTaskBtn, isStartingTask && { opacity: 0.65 }]}
+                onPress={() => void startTaskAt('route')}
+                disabled={isStartingTask}
                 activeOpacity={0.88}
               >
                 <View style={styles.etaPill}>
@@ -271,8 +288,8 @@ export const DriverDashboardScreen: React.FC = () => {
                   </Text>
                 </View>
                 <View style={styles.btnActionWrap}>
-                  <Text style={styles.startTaskBtnText}>بدء المهمة وتتبع المسار</Text>
-                  <Text style={styles.btnActionIcon}>🛵</Text>
+                  <Text style={styles.startTaskBtnText}>{isStartingTask ? 'جارٍ بدء المهمة...' : 'بدء المهمة وتتبع المسار'}</Text>
+                  {!isStartingTask && <Text style={styles.btnActionIcon}>🛵</Text>}
                 </View>
               </TouchableOpacity>
 
@@ -323,7 +340,7 @@ export const DriverDashboardScreen: React.FC = () => {
 
       {/* Full Order Details Modal */}
       {activeTask && (
-        <Modal visible={detailsModalVisible} transparent animationType="slide">
+        <Modal visible={detailsModalVisible} transparent animationType="slide" onRequestClose={() => setDetailsModalVisible(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
@@ -429,25 +446,27 @@ export const DriverDashboardScreen: React.FC = () => {
 
                 {/* Modal Buttons */}
                 <TouchableOpacity
-                  style={styles.modalStartBtn}
+                  style={[styles.modalStartBtn, isStartingTask && { opacity: 0.65 }]}
                   onPress={() => {
                     setDetailsModalVisible(false);
-                    navigateTo('route');
+                    void startTaskAt('route');
                   }}
+                  disabled={isStartingTask}
                   activeOpacity={0.88}
                 >
                   <Text style={styles.modalStartBtnText}>بدء مسار التوصيل والانطلاق ➔</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.modalPurchaseBtn}
+                  style={[styles.modalPurchaseBtn, (!hasPendingStorePurchase || isStartingTask) && { opacity: 0.5 }]}
                   onPress={() => {
                     setDetailsModalVisible(false);
-                    navigateTo('purchase');
+                    void startTaskAt('purchase');
                   }}
+                  disabled={!hasPendingStorePurchase || isStartingTask}
                   activeOpacity={0.88}
                 >
-                  <Text style={styles.modalPurchaseBtnText}>تسجيل تكلفة مشتريات المتجر</Text>
+                  <Text style={styles.modalPurchaseBtnText}>تأكيد شراء منتجات المتجر</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>

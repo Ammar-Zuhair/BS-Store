@@ -25,7 +25,7 @@ export interface TaskStop {
   latitude: number;
   longitude: number;
   status: 'PENDING' | 'ARRIVED' | 'COMPLETED';
-  isExternalPurchase: boolean; // Requires actual purchase recording
+  isExternalPurchase: boolean; // Requires purchase confirmation
   storePhone?: string;
   notes?: string;
 }
@@ -36,8 +36,7 @@ export interface TaskPurchasedItem {
   quantity: number;
   customerPrice: number;
   imageUrl: string;
-  storeId?: string;
-  storeName?: string;
+  subOrderId: string;
 }
 
 export interface ActiveDeliveryTask {

@@ -5,7 +5,7 @@ import { DriverHeader } from '../components/DriverHeader';
 import { useDriver } from '../context/DriverContext';
 
 export const DriverWalletScreen: React.FC = () => {
-  const { wallet, transactions, requestSettlement, navigateTo, refreshData, isRefreshing } = useDriver();
+  const { wallet, transactions, requestSettlement, navigateBack, refreshData, isRefreshing } = useDriver();
   const [settleModalVisible, setSettleModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [settleAmount, setSettleAmount] = useState(String(wallet.currentCashCustody ?? 0));
@@ -28,7 +28,7 @@ export const DriverWalletScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <DriverHeader title="المحفظة والعهدة النقدية" showBack onBack={() => navigateTo('dashboard')} />
+      <DriverHeader title="المحفظة والعهدة النقدية" showBack onBack={navigateBack} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -110,7 +110,7 @@ export const DriverWalletScreen: React.FC = () => {
       </ScrollView>
 
       {/* Settle Modal */}
-      <Modal visible={settleModalVisible} transparent animationType="slide">
+      <Modal visible={settleModalVisible} transparent animationType="slide" onRequestClose={() => setSettleModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>طلب تسوية العهدة</Text>

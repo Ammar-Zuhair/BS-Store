@@ -6,12 +6,12 @@ import { borderRadius, colors, shadows, spacing, typography } from '../theme';
 import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
 
 export const StorePurchaseScreen: React.FC = () => {
-  const { activeTask, recordStorePurchase, navigateTo, refreshData, isRefreshing } = useDriver();
+  const { activeTask, recordStorePurchase, navigateBack, refreshData, isRefreshing } = useDriver();
   const [saving, setSaving] = useState(false);
 
   const currentStoreStop = activeTask?.stops.find((stop) => stop.type === 'PICKUP_STORE' && stop.status !== 'COMPLETED');
   const items = useMemo(() => activeTask?.itemsToPurchase.filter((item) =>
-    currentStoreStop && (item.storeId === currentStoreStop.id.replace('stop-store-', '') || item.storeName === currentStoreStop.name)
+    currentStoreStop && item.subOrderId === currentStoreStop.id.replace('stop-store-', '')
   ) ?? [], [activeTask, currentStoreStop]);
 
   const confirmPurchase = async () => {
@@ -34,7 +34,7 @@ export const StorePurchaseScreen: React.FC = () => {
   if (!activeTask) {
     return (
       <View style={styles.container}>
-        <DriverHeader title="تأكيد شراء المتجر" showBack onBack={() => navigateTo('route')} />
+        <DriverHeader title="تأكيد شراء المتجر" showBack onBack={navigateBack} />
         <View style={styles.empty}><Text style={styles.emptyText}>لا توجد مهمة شراء نشطة</Text></View>
       </View>
     );
@@ -43,7 +43,7 @@ export const StorePurchaseScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <BoosthisScreenTracker screen="Purchase" />
-      <DriverHeader title="تأكيد شراء المتجر" showBack onBack={() => navigateTo('route')} />
+      <DriverHeader title="تأكيد شراء المتجر" showBack onBack={navigateBack} />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

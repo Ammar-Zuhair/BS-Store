@@ -9,11 +9,14 @@ export const ActiveTaskRouteScreen: React.FC = () => {
     activeTask,
     completeStop,
     completeDeliveryAndCollect,
+    acceptCurrentOrder,
     navigateTo,
+    navigateBack,
     refreshData,
     isRefreshing,
   } = useDriver();
   const [isCompletingDelivery, setIsCompletingDelivery] = useState(false);
+  const [isOpeningPurchase, setIsOpeningPurchase] = useState(false);
   const submitDelivery = async (cashAdjustmentSettled: boolean) => {
     if (!activeTask || isCompletingDelivery) return;
     setIsCompletingDelivery(true);
@@ -53,14 +56,27 @@ export const ActiveTaskRouteScreen: React.FC = () => {
     void submitDelivery(false);
   };
 
+  const handleOpenPurchase = async () => {
+    if (!activeTask || isOpeningPurchase) return;
+    setIsOpeningPurchase(true);
+    try {
+      if (activeTask.status === 'ASSIGNED') await acceptCurrentOrder();
+      navigateTo('purchase');
+    } catch (error: any) {
+      Alert.alert('تعذر بدء الشراء', error?.message || 'حدّث الطلب وحاول مرة أخرى.');
+    } finally {
+      setIsOpeningPurchase(false);
+    }
+  };
+
   if (!activeTask) {
     return (
       <View style={styles.container}>
-        <DriverHeader title="المسار النشط" showBack onBack={() => navigateTo('dashboard')} />
+        <DriverHeader title="المسار النشط" showBack onBack={navigateBack} />
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🛵</Text>
           <Text style={styles.emptyTitle}>لا توجد مهمة نشطة حالياً</Text>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigateTo('dashboard')}>
+          <TouchableOpacity style={styles.backBtn} onPress={navigateBack}>
             <Text style={styles.backBtnText}>العودة للوحة المهام</Text>
           </TouchableOpacity>
         </View>
@@ -113,7 +129,7 @@ export const ActiveTaskRouteScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <DriverHeader title="مسار وتفاصيل المهمة النشطة" showBack onBack={() => navigateTo('dashboard')} />
+      <DriverHeader title="مسار وتفاصيل المهمة النشطة" showBack onBack={navigateBack} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -222,7 +238,7 @@ export const ActiveTaskRouteScreen: React.FC = () => {
                 <View style={styles.stopItemsBox}>
                   <Text style={styles.stopItemsHeading}>الأصناف المطلوبة من هذا المحل:</Text>
                   {activeTask.itemsToPurchase
-                    .filter((it) => it.storeId === stop.id.replace('stop-store-', '') || it.storeName === stop.name)
+                    .filter((it) => it.subOrderId === stop.id.replace('stop-store-', ''))
                     .map((it) => (
                       <View key={it.id} style={styles.stopItemRow}>
                         <View style={styles.stopItemPriceWrap}>
@@ -248,10 +264,11 @@ export const ActiveTaskRouteScreen: React.FC = () => {
                 {/* If external store purchase needed */}
                 {stop.isExternalPurchase && !isCompleted && (
                   <TouchableOpacity
-                    style={styles.purchaseDocBtn}
-                    onPress={() => navigateTo('purchase')}
+                    style={[styles.purchaseDocBtn, isOpeningPurchase && { opacity: 0.65 }]}
+                    onPress={() => void handleOpenPurchase()}
+                    disabled={isOpeningPurchase}
                   >
-                    <Text style={styles.purchaseDocBtnText}>تسجيل مشتريات هذا المتجر</Text>
+                    <Text style={styles.purchaseDocBtnText}>تأكيد شراء منتجات هذا المتجر</Text>
                   </TouchableOpacity>
                 )}
 

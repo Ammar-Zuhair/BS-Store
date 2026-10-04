@@ -1,6 +1,6 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useFonts, Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold } from '@expo-google-fonts/tajawal';
-import { ActivityIndicator, StatusBar, StyleSheet, View, Platform, SafeAreaView, Text, TextInput } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, StatusBar, StyleSheet, View, Platform, SafeAreaView, Text, TextInput } from 'react-native';
 import { DriverProvider, useDriver, type CourierScreenName } from './src/context/DriverContext';
 import { DriverDashboardScreen } from './src/screens/DriverDashboardScreen';
 import { ActiveTaskRouteScreen } from './src/screens/ActiveTaskRouteScreen';
@@ -25,13 +25,32 @@ const BOOSTHIS_SCREEN_NAMES: Record<CourierScreenName, string> = {
 (TextInput as any).defaultProps = { ...(TextInput as any).defaultProps, style: [{ fontFamily: 'Tajawal_400Regular', fontSize: 16 }, (TextInput as any).defaultProps?.style] };
 
 const DriverNavigator: React.FC = () => {
-  const { currentScreen, authenticated, isSessionRestoring, refreshData, navigateTo, activeTask } = useDriver();
+  const { currentScreen, authenticated, isSessionRestoring, refreshData, navigateTo, navigateBack, activeTask } = useDriver();
   const onNotificationOpen = useCallback((type: string) => {
     navigateTo(type === 'order_assigned' ? 'dashboard' : currentScreen);
     void refreshData();
   }, [currentScreen, navigateTo, refreshData]);
   usePushNotifications(authenticated, 'courier', api, onNotificationOpen);
   const [fontsLoaded] = useFonts({ Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold });
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isSessionRestoring || !authenticated) return false;
+
+      if (currentScreen !== 'dashboard') {
+        navigateBack();
+        return true;
+      }
+
+      Alert.alert('تأكيد الخروج', 'هل تريد إغلاق تطبيق الموصل؟', [
+        { text: 'البقاء في التطبيق', style: 'cancel' },
+        { text: 'خروج', style: 'destructive', onPress: () => BackHandler.exitApp() },
+      ]);
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [authenticated, currentScreen, isSessionRestoring, navigateBack]);
 
   if (!fontsLoaded) return <View style={styles.appContainer} />;
 

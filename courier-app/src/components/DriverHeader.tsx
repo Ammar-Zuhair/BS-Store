@@ -10,7 +10,7 @@ interface DriverHeaderProps {
 }
 
 export const DriverHeader: React.FC<DriverHeaderProps> = ({ title, showBack = false, onBack }) => {
-  const { driver, toggleShiftStatus, navigateTo } = useDriver();
+  const { driver, toggleShiftStatus, navigateTo, navigateBack } = useDriver();
   const [isToggling, setIsToggling] = useState(false);
   const isOnline = driver.shiftStatus === 'ONLINE';
   const handleToggle = async () => { if (isToggling) return; setIsToggling(true); try { await toggleShiftStatus(); } finally { setIsToggling(false); } };
@@ -19,7 +19,7 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({ title, showBack = fa
     <View style={styles.container}>
       <View style={styles.inner}>
         {showBack ? (
-          <TouchableOpacity style={styles.backBtn} onPress={onBack || (() => navigateTo('dashboard'))}>
+          <TouchableOpacity style={styles.backBtn} onPress={onBack || navigateBack}>
             <Text style={styles.backIcon}>➔</Text>
           </TouchableOpacity>
         ) : (
