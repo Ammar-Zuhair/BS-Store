@@ -31,7 +31,6 @@ export const AuthScreen: React.FC = () => {
 
   const [mode, setMode] = useState<AuthMode>('phone');
   const [isLoading, setIsLoading] = useState(false);
-  const [phoneLookupMessage, setPhoneLookupMessage] = useState<string | null>(null);
 
   // Phone Step State
   const [phone, setPhone] = useState(registeredUser ? registeredUser.phone : '');
@@ -184,15 +183,20 @@ export const AuthScreen: React.FC = () => {
 
     setPhone(cleanPhone);
     setRegPhone(cleanPhone);
-    setPhoneLookupMessage(null);
     setIsLoading(true);
     try {
       const result = await authApi.checkPhone(cleanPhone);
       if (result.exists) {
         switchMode('password');
       } else {
-        setPhoneLookupMessage('لا يوجد حساب مرتبط بهذا الرقم. أكمل البيانات لإنشاء حساب جديد.');
-        switchMode('register');
+        Alert.alert(
+          'رقم الهاتف غير مسجل',
+          'لا يوجد حساب مرتبط بهذا الرقم. هل ترغب في إنشاء حساب جديد؟',
+          [
+            { text: 'إلغاء', style: 'cancel' },
+            { text: 'إنشاء حساب', onPress: () => switchMode('register') },
+          ]
+        );
       }
     } catch (error: any) {
       Alert.alert('تعذر التحقق من الرقم', error?.message || 'تحقق من اتصالك وحاول مرة أخرى.');
@@ -398,7 +402,7 @@ export const AuthScreen: React.FC = () => {
                       placeholder="770 000 000"
                       placeholderTextColor={themeColors.outline}
                       value={phone}
-                      onChangeText={(value) => { setPhone(value); setPhoneLookupMessage(null); }}
+                      onChangeText={setPhone}
                       keyboardType="phone-pad"
                       textAlign="left"
                       accessibilityLabel="رقم الهاتف المحمول"
@@ -439,7 +443,6 @@ export const AuthScreen: React.FC = () => {
                   style={styles.registerUnderneathBtn}
                   onPress={() => {
                     setRegPhone(phone);
-                    setPhoneLookupMessage(null);
                     switchMode('register');
                   }}
                   activeOpacity={0.85}
@@ -608,12 +611,6 @@ export const AuthScreen: React.FC = () => {
                   <AppIcon name="arrow-right" size={15} color={themeColors.primary} />
                   <Text style={styles.backRowText}>الرجوع لتسجيل الدخول</Text>
                 </TouchableOpacity>
-
-                {phoneLookupMessage && (
-                  <View style={styles.phoneLookupNotice} accessibilityRole="alert">
-                    <Text style={styles.phoneLookupNoticeText}>{phoneLookupMessage}</Text>
-                  </View>
-                )}
 
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle}>إنشاء حساب عميل جديد</Text>
@@ -1028,20 +1025,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.onSurfaceVariant,
     textAlign: 'right',
     marginTop: 4,
-  },
-  phoneLookupNotice: {
-    backgroundColor: colors.primaryContainer,
-    borderColor: colors.outlineVariant,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 14,
-  },
-  phoneLookupNoticeText: {
-    fontFamily: typography.fontFamily.medium,
-    fontSize: 13,
-    color: colors.onSurface,
-    textAlign: 'right',
   },
   inputGroup: {
     marginBottom: 14,
