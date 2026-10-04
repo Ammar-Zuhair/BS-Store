@@ -227,7 +227,6 @@ export const ActiveTaskRouteScreen: React.FC = () => {
                       <View key={it.id} style={styles.stopItemRow}>
                         <View style={styles.stopItemPriceWrap}>
                           <Text style={styles.stopItemPrice}>{(it.customerPrice * it.quantity).toLocaleString()} ر.ي</Text>
-                          {it.originalCustomerPrice !== it.customerPrice && <Text style={styles.stopItemOldPrice}>السابق {it.originalCustomerPrice.toLocaleString()}</Text>}
                         </View>
                         <Text style={styles.stopItemName}>
                           {it.name} <Text style={styles.stopItemQty}>× {it.quantity}</Text>
@@ -595,5 +594,4 @@ const styles = StyleSheet.create({
     color: colors.outline,
   },
   stopItemPriceWrap: { alignItems: 'flex-start' },
-  stopItemOldPrice: { color: colors.onSurfaceVariant, fontSize: 11, textDecorationLine: 'line-through' },
 });

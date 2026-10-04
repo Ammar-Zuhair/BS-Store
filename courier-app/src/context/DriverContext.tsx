@@ -19,13 +19,7 @@ interface DriverContextType {
   toggleShiftStatus: () => Promise<void>;
   activeTask: ActiveDeliveryTask | null;
   completeStop: (stopId: string) => void;
-  recordStorePurchase: (items: {
-    id: string;
-    actualPrice: number;
-    priceChangeContactAttemptId?: string;
-    customerContactConfirmed?: boolean;
-  }[]) => Promise<void>;
-  startPriceChangeContact: (itemId: string, proposedStorePrice: number) => Promise<{ id: string; contactInitiatedAt: string }>;
+  recordStorePurchase: () => Promise<void>;
   completeDeliveryAndCollect: (cashAdjustmentSettled: boolean) => Promise<void>;
   wallet: DriverWalletSummary;
   transactions: DriverTransaction[];
@@ -97,7 +91,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         address: so.storeAddress || so.storeName || '',
         latitude: Number(so.storeLatitude) || 0,
         longitude: Number(so.storeLongitude) || 0,
-        status: so.actualPurchaseCost ? 'COMPLETED' : 'PENDING',
+        status: so.purchaseConfirmed || so.actualPurchaseCost != null ? 'COMPLETED' : 'PENDING',
         isExternalPurchase: true,
         storePhone: so.storePhone || '',
         notes: `استلام طلب متجر ${so.storeName}`,
@@ -121,11 +115,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         id: i.id,
         name: i.productNameSnapshot,
         quantity: i.quantity,
-        expectedPrice: Number(i.expectedPurchasePrice) || 0,
         customerPrice: Number(i.unitPrice) || 0,
-        originalCustomerPrice: Number(i.originalUnitPrice ?? i.unitPrice) || 0,
-        catalogPrice: Number(i.productCurrentPrice ?? i.unitPrice) || 0,
-        actualPrice: i.actualPurchasePrice,
         imageUrl: i.imageUrl || '',
         storeId: so.storeId,
         storeName: so.storeName,
@@ -295,47 +285,20 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
-  const startPriceChangeContact = async (itemId: string, proposedStorePrice: number) => {
-    if (!activeTask) throw new Error('لا توجد مهمة شراء نشطة');
-    const storeStop = activeTask.stops.find((stop) => stop.type === 'PICKUP_STORE' && stop.status !== 'COMPLETED');
-    const item = activeTask.itemsToPurchase.find((candidate) => candidate.id === itemId);
-    if (!storeStop || !item) throw new Error('تعذر تحديد الصنف أو المتجر الحالي');
-    return driverApi.startPriceChangeContact(activeTask.id, {
-      subOrderId: storeStop.id.replace('stop-store-', ''),
-      orderItemId: item.id,
-      observedCatalogPrice: item.catalogPrice,
-      proposedStorePrice,
-    });
-  };
-
-  const recordStorePurchase = async (items: {
-    id: string;
-    actualPrice: number;
-    priceChangeContactAttemptId?: string;
-    customerContactConfirmed?: boolean;
-  }[]) => {
+  const recordStorePurchase = async () => {
     if (!activeTask) return;
 
-    const subOrderId = activeTask.stops.find((s) => s.type === 'PICKUP_STORE' && s.status !== 'COMPLETED')?.id.replace('stop-store-', '') || '';
-    const purchaseRequest = {
-      subOrderId,
-      idempotencyKey: `${activeTask.id}:${subOrderId}:${Date.now()}`,
-      itemDetails: items.map((it) => ({
-        orderItemId: it.id,
-        actualPrice: it.actualPrice,
-        observedCatalogPrice: activeTask.itemsToPurchase.find((item) => item.id === it.id)?.catalogPrice,
-        priceChangeContactAttemptId: it.priceChangeContactAttemptId,
-        customerContactConfirmed: it.customerContactConfirmed,
-      })),
-    };
+    const currentStoreStop = activeTask.stops.find((stop) => stop.type === 'PICKUP_STORE' && stop.status !== 'COMPLETED');
+    if (!currentStoreStop) throw new Error('لا يوجد متجر بانتظار تأكيد الشراء');
+    const subOrderId = currentStoreStop.id.replace('stop-store-', '');
 
     try {
       try {
-        await driverApi.recordPurchase(activeTask.id, purchaseRequest);
+        await driverApi.confirmStorePurchase(activeTask.id, subOrderId);
       } catch (error) {
         if ((error as any)?.status !== 409) throw error;
         await refreshData();
-        await driverApi.recordPurchase(activeTask.id, purchaseRequest);
+        await driverApi.confirmStorePurchase(activeTask.id, subOrderId);
       }
 
       await refreshData();
@@ -381,7 +344,6 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         activeTask,
         completeStop,
         recordStorePurchase,
-        startPriceChangeContact,
         completeDeliveryAndCollect,
         wallet,
         transactions,

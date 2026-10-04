@@ -69,24 +69,8 @@ export const driverApi = {
   acceptOrder: (orderId: string) =>
     api.put<any>(`/driver/orders/${orderId}/accept`),
 
-  startPriceChangeContact: (orderId: string, data: {
-    subOrderId: string;
-    orderItemId: string;
-    observedCatalogPrice: number;
-    proposedStorePrice: number;
-  }) => api.post<{ id: string; contactInitiatedAt: string }>(`/driver/orders/${orderId}/price-change-contact`, data),
-
-  recordPurchase: (orderId: string, data: {
-    subOrderId: string;
-    idempotencyKey: string;
-    itemDetails: {
-      orderItemId: string;
-      actualPrice: number;
-      observedCatalogPrice?: number;
-      priceChangeContactAttemptId?: string;
-      customerContactConfirmed?: boolean;
-    }[];
-  }) => api.post<any>(`/driver/orders/${orderId}/record-purchase`, data),
+  confirmStorePurchase: (orderId: string, subOrderId: string) =>
+    api.post<any>(`/driver/orders/${orderId}/confirm-purchase`, { subOrderId }),
 
   confirmDelivered: (orderId: string, cashAdjustmentSettled: boolean) =>
     api.put<any>(`/driver/orders/${orderId}/delivered`, { cashAdjustmentSettled }),

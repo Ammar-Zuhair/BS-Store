@@ -46,14 +46,9 @@ export const DriverDashboardScreen: React.FC = () => {
           const items = activeTask.itemsToPurchase.filter(
             (it) => it.storeId === store.id.replace('stop-store-', '') || it.storeName === store.name
           );
-          const storeTotal = items.reduce(
-            (sum, it) => sum + (it.actualPrice || it.expectedPrice) * it.quantity,
-            0
-          );
           return {
             ...store,
             items,
-            storeTotal,
           };
         })
     : [];
@@ -202,32 +197,17 @@ export const DriverDashboardScreen: React.FC = () => {
                     {st.items.map((it) => (
                       <View key={it.id} style={styles.itemRow}>
                         <Text style={styles.itemCost}>
-                          {((it.actualPrice ?? it.expectedPrice) * it.quantity).toLocaleString()} ر.ي
+                          {(it.customerPrice * it.quantity).toLocaleString()} ر.ي
                         </Text>
                         <View style={styles.itemInfo}>
                           <Text style={styles.itemName}>
                             {it.name} <Text style={styles.itemQty}>× {it.quantity}</Text>
                           </Text>
-                          <Text style={styles.itemUnit}>
-                            {it.actualPrice != null
-                              ? `سعر الشراء الفعلي: ${Number(it.actualPrice).toLocaleString()} ر.ي (المتوقع ${it.expectedPrice.toLocaleString()})`
-                              : `سعر الشراء المتوقع للوحدة: ${it.expectedPrice.toLocaleString()} ر.ي`}
-                          </Text>
                           <Text style={styles.itemUnit}>سعر الوحدة على العميل: {it.customerPrice.toLocaleString()} ر.ي</Text>
-                          {it.originalCustomerPrice !== it.customerPrice && <Text style={styles.itemUnit}>السعر قبل التحديث: {it.originalCustomerPrice.toLocaleString()} ر.ي</Text>}
                         </View>
                         <Image source={{ uri: it.imageUrl }} style={styles.itemThumb} />
                       </View>
                     ))}
-                  </View>
-
-                  <View style={styles.storeSubtotalRow}>
-                    <Text style={styles.storeSubtotalVal}>
-                      {st.storeTotal.toLocaleString()} ر.ي
-                    </Text>
-                    <Text style={styles.storeSubtotalLabel}>
-                      {st.items.some((item) => item.actualPrice != null) ? 'تكلفة الشراء الفعلية:' : 'تكلفة الشراء المتوقعة:'}
-                    </Text>
                   </View>
                 </View>
               ))}
@@ -402,12 +382,12 @@ export const DriverDashboardScreen: React.FC = () => {
                     {store.items.map((item) => (
                       <View key={item.id} style={styles.modalItemRow}>
                         <Text style={styles.modalItemTotal}>
-                          {((item.actualPrice ?? item.expectedPrice) * item.quantity).toLocaleString()} ر.ي
+                          {(item.customerPrice * item.quantity).toLocaleString()} ر.ي
                         </Text>
                         <View style={styles.modalItemInfo}>
                           <Text style={styles.modalItemName}>{item.name}</Text>
                           <Text style={styles.modalItemSub}>
-                          الكمية: {item.quantity} | بيع العميل: {item.customerPrice.toLocaleString()} | {item.actualPrice != null ? `الشراء الفعلي: ${Number(item.actualPrice).toLocaleString()}` : `الشراء المتوقع: ${item.expectedPrice.toLocaleString()}`} ر.ي
+                          الكمية: {item.quantity} | سعر الوحدة على العميل: {item.customerPrice.toLocaleString()} ر.ي
                           </Text>
                         </View>
                         <Image source={{ uri: item.imageUrl }} style={styles.modalItemThumb} />

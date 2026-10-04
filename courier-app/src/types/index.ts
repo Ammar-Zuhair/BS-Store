@@ -34,11 +34,7 @@ export interface TaskPurchasedItem {
   id: string;
   name: string;
   quantity: number;
-  expectedPrice: number;
   customerPrice: number;
-  originalCustomerPrice: number;
-  catalogPrice: number;
-  actualPrice?: number;
   imageUrl: string;
   storeId?: string;
   storeName?: string;
