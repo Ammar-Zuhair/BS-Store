@@ -33,6 +33,7 @@ export const CheckoutScreen: React.FC = () => {
     cartDeliveryFee,
     cartFarthestStoreDistanceKm,
     isDeliveryQuoteLoading,
+    deliveryQuoteError,
     hasDeliveryQuote,
     refreshDeliveryQuote,
     cartSubtotal,
@@ -457,7 +458,7 @@ export const CheckoutScreen: React.FC = () => {
             <CheckoutText style={[styles.summaryLbl, { color: themeColors.error }]}>
               {hasSelectedGovernorate === false
                 ? 'اختر محافظة التسوق من الملف الشخصي لحساب رسوم التوصيل'
-                : 'تعذر حساب الرسوم. اضغط لإعادة المحاولة'}
+                : deliveryQuoteError || 'تعذر حساب الرسوم. اضغط لإعادة المحاولة'}
             </CheckoutText>
           </TouchableOpacity>
         )}

@@ -44,6 +44,7 @@ interface AppContextType {
   cartDeliveryFee: number;
   cartFarthestStoreDistanceKm: number;
   isDeliveryQuoteLoading: boolean;
+  deliveryQuoteError: string | null;
   hasDeliveryQuote: boolean;
   refreshDeliveryQuote: () => void;
   cartDiscount: number;
@@ -114,6 +115,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [productDiscountDealId, setProductDiscountDealId] = useState<string | null>(null);
   const [deliveryQuote, setDeliveryQuote] = useState<{ fee: number; farthestDistanceKm: number; storeFees: Record<string, number> } | null>(null);
   const [isDeliveryQuoteLoading, setIsDeliveryQuoteLoading] = useState(false);
+  const [deliveryQuoteError, setDeliveryQuoteError] = useState<string | null>(null);
   const [deliveryQuoteRetryKey, setDeliveryQuoteRetryKey] = useState(0);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
@@ -481,7 +483,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await cartApi.addItem(product.id, quantity);
       }
     } catch (err: any) {
-      console.warn('Cart backend sync note:', err.message);
+      if (__DEV__) console.info('Cart backend sync deferred:', err.message);
     }
 
     setCart((prev) => {
@@ -576,16 +578,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const cartSubtotal = cartSubOrders.reduce((sum, so) => sum + so.subtotal, 0);
   const deliveryStoreIds = Array.from(new Set(cartSubOrders.map((subOrder) => subOrder.storeId).filter((id) => /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id))));
   const deliveryStoreIdsKey = deliveryStoreIds.slice().sort().join(',');
-  const refreshDeliveryQuote = () => { setDeliveryQuote(null); setDeliveryQuoteRetryKey((value) => value + 1); };
+  const refreshDeliveryQuote = () => {
+    setDeliveryQuote(null);
+    setDeliveryQuoteError(null);
+    setDeliveryQuoteRetryKey((value) => value + 1);
+  };
   useEffect(() => {
     const addressId = selectedAddress?.id;
     if (!isAuthenticated || !addressId || !/^[0-9a-f-]{36}$/i.test(addressId) || deliveryStoreIds.length === 0) {
       setDeliveryQuote(null);
+      setDeliveryQuoteError(null);
       setIsDeliveryQuoteLoading(false);
       return;
     }
     let cancelled = false;
     setDeliveryQuote(null);
+    setDeliveryQuoteError(null);
     setIsDeliveryQuoteLoading(true);
     ordersApi.getDeliveryQuote(addressId, deliveryStoreIds).then((quote) => {
       if (!cancelled) setDeliveryQuote({
@@ -593,7 +601,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         farthestDistanceKm: Number(quote.farthestDistanceKm) || 0,
         storeFees: Object.fromEntries((quote.storeFees || []).map((entry) => [entry.storeId, Number(entry.deliveryFee) || 0])),
       });
-    }).catch(() => { if (!cancelled) setDeliveryQuote(null); }).finally(() => { if (!cancelled) setIsDeliveryQuoteLoading(false); });
+    }).catch((error: any) => {
+      if (!cancelled) {
+        setDeliveryQuote(null);
+        setDeliveryQuoteError(error?.message || 'تعذر حساب رسوم التوصيل. تحقق من العنوان والمحافظة.');
+      }
+    }).finally(() => { if (!cancelled) setIsDeliveryQuoteLoading(false); });
     return () => { cancelled = true; };
   }, [isAuthenticated, selectedAddress?.id, selectedAddress?.latitude, selectedAddress?.longitude, deliveryStoreIdsKey, deliveryQuoteRetryKey]);
   const baseDeliveryFee = cartSubOrders.length === 0 ? 0 : deliveryQuote?.fee ?? 0;
@@ -883,6 +896,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cartDeliveryFee,
         cartFarthestStoreDistanceKm,
         isDeliveryQuoteLoading,
+        deliveryQuoteError,
         hasDeliveryQuote: Boolean(deliveryQuote) || cartSubOrders.length === 0,
         refreshDeliveryQuote,
         cartDiscount,
