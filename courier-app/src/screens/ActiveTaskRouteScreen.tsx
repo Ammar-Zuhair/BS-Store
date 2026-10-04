@@ -68,16 +68,33 @@ export const ActiveTaskRouteScreen: React.FC = () => {
     );
   }
 
+  const callCustomer = async () => {
+    const phone = activeTask.customerPhone.replace(/[^+\d]/g, '');
+    if (!phone) {
+      Alert.alert('تعذر الاتصال', 'لا يتوفر رقم هاتف صالح للعميل في بيانات الطلب.');
+      return;
+    }
+
+    try {
+      await Linking.openURL(`tel:${phone}`);
+    } catch {
+      Alert.alert('تعذر الاتصال', 'تعذر فتح تطبيق الاتصال على هذا الجهاز.');
+    }
+  };
+
   const handleCallCustomer = () => {
     Alert.alert(
       'الاتصال بالعميل',
       `الاتصال بـ ${activeTask.customerName} على الرقم ${activeTask.customerPhone}؟`,
       [
         { text: 'إلغاء', style: 'cancel' },
-        { text: 'اتصال', onPress: () => Linking.openURL(`tel:${activeTask.customerPhone}`) },
+        { text: 'اتصال', onPress: () => { void callCustomer(); } },
       ]
     );
   };
+
+  const canCompleteDelivery = activeTask.status === 'EN_ROUTE_DELIVERY' &&
+    activeTask.stops.filter((stop) => stop.type === 'PICKUP_STORE').every((stop) => stop.status === 'COMPLETED');
 
   const handleOpenMaps = (address: string, lat?: number, lng?: number) => {
     if (lat && lng) {
@@ -252,10 +269,12 @@ export const ActiveTaskRouteScreen: React.FC = () => {
                   <TouchableOpacity
                     style={[styles.deliverFinalBtn, isCompletingDelivery && { opacity: 0.7 }]}
                     onPress={handleCompleteDelivery}
-                    disabled={isCompletingDelivery || (activeTask.paymentMethod === 'MANUAL_TRANSFER' && !activeTask.isTransferAmountConfirmed)}
+                    disabled={isCompletingDelivery || !canCompleteDelivery || (activeTask.paymentMethod === 'MANUAL_TRANSFER' && !activeTask.isTransferAmountConfirmed)}
                   >
                     {isCompletingDelivery ? <ActivityIndicator color="#fff" /> : <Text style={styles.deliverFinalBtnText}>
-                      {activeTask.paymentMethod === 'CASH_ON_DELIVERY'
+                      {!canCompleteDelivery
+                        ? 'أكمل مشتريات المتاجر أولاً'
+                        : activeTask.paymentMethod === 'CASH_ON_DELIVERY'
                         ? `إتمام التسليم وتحصيل ${activeTask.amountToCollect.toLocaleString()} ر.ي ✓`
                         : activeTask.amountToCollect > 0
                           ? `إتمام التسليم بعد تحصيل ${activeTask.amountToCollect.toLocaleString()} ر.ي ✓`
@@ -515,7 +534,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   purchaseDocBtnText: {
-    color: colors.onSecondary,
+    color: '#111111',
     fontSize: 14,
     fontWeight: typography.fontWeight.bold,
   },

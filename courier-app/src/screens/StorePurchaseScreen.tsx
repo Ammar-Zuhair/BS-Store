@@ -28,15 +28,27 @@ export const StorePurchaseScreen: React.FC = () => {
       Alert.alert('السعر غير صالح', 'أدخل سعراً أكبر من صفر وبحد أقصى منزلتين عشريتين أولاً.');
       return;
     }
+    if (activeTask?.status !== 'PURCHASING') {
+      Alert.alert('تغيير السعر غير متاح', 'لا يمكن تغيير سعر الصنف في مرحلة المهمة الحالية. سجّل سعر فاتورة العميل أو راجع الإدارة.');
+      return;
+    }
+    const phone = activeTask.customerPhone?.replace(/[^+\d]/g, '');
+    if (!phone) {
+      Alert.alert('تعذر الاتصال', 'لا يتوفر رقم هاتف صالح للعميل في بيانات الطلب.');
+      return;
+    }
     try {
       const attempt = await startPriceChangeContact(itemId, proposedPrice);
       setContactAttempts((current) => ({ ...current, [itemId]: attempt }));
       setCustomerConfirmed((current) => ({ ...current, [itemId]: false }));
-      const phone = activeTask?.customerPhone?.replace(/[^+\d]/g, '');
-      if (phone) await Linking.openURL(`tel:${phone}`);
-      else Alert.alert('تعذر الاتصال', 'لا يتوفر رقم العميل ضمن بيانات الطلب.');
     } catch (error: any) {
       Alert.alert('تعذر بدء الاتصال', error?.message || 'حدّث بيانات الطلب وحاول مجدداً.');
+      return;
+    }
+    try {
+      await Linking.openURL(`tel:${phone}`);
+    } catch {
+      Alert.alert('تعذر الاتصال', 'تعذر فتح تطبيق الاتصال على هذا الجهاز.');
     }
   };
 
@@ -49,6 +61,10 @@ export const StorePurchaseScreen: React.FC = () => {
       return;
     }
     const changedItems = items.filter((item) => Number(actualPrices[item.id]) !== item.customerPrice);
+    if (changedItems.length > 0 && activeTask?.status !== 'PURCHASING') {
+      Alert.alert('تغيير السعر غير متاح', 'لا يمكن تغيير سعر الصنف في مرحلة المهمة الحالية. سجّل سعر فاتورة العميل أو راجع الإدارة.');
+      return;
+    }
     if (changedItems.some((item) => !contactAttempts[item.id] || !customerConfirmed[item.id])) {
       Alert.alert('تأكيد إبلاغ العميل مطلوب', 'اتصل بالعميل لكل صنف تغير سعره، ثم أقر بإبلاغه قبل حفظ الشراء.');
       return;

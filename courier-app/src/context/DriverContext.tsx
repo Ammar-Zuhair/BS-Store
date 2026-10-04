@@ -316,24 +316,33 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }[]) => {
     if (!activeTask) return;
 
+    const subOrderId = activeTask.stops.find((s) => s.type === 'PICKUP_STORE' && s.status !== 'COMPLETED')?.id.replace('stop-store-', '') || '';
+    const purchaseRequest = {
+      subOrderId,
+      idempotencyKey: `${activeTask.id}:${subOrderId}:${Date.now()}`,
+      itemDetails: items.map((it) => ({
+        orderItemId: it.id,
+        actualPrice: it.actualPrice,
+        observedCatalogPrice: activeTask.itemsToPurchase.find((item) => item.id === it.id)?.catalogPrice,
+        priceChangeContactAttemptId: it.priceChangeContactAttemptId,
+        customerContactConfirmed: it.customerContactConfirmed,
+      })),
+    };
+
     try {
-      const subOrderId = activeTask.stops.find((s) => s.type === 'PICKUP_STORE' && s.status !== 'COMPLETED')?.id.replace('stop-store-', '') || '';
-      await driverApi.recordPurchase(activeTask.id, {
-        subOrderId,
-        idempotencyKey: `${activeTask.id}:${subOrderId}:${Date.now()}`,
-        itemDetails: items.map((it) => ({
-          orderItemId: it.id,
-          actualPrice: it.actualPrice,
-          observedCatalogPrice: activeTask.itemsToPurchase.find((item) => item.id === it.id)?.catalogPrice,
-          priceChangeContactAttemptId: it.priceChangeContactAttemptId,
-          customerContactConfirmed: it.customerContactConfirmed,
-        })),
-      });
+      try {
+        await driverApi.recordPurchase(activeTask.id, purchaseRequest);
+      } catch (error) {
+        if ((error as any)?.status !== 409) throw error;
+        await refreshData();
+        await driverApi.recordPurchase(activeTask.id, purchaseRequest);
+      }
 
       await refreshData();
       navigateTo('route');
     } catch (e) {
       console.error('Failed to record purchase:', e);
+      if ((e as any)?.status === 409) await refreshData();
       throw e;
     }
   };
@@ -347,6 +356,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       navigateTo('dashboard');
     } catch (e) {
       console.error('Failed to complete delivery:', e);
+      if ((e as any)?.status === 409) await refreshData();
       throw e;
     }
   };

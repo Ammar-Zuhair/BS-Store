@@ -27,6 +27,15 @@ function getSafeHttpErrorMessage(status: number): string {
   return 'تعذر إتمام الطلب. حاول مجدداً لاحقاً.';
 }
 
+function getHttpErrorMessage(status: number, responseBody: any): string {
+  const serverMessage = typeof responseBody?.message === 'string'
+    ? responseBody.message.trim()
+    : typeof responseBody?.Message === 'string'
+      ? responseBody.Message.trim()
+      : '';
+  return serverMessage || getSafeHttpErrorMessage(status);
+}
+
 const ACCESS_TOKEN_KEY = '@bs_courier_access_token';
 const REFRESH_TOKEN_KEY = '@bs_courier_refresh_token';
 
@@ -135,7 +144,7 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      const error = new Error(getSafeHttpErrorMessage(response.status));
+      const error = new Error(getHttpErrorMessage(response.status, data));
       (error as any).code = 'REQUEST_FAILED';
       (error as any).status = response.status;
       throw error;
