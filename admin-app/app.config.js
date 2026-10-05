@@ -46,7 +46,7 @@ function isApprovedProductionApi(value) {
 module.exports = ({ config }) => {
   const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID || readEnvFile('EXPO_PUBLIC_EAS_PROJECT_ID') || config.extra?.eas?.projectId;
   if (!easProjectId && (process.env.EAS_BUILD === 'true' || process.env.EAS_BUILD === '1' || process.env.EAS_BUILD_PROFILE)) {
-    throw new Error('An existing Expo EAS project ID is required for EAS Update configuration.');
+    throw new Error('An existing Expo EAS project ID is required for EAS builds.');
   }
   const configuredApi = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_URL) || normalizeApiBaseUrl(readEnvFile('EXPO_PUBLIC_API_URL'));
   const isBuild = process.env.EAS_BUILD === 'true' || process.env.EAS_BUILD === '1' || Boolean(process.env.EAS_BUILD_PROFILE);
@@ -68,16 +68,6 @@ module.exports = ({ config }) => {
   }
   return {
     ...config,
-    runtimeVersion: { policy: 'appVersion' },
-    updates: {
-      ...config.updates,
-      ...(easProjectId ? { url: `https://u.expo.dev/${easProjectId}` } : {}),
-      enabled: true,
-      // Start the embedded bundle first; SystemGate checks for OTA updates after
-      // the app is interactive so native update work cannot delay launch.
-      checkAutomatically: 'NEVER',
-      fallbackToCacheTimeout: 0,
-    },
     plugins: Array.from(new Set([...(config.plugins || []), 'expo-secure-store'])),
     ios: {
       ...config.ios,

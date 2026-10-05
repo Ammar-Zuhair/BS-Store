@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, InteractionManager, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
+import { ActivityIndicator, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
 import { api } from '../api';
@@ -7,7 +7,7 @@ import { typography } from '../theme';
 
 type Palette = {
   primary: string; background: string; onSurface: string; onSurfaceVariant: string;
-  surfaceContainerLowest?: string; surfaceContainerLow?: string; outlineVariant?: string;
+  surfaceContainerLow?: string;
   success?: string; warning?: string; error?: string;
 };
 type VersionStatus = {
@@ -25,16 +25,12 @@ export const SystemGate: React.FC<{
   children: React.ReactNode;
   appType: 'customer' | 'admin' | 'courier';
   palette: Palette;
-  safeToReload: boolean;
   showMaintenance?: boolean;
-}> = ({ children, appType, palette, safeToReload, showMaintenance = true }) => {
+}> = ({ children, appType, palette, showMaintenance = true }) => {
   const [maintenance, setMaintenance] = useState<MaintenanceStatus | null>(null);
   const [versionStatus, setVersionStatus] = useState<VersionStatus | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [initialCheckComplete, setInitialCheckComplete] = useState(false);
-  const [isOtaReady, setIsOtaReady] = useState(false);
-  const [isOtaDismissed, setIsOtaDismissed] = useState(false);
-  const [isApplyingOta, setIsApplyingOta] = useState(false);
 
   const refreshStatus = useCallback(async () => {
     const result = await Promise.allSettled([withTimeout(api.get<MaintenanceStatus>('/system/status'))]);
@@ -69,30 +65,6 @@ export const SystemGate: React.FC<{
     return () => { clearInterval(interval); subscription.remove(); };
   }, [refreshStatus]);
 
-  useEffect(() => {
-    if (!initialCheckComplete) return;
-    let active = true;
-    let interactionTask: { cancel: () => void } | undefined;
-    const timer = setTimeout(() => {
-      if (!active) return;
-      interactionTask = InteractionManager.runAfterInteractions(() => {
-        void (async () => {
-          try {
-            const Updates = await import('expo-updates');
-            if (!active || !Updates.isEnabled) return;
-            const result = await Updates.checkForUpdateAsync();
-            if (!result.isAvailable) return;
-            const fetched = await Updates.fetchUpdateAsync();
-            if (active && fetched.isNew) setIsOtaReady(true);
-          } catch {
-            // The embedded app remains usable when OTA is unavailable or offline.
-          }
-        })();
-      });
-    }, 1200);
-    return () => { active = false; clearTimeout(timer); interactionTask?.cancel(); };
-  }, [initialCheckComplete]);
-
   const openUpdate = async () => {
     const url = versionStatus?.updateUrl;
     if (!url) {
@@ -101,19 +73,6 @@ export const SystemGate: React.FC<{
     }
     try { await Linking.openURL(url); }
     catch { Alert.alert('تعذر فتح التحديث', 'تحقق من اتصال الإنترنت وحاول مرة أخرى.'); }
-  };
-
-  const applyOta = async () => {
-    if (!safeToReload || isApplyingOta) return;
-    setIsApplyingOta(true);
-    try {
-      const Updates = await import('expo-updates');
-      await Updates.reloadAsync();
-    }
-    catch {
-      setIsApplyingOta(false);
-      Alert.alert('تعذر تطبيق التحديث', 'سيبقى التطبيق على النسخة الحالية ويمكن المحاولة لاحقاً.');
-    }
   };
 
   if (!initialCheckComplete) {
@@ -136,20 +95,6 @@ export const SystemGate: React.FC<{
   return (
     <View style={{ flex: 1 }}>
       {children}
-      {isOtaReady && safeToReload && !isOtaDismissed && (
-        <View style={[styles.banner, { backgroundColor: palette.surfaceContainerLowest || '#FFFFFF', borderColor: palette.outlineVariant || '#DDE1E7' }]}>
-          <View style={styles.bannerCopy}>
-            <Text style={[styles.bannerTitle, { color: palette.onSurface }]}>يتوفر تحديث جديد</Text>
-            <Text style={[styles.bannerMessage, { color: palette.onSurfaceVariant }]}>تم تنزيل تحسينات جديدة للتطبيق.</Text>
-          </View>
-          <Pressable accessibilityRole="button" onPress={() => void applyOta()} style={[styles.primaryButton, { backgroundColor: palette.primary }]}>
-            {isApplyingOta ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>تطبيق</Text>}
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => setIsOtaDismissed(true)} style={styles.laterButton}>
-            <Text style={[styles.laterText, { color: palette.onSurfaceVariant }]}>لاحقاً</Text>
-          </Pressable>
-        </View>
-      )}
       {!!versionStatus?.updateAvailable && !versionStatus.updateRequired && (
         <Pressable accessibilityRole="button" onPress={() => void openUpdate()} style={[styles.versionBanner, { backgroundColor: palette.primary }]}>
           <Text style={styles.primaryButtonText}>{versionStatus.title || `يتوفر الإصدار ${versionStatus.latestVersion}`}</Text>
@@ -220,12 +165,6 @@ const styles = StyleSheet.create({
   footnote: { fontFamily: typography.fontFamily.regular, marginTop: 20, fontSize: 14, textAlign: 'center', writingDirection: 'rtl' },
   retryButton: { marginTop: 20, padding: 12 },
   retryText: { fontFamily: typography.fontFamily.bold, fontWeight: '700', fontSize: 16 },
-  banner: { position: 'absolute', top: 8, left: 12, right: 12, zIndex: 200, elevation: 12, borderWidth: 1, borderRadius: 16, padding: 12, flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
-  bannerCopy: { flex: 1, alignItems: 'flex-end' },
-  bannerTitle: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '700', writingDirection: 'rtl' },
-  bannerMessage: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginTop: 3, writingDirection: 'rtl' },
-  laterButton: { paddingHorizontal: 6, paddingVertical: 10 },
-  laterText: { fontFamily: typography.fontFamily.medium, fontSize: 13, fontWeight: '600' },
   versionBanner: { position: 'absolute', top: 84, left: 12, right: 12, zIndex: 190, elevation: 10, borderRadius: 16, padding: 14, alignItems: 'flex-end' },
   versionBannerMessage: { color: '#FFFFFF', fontSize: 13, marginTop: 4, textAlign: 'right', writingDirection: 'rtl' },
   versionBannerAction: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontSize: 13, fontWeight: '700', marginTop: 7 },
