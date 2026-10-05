@@ -1,49 +1,48 @@
 import { useEffect, useRef } from 'react';
-import { InteractionManager, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-import { isRunningInExpoGo } from 'expo';
+import * as Notifications from 'expo-notifications';
 
-type NotificationsModule = typeof import('expo-notifications');
 type NotificationSubscription = { remove: () => void };
 
-let notificationsModulePromise: Promise<NotificationsModule | null> | null = null;
-
-function loadNotificationsModule(): Promise<NotificationsModule | null> {
-  if (Platform.OS === 'web' || isRunningInExpoGo()) return Promise.resolve(null);
-  if (!notificationsModulePromise) {
-    notificationsModulePromise = import('expo-notifications').then(Notifications => {
-      Notifications.setNotificationHandler({
-        handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true }),
-      });
-      return Notifications;
-    }).catch(error => {
-      console.warn('تعذر تهيئة الإشعارات؛ سيعمل التطبيق بدونها:', error);
-      return null;
-    });
-  }
-  return notificationsModulePromise;
-}
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 const PUSH_TOKEN_KEY = '@bs_admin_push_token';
-const PUSH_BOOTSTRAP_DELAY_MS = 2500;
 
-export async function registerPushDevice(api: { post: (path: string, data: any) => Promise<any> }, appType: 'admin' | 'courier' | 'customer') {
-  // Android Expo Go does not support remote notifications. Avoid importing the
-  // native notifications module there; production and development builds keep
-  // the normal push-token registration flow.
-  if (Platform.OS === 'web' || isRunningInExpoGo()) return null;
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId || process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+export async function registerPushDevice(
+  api: { post: (path: string, data: any) => Promise<any> },
+  appType: 'admin' | 'courier' | 'customer',
+) {
+  if (Platform.OS === 'web') return null;
+
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId
+    || Constants.easConfig?.projectId
+    || process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
   if (!projectId) {
     console.warn('Push registration skipped: set extra.eas.projectId for the EAS project.');
     return null;
   }
-  const Notifications = await loadNotificationsModule();
-  if (!Notifications) return null;
-  if (Platform.OS === 'android') await Notifications.setNotificationChannelAsync('default', { name: 'الإشعارات', importance: Notifications.AndroidImportance.MAX, vibrationPattern: [0, 250, 250, 250] });
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'الإشعارات',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+    });
+  }
+
   let permission = await Notifications.getPermissionsAsync();
   if (!permission.granted) permission = await Notifications.requestPermissionsAsync();
   if (!permission.granted) return null;
+
   const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync({ projectId });
   await api.post('/notifications/devices', { expoPushToken, platform: Platform.OS, appType });
   await AsyncStorage.setItem(PUSH_TOKEN_KEY, expoPushToken);
@@ -67,50 +66,44 @@ export function usePushNotifications(
   const apiRef = useRef(api);
   openRef.current = onOpen;
   apiRef.current = api;
+
   useEffect(() => {
-    if (!enabled || Platform.OS === 'web' || isRunningInExpoGo()) return;
+    if (Platform.OS === 'web') return;
 
     let mounted = true;
     let lastResponseId: string | null = null;
     let subscription: NotificationSubscription | null = null;
-    let interactionTask: { cancel: () => void } | undefined;
-    const timer = setTimeout(() => {
-      interactionTask = InteractionManager.runAfterInteractions(() => {
-        if (!mounted) return;
-        void loadNotificationsModule().then(Notifications => {
-          if (!Notifications || !mounted) return;
-          try {
-            registerPushDevice(apiRef.current, appType).catch(error => console.warn('تعذر تسجيل الإشعارات:', error));
-            const open = (response: import('expo-notifications').NotificationResponse | null) => {
-              if (!response || !mounted) return;
-              try {
-                const responseId = response.notification.request.identifier;
-                if (responseId === lastResponseId) return;
-                lastResponseId = responseId;
-                const content = response.notification.request.content.data as any;
-                openRef.current(String(content?.type || ''), content?.data || {});
-              } catch (error) {
-                console.warn('تعذر فتح الإشعار:', error);
-              }
-            };
-            void Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});
-            subscription = Notifications.addNotificationResponseReceivedListener(response => {
-              open(response);
-            });
-          } catch (error) {
-            subscription?.remove();
-            subscription = null;
-            console.warn('تعذر إعداد مستمع الإشعارات؛ سيعمل التطبيق بدونها:', error);
-          }
-        }).catch(error => {
-          if (mounted) console.warn('تعذر إعداد الإشعارات؛ سيعمل التطبيق بدونها:', error);
+
+    try {
+      if (enabled) {
+        registerPushDevice(apiRef.current, appType).catch(error => {
+          console.warn('تعذر تسجيل الإشعارات:', error);
         });
-      });
-    }, PUSH_BOOTSTRAP_DELAY_MS);
+      }
+
+      const open = (response: Notifications.NotificationResponse | null) => {
+        if (!response || !mounted) return;
+        try {
+          const responseId = response.notification.request.identifier;
+          if (responseId === lastResponseId) return;
+          lastResponseId = responseId;
+          const content = response.notification.request.content.data as any;
+          openRef.current(String(content?.type || ''), content?.data || {});
+        } catch (error) {
+          console.warn('تعذر فتح الإشعار:', error);
+        }
+      };
+
+      void Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});
+      subscription = Notifications.addNotificationResponseReceivedListener(open);
+    } catch (error) {
+      subscription?.remove();
+      subscription = null;
+      console.warn('تعذر إعداد مستمع الإشعارات؛ سيعمل التطبيق بدونها:', error);
+    }
+
     return () => {
       mounted = false;
-      clearTimeout(timer);
-      interactionTask?.cancel();
       subscription?.remove();
     };
   }, [enabled, appType]);
