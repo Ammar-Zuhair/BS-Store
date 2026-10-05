@@ -260,13 +260,62 @@ export const InventoryScreen: React.FC = () => {
   const [storeGovernorateId, setStoreGovernorateId] = useState('');
   const [storeGovernoratePickerVisible, setStoreGovernoratePickerVisible] = useState(false);
   const [newGovernorateName, setNewGovernorateName] = useState('');
-  const [isAddingGovernorate, setIsAddingGovernorate] = useState(false);
+  const [editingGovernorate, setEditingGovernorate] = useState<{ id: string; name: string } | null>(null);
+  const [isSavingGovernorate, setIsSavingGovernorate] = useState(false);
   const [governorateMessage, setGovernorateMessage] = useState('');
   useEffect(() => {
     void adminApi.getGovernorates()
       .then(setGovernorates)
       .catch((error: any) => setGovernorateMessage(error?.message || 'تعذر تحميل المحافظات من الخادم.'));
   }, []);
+
+  const saveGovernorate = async () => {
+    const name = newGovernorateName.trim();
+    if (!name) { setGovernorateMessage('اكتب اسم المحافظة أولاً.'); return; }
+    setGovernorateMessage('');
+    setIsSavingGovernorate(true);
+    try {
+      if (editingGovernorate) {
+        await adminApi.updateGovernorate(editingGovernorate.id, name);
+        setGovernorateMessage(`تم تعديل اسم المحافظة إلى ${name}.`);
+      } else {
+        await adminApi.addGovernorate(name);
+        setGovernorateMessage(`تمت إضافة ${name} وحفظها.`);
+      }
+      setGovernorates(await adminApi.getGovernorates());
+      setNewGovernorateName('');
+      setEditingGovernorate(null);
+    } catch (error: any) {
+      setGovernorateMessage(error?.message || 'تعذر الحفظ. تحقق من اتصالك وصلاحيات الحساب.');
+    } finally {
+      setIsSavingGovernorate(false);
+    }
+  };
+
+  const deleteGovernorate = (governorate: { id: string; name: string }) => {
+    Alert.alert(
+      'حذف المحافظة',
+      `هل تريد حذف محافظة ${governorate.name}؟ لا يمكن حذف محافظة مرتبطة بمتاجر أو حسابات عملاء أو موصلين.`,
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        { text: 'حذف', style: 'destructive', onPress: () => {
+          void (async () => {
+            try {
+              await adminApi.deleteGovernorate(governorate.id);
+              setGovernorates(await adminApi.getGovernorates());
+              if (editingGovernorate?.id === governorate.id) {
+                setEditingGovernorate(null);
+                setNewGovernorateName('');
+              }
+              setGovernorateMessage(`تم حذف محافظة ${governorate.name}.`);
+            } catch (error: any) {
+              setGovernorateMessage(error?.message || 'تعذر حذف المحافظة.');
+            }
+          })();
+        } },
+      ],
+    );
+  };
   const [storeLatitude, setStoreLatitude] = useState<number | null>(null);
   const [storeLongitude, setStoreLongitude] = useState<number | null>(null);
   const [showStoreMapPicker, setShowStoreMapPicker] = useState(false);
@@ -707,27 +756,31 @@ export const InventoryScreen: React.FC = () => {
       {activeTab === 'governorates' && (
         <ScrollView contentContainerStyle={s.scrollContent}>
           <Text style={s.sectionTitle}>محافظات الخدمة وقوائم المواقع</Text>
-          <Text style={s.formLabel}>إضافة محافظة مدعومة</Text>
+          <Text style={s.formLabel}>{editingGovernorate ? 'تعديل اسم المحافظة' : 'إضافة محافظة مدعومة'}</Text>
           <View style={{ flexDirection: 'row-reverse', gap: 8, alignItems: 'center' }}>
-            <TouchableOpacity style={s.addBtn} disabled={isAddingGovernorate} onPress={async () => {
-              const name = newGovernorateName.trim();
-              if (!name) { setGovernorateMessage('اكتب اسم المحافظة أولاً.'); return; }
-              setGovernorateMessage('');
-              setIsAddingGovernorate(true);
-              try {
-                await adminApi.addGovernorate(name);
-                setGovernorates(await adminApi.getGovernorates());
-                setNewGovernorateName('');
-                setGovernorateMessage(`تمت إضافة ${name} وحفظها.`);
-              }
-              catch (e:any) { setGovernorateMessage(e?.message || 'تعذر الحفظ. تحقق من اتصالك وصلاحيات الحساب.'); }
-              finally { setIsAddingGovernorate(false); }
-            }}><Text style={s.addBtnText}>{isAddingGovernorate ? 'جارٍ الحفظ…' : 'إضافة'}</Text></TouchableOpacity>
+            <TouchableOpacity style={s.addBtn} disabled={isSavingGovernorate} onPress={() => void saveGovernorate()}>
+              <Text style={s.addBtnText}>{isSavingGovernorate ? 'جارٍ الحفظ…' : editingGovernorate ? 'حفظ التعديل' : 'إضافة'}</Text>
+            </TouchableOpacity>
             <TextInput style={[s.formInput, { flex: 1, marginBottom: 0 }]} value={newGovernorateName} onChangeText={setNewGovernorateName} placeholder="اسم المحافظة" textAlign="right" />
           </View>
+          {editingGovernorate && <TouchableOpacity style={s.cancelBtn} onPress={() => { setEditingGovernorate(null); setNewGovernorateName(''); }}>
+            <Text style={s.cancelBtnText}>إلغاء التعديل</Text>
+          </TouchableOpacity>}
           {!!governorateMessage && <Text style={s.formLabel}>{governorateMessage}</Text>}
           {governorates.length === 0 && !governorateMessage && <EmptyState icon="🗺️" text="لا توجد محافظات مضافة بعد" />}
-          {governorates.map(g => <View key={g.id} style={s.listCard}><Text style={s.listTitle}>{g.name}</Text></View>)}
+          {governorates.map(g => <View key={g.id} style={s.listCard}>
+            <View style={s.governorateCard}>
+              <Text style={[s.listTitle, s.governorateName]}>{g.name}</Text>
+              <View style={s.governorateActions}>
+                <TouchableOpacity style={[s.editBtn, s.governorateEditBtn]} onPress={() => { setEditingGovernorate(g); setNewGovernorateName(g.name); setGovernorateMessage(''); }}>
+                  <Text style={s.editBtnText}>تعديل</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.delBtn} accessibilityRole="button" accessibilityLabel={`حذف محافظة ${g.name}`} onPress={() => deleteGovernorate(g)}>
+                  <Text style={s.iconBtnTxt}>🗑</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>)}
         </ScrollView>
       )}
 
@@ -1815,6 +1868,10 @@ const s = StyleSheet.create({
   listCardInfo: { flex: 1, alignItems: 'flex-end', marginLeft: 8 },
   listTitle: { fontFamily: 'Tajawal_700Bold', fontSize: 14, color: colors.onSurface },
   listSub: { fontFamily: 'Tajawal_400Regular', fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 },
+  governorateCard: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
+  governorateName: { flex: 1, textAlign: 'right' },
+  governorateActions: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
+  governorateEditBtn: { flex: 0, paddingHorizontal: 14 },
 
   // Store card
   storeCard: {

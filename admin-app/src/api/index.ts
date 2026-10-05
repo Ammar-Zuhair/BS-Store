@@ -185,6 +185,8 @@ export const adminApi = {
     api.get<any[]>('/admin/stores').catch(() => api.get<any[]>('/stores?includeInactive=true')),
   getGovernorates: () => api.get<{id:string;name:string}[]>('/governorates'),
   addGovernorate: (name:string) => api.post<{id:string;name:string}>('/admin/governorates',{name}),
+  updateGovernorate: (id:string, name:string) => api.put<{id:string;name:string}>(`/admin/governorates/${id}`,{name}),
+  deleteGovernorate: (id:string) => api.delete<void>(`/admin/governorates/${id}`),
 
   createStore: (data: any) =>
     api.post<any>('/admin/stores', data),
