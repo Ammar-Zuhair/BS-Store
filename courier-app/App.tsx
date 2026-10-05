@@ -52,7 +52,7 @@ const DriverNavigator: React.FC = () => {
     return () => subscription.remove();
   }, [authenticated, currentScreen, isSessionRestoring, navigateBack]);
 
-  if (!fontsLoaded) return <View style={styles.appContainer} />;
+  if (!fontsLoaded) return <View style={[styles.appContainer, styles.loading]}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
   if (isSessionRestoring) return <SystemGate palette={colors} appType="courier" safeToReload={false}><View style={[styles.appContainer, styles.loading]}><ActivityIndicator size="large" color={colors.primary} /></View></SystemGate>;
 
