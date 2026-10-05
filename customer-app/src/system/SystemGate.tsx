@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, InteractionManager, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
+import { ActivityIndicator, AppState, InteractionManager, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Alert, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
 import { api } from '../api';
@@ -28,6 +29,8 @@ export const SystemGate: React.FC<{
   safeToReload: boolean;
   showMaintenance?: boolean;
 }> = ({ children, appType, palette, safeToReload, showMaintenance = true }) => {
+  const insets = useSafeAreaInsets();
+  const safeTopInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const [maintenance, setMaintenance] = useState<MaintenanceStatus | null>(null);
   const [versionStatus, setVersionStatus] = useState<VersionStatus | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -137,7 +140,7 @@ export const SystemGate: React.FC<{
     <View style={{ flex: 1 }}>
       {children}
       {isOtaReady && safeToReload && !isOtaDismissed && (
-        <View style={[styles.banner, { backgroundColor: palette.surfaceContainerLowest || '#FFFFFF', borderColor: palette.outlineVariant || '#DDE1E7' }]}>
+        <View style={[styles.banner, { top: safeTopInset + 8, backgroundColor: palette.surfaceContainerLowest || '#FFFFFF', borderColor: palette.outlineVariant || '#DDE1E7' }]}>
           <View style={styles.bannerCopy}>
             <Text style={[styles.bannerTitle, { color: palette.onSurface }]}>يتوفر تحديث جديد</Text>
             <Text style={[styles.bannerMessage, { color: palette.onSurfaceVariant }]}>تم تنزيل تحسينات جديدة للتطبيق.</Text>
@@ -151,7 +154,7 @@ export const SystemGate: React.FC<{
         </View>
       )}
       {!!versionStatus?.updateAvailable && !versionStatus.updateRequired && (
-        <Pressable accessibilityRole="button" onPress={() => void openUpdate()} style={[styles.versionBanner, { backgroundColor: palette.primary }]}>
+        <Pressable accessibilityRole="button" onPress={() => void openUpdate()} style={[styles.versionBanner, { top: safeTopInset + 84, backgroundColor: palette.primary }]}>
           <Text style={styles.primaryButtonText}>{versionStatus.title || `يتوفر الإصدار ${versionStatus.latestVersion}`}</Text>
           <Text style={styles.versionBannerMessage} numberOfLines={2}>{versionStatus.message || 'حدّث التطبيق للاستفادة من التحسينات الجديدة.'}</Text>
           <Text style={styles.versionBannerAction}>عرض التحديث</Text>

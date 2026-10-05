@@ -149,13 +149,38 @@ export const AccountManagementScreen: React.FC = () => {
     );
   };
 
+  const managerAccounts = accounts.filter((account) => account.role !== 'Driver');
+  const courierAccounts = accounts.filter((account) => account.role === 'Driver');
+  const renderAccountCard = (account: ManagedAccount) => {
+    const canEdit = isSuperAdmin || account.role === 'Driver';
+    const canDelete = isSuperAdmin ? account.role !== 'SuperAdmin' : account.role === 'Driver';
+
+    return <View key={account.id} style={styles.accountCard}>
+      <View style={styles.accountTopRow}>
+        <View style={styles.accountInfo}>
+          <Text style={styles.accountName}>{account.fullName}</Text>
+          <Text style={styles.accountPhone}>{account.phone}</Text>
+          {account.role === 'Driver' && account.governorateName ? <Text style={styles.accountMeta}>المحافظة: {account.governorateName}</Text> : null}
+        </View>
+        <View style={styles.accountBadges}>
+          <Text style={styles.roleBadge}>{roleLabel(account.role)}</Text>
+          <Text style={[styles.statusBadge, account.isActive ? styles.activeBadge : styles.inactiveBadge]}>{account.isActive ? 'فعال' : 'موقوف'}</Text>
+        </View>
+      </View>
+      {(canEdit || canDelete) && <View style={styles.accountActions}>
+        {canEdit && <TouchableOpacity style={styles.secondaryButton} onPress={() => startEdit(account)}><Text style={styles.secondaryButtonText}>تعديل</Text></TouchableOpacity>}
+        {canDelete && <TouchableOpacity style={styles.deleteButton} onPress={() => remove(account)}><Text style={styles.deleteButtonText}>حذف</Text></TouchableOpacity>}
+      </View>}
+    </View>;
+  };
+
   return (
     <View style={styles.screen}>
       <AdminHeader title="إدارة الحسابات" showBack onBack={() => navigateTo('financials')} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.introCard}>
           <Text style={styles.heading}>حسابات المديرين والموصلين</Text>
-          <Text style={styles.body}>يمكن للمدير إضافة حسابات. تعديل الحسابات وإيقافها متاح للمدير الأعلى فقط.</Text>
+          <Text style={styles.body}>{isSuperAdmin ? 'يمكنك إدارة حسابات المدراء والموصلين.' : 'يمكنك إضافة حسابات المديرين والموصلين، وتعديل حسابات الموصلين فقط.'}</Text>
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.primaryButton} onPress={startCreate}>
               <Text style={styles.primaryButtonText}>إضافة حساب</Text>
@@ -206,29 +231,20 @@ export const AccountManagementScreen: React.FC = () => {
           </View>
         </View>}
 
-        <Text style={styles.listHeading}>الحسابات ({accounts.length})</Text>
-        {loading ? <ActivityIndicator style={styles.loading} size="large" color={colors.primary} /> : accounts.map((account) => {
-          const canEdit = isSuperAdmin && (account.role !== 'SuperAdmin' || account.id === currentUser?.id);
-          const canDelete = isSuperAdmin && account.role !== 'SuperAdmin';
-          return <View key={account.id} style={styles.accountCard}>
-            <View style={styles.accountTopRow}>
-              <View style={styles.accountInfo}>
-                <Text style={styles.accountName}>{account.fullName}</Text>
-                <Text style={styles.accountPhone}>{account.phone}</Text>
-                {account.role === 'Driver' && account.governorateName ? <Text style={styles.accountMeta}>المحافظة: {account.governorateName}</Text> : null}
-              </View>
-              <View style={styles.accountBadges}>
-                <Text style={styles.roleBadge}>{roleLabel(account.role)}</Text>
-                <Text style={[styles.statusBadge, account.isActive ? styles.activeBadge : styles.inactiveBadge]}>{account.isActive ? 'فعال' : 'موقوف'}</Text>
-              </View>
-            </View>
-            {(canEdit || canDelete) && <View style={styles.accountActions}>
-              {canEdit && <TouchableOpacity style={styles.secondaryButton} onPress={() => startEdit(account)}><Text style={styles.secondaryButtonText}>تعديل</Text></TouchableOpacity>}
-              {canDelete && <TouchableOpacity style={styles.deleteButton} onPress={() => remove(account)}><Text style={styles.deleteButtonText}>حذف</Text></TouchableOpacity>}
-            </View>}
-          </View>;
-        })}
-        {!loading && accounts.length === 0 && <Text style={styles.emptyText}>لا توجد حسابات إدارية أو حسابات موصلين.</Text>}
+        {loading ? <ActivityIndicator style={styles.loading} size="large" color={colors.primary} /> : <>
+          <View style={styles.accountSection}>
+            <Text style={styles.listHeading}>حسابات المدراء ({managerAccounts.length})</Text>
+            {managerAccounts.length > 0
+              ? managerAccounts.map(renderAccountCard)
+              : <Text style={styles.emptyText}>لا توجد حسابات مدراء.</Text>}
+          </View>
+          <View style={styles.accountSection}>
+            <Text style={styles.listHeading}>حسابات الموصلين ({courierAccounts.length})</Text>
+            {courierAccounts.length > 0
+              ? courierAccounts.map(renderAccountCard)
+              : <Text style={styles.emptyText}>لا توجد حسابات موصلين.</Text>}
+          </View>
+        </>}
       </ScrollView>
 
       <Modal visible={governoratePickerOpen} transparent animationType="slide" onRequestClose={() => setGovernoratePickerOpen(false)}>
@@ -270,6 +286,7 @@ const styles = StyleSheet.create({
   activeBadge: { color: colors.primary, backgroundColor: colors.primaryContainer },
   inactiveBadge: { color: colors.error, backgroundColor: colors.errorContainer },
   listHeading: { color: colors.onSurface, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, textAlign: 'right', marginTop: spacing.baseSm },
+  accountSection: { gap: spacing.baseSm },
   accountCard: { backgroundColor: colors.surfaceContainerLowest, borderRadius: borderRadius.lg, padding: spacing.baseMd, borderWidth: 1, borderColor: colors.outlineVariant, gap: spacing.baseSm },
   accountTopRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: spacing.baseSm },
   accountInfo: { flex: 1, gap: 3 },

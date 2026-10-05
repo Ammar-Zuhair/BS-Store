@@ -49,8 +49,8 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({ title, showBack = fa
         )}
 
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut} accessibilityRole="button" accessibilityLabel="تسجيل الخروج">
-            <Text style={styles.logoutText}>خروج</Text>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut} accessibilityRole="button" accessibilityLabel="تسجيل الخروج" accessibilityHint="إنهاء جلسة حساب الموصل">
+            <Text style={styles.logoutText}>تسجيل الخروج</Text>
           </TouchableOpacity>
           {/* Shift Status Pill Button */}
           <TouchableOpacity
@@ -132,14 +132,16 @@ const styles = StyleSheet.create({
     gap: spacing.baseXs,
   },
   logoutBtn: {
-    minHeight: 34,
-    paddingHorizontal: 8,
-    borderRadius: borderRadius.full,
+    minHeight: 40,
+    minWidth: 94,
+    paddingHorizontal: 10,
+    borderRadius: borderRadius.md,
     backgroundColor: colors.errorContainer,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
-  logoutText: { color: colors.error, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xs },
+  logoutText: { color: colors.error, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm },
   statusPill: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
