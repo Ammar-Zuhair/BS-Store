@@ -448,6 +448,14 @@ export const FinancialsScreen: React.FC = () => {
         </View>
 
         <View style={{ backgroundColor: colors.surfaceContainerLowest, borderRadius: borderRadius.xl, padding: spacing.baseMd, marginBottom: spacing.baseLg, borderWidth: 1, borderColor: colors.outlineVariant }}>
+          <TouchableOpacity
+            style={{ padding: spacing.baseMd, borderRadius: borderRadius.md, backgroundColor: colors.primary, marginBottom: spacing.baseMd }}
+            onPress={() => navigateTo('accounts')}
+            accessibilityRole="button"
+            accessibilityLabel="إدارة حسابات المديرين والموصلين"
+          >
+            <Text style={{ color: colors.onPrimary, textAlign: 'center', fontFamily: typography.fontFamily.bold }}>إدارة حسابات المديرين والموصلين</Text>
+          </TouchableOpacity>
           <Text style={{ fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.onSurface, textAlign: 'right' }}>طلبات إنشاء حسابات المناديب ({pendingDrivers.length})</Text>
           {pendingDrivers.length === 0 ? <Text style={{ marginTop: 8, color: colors.onSurfaceVariant, textAlign: 'right', fontFamily: typography.fontFamily.regular }}>لا توجد طلبات موافقة معلقة.</Text> : pendingDrivers.map((driver: any) => (
             <View key={driver.id} style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.outlineVariant }}>

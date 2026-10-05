@@ -26,7 +26,7 @@ import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 type AuthMode = 'phone' | 'password' | 'register';
 
 export const AuthScreen: React.FC = () => {
-  const { login, register, navigateTo, registeredUser, colors: themeColors } = useApp();
+  const { login, register, registeredUser, colors: themeColors } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [mode, setMode] = useState<AuthMode>('phone');
@@ -455,26 +455,6 @@ export const AuthScreen: React.FC = () => {
                   </View>
                 </TouchableOpacity>
 
-                {/* Divider Line */}
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>أو</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                {/* Browse as Guest Option */}
-                <TouchableOpacity
-                  style={styles.guestLinkBtn}
-                  onPress={() => navigateTo('home')}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel="التصفح كزائر بدون تسجيل"
-                >
-                  <View style={styles.btnRow}>
-                    <Text style={styles.guestLinkText}>التصفح كزائر بدون تسجيل</Text>
-                    <AppIcon name="arrow-right" size={15} color={themeColors.onSurfaceVariant} />
-                  </View>
-                </TouchableOpacity>
               </View>
             )}
 
@@ -1123,32 +1103,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontFamily: typography.fontFamily.bold,
     fontSize: 14,
     color: colors.primary,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.outlineVariant,
-  },
-  dividerText: {
-    fontFamily: typography.fontFamily.medium,
-    fontSize: 11,
-    color: colors.outline,
-    marginHorizontal: 10,
-  },
-  guestLinkBtn: {
-    alignItems: 'center',
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  guestLinkText: {
-    fontFamily: typography.fontFamily.medium,
-    fontSize: 12.5,
-    color: colors.onSurfaceVariant,
   },
   backRowBtn: {
     flexDirection: 'row-reverse',

@@ -131,7 +131,9 @@ const MainNavigator: React.FC = () => {
     }
   };
 
-  const showNav = currentScreen !== 'auth' && currentScreen !== 'checkout';
+  const showNav = isAuthenticated && currentScreen !== 'auth' && currentScreen !== 'checkout';
+
+  const resolvedScreen = !isAuthenticated && currentScreen !== 'auth' ? <AuthScreen /> : renderScreen();
 
   return (
     <SystemGate
@@ -163,9 +165,9 @@ const MainNavigator: React.FC = () => {
             translucent={true}
             hidden={false}
           />
-          {renderScreen()}
+          {resolvedScreen}
           <BoosthisScreenTracker key={currentScreen} screen={BOOSTHIS_SCREEN_NAMES[currentScreen]} />
-          {currentScreen !== 'auth' && <FloatingCartBar />}
+          {isAuthenticated && currentScreen !== 'auth' && <FloatingCartBar />}
           {showNav && <BottomNav />}
         </View>
       </SafeAreaView>

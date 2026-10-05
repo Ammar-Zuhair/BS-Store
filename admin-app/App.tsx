@@ -17,6 +17,7 @@ import { InventoryScreen } from './src/screens/InventoryScreen';
 import { AddEditProductScreen } from './src/screens/AddEditProductScreen';
 import { CategoriesScreen } from './src/screens/CategoriesScreen';
 import { FinancialsScreen } from './src/screens/FinancialsScreen';
+import { AccountManagementScreen } from './src/screens/AccountManagementScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { AdminPriceChangesScreen } from './src/screens/AdminPriceChangesScreen';
 import { AdminSystemManagementScreen } from './src/screens/AdminSystemManagementScreen';
@@ -36,6 +37,7 @@ const BOOSTHIS_SCREEN_NAMES: Record<AdminScreenName, string> = {
   add_product: 'ProductEditor',
   categories: 'Categories',
   financials: 'Financials',
+  accounts: 'AccountManagement',
   price_changes: 'PriceChanges',
   system_management: 'SystemManagement',
   broadcasts: 'Notifications',
@@ -95,6 +97,8 @@ const AdminNavigator: React.FC = () => {
         return <CategoriesScreen />;
       case 'financials':
         return <FinancialsScreen />;
+      case 'accounts':
+        return <AccountManagementScreen />;
       case 'price_changes':
         return <AdminPriceChangesScreen />;
       case 'system_management':

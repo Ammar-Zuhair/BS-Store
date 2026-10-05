@@ -27,6 +27,7 @@ export type AdminScreenName =
   | 'add_product'
   | 'categories'
   | 'financials'
+  | 'accounts'
   | 'price_changes'
   | 'system_management'
   | 'broadcasts'
@@ -47,12 +48,15 @@ export interface DriverSettlementRequest {
 }
 
 export interface RegisteredUser {
+  id: string;
   name: string;
   phone: string;
   email?: string;
+  role: string;
 }
 
 const DEFAULT_KPI: AdminKPI = {
+  ordersToday: 0,
   salesTotal: 0,
   salesChangePercent: 0,
   grossProfit: 0,
@@ -227,16 +231,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // 1. Dashboard KPI
       try {
         const dash = await adminApi.getDashboard();
+        const salesTotal = Number(dash.totalSalesToday ?? 0);
+        const grossProfit = Number(dash.totalGrossProfitToday ?? 0);
         setKpi({
-          salesTotal: dash.salesToday || 0,
-          salesChangePercent: 14.2,
-          grossProfit: Math.round((dash.salesToday || 0) * 0.22),
-          profitMarginPercent: 22,
-          purchaseCostTotal: Math.round((dash.salesToday || 0) * 0.78),
-          fieldCustodyTotal: 0,
-          criticalPendingCount: (dash.pendingPayments || 0) + (dash.searchingDriverOrders || 0),
+          ordersToday: Number(dash.totalOrdersToday ?? 0),
+          salesTotal,
+          salesChangePercent: Number(dash.salesChangePercent ?? 0),
+          grossProfit,
+          profitMarginPercent: salesTotal > 0 ? Math.round((grossProfit / salesTotal) * 1000) / 10 : 0,
+          purchaseCostTotal: Number(dash.totalPurchaseCostToday ?? 0),
+          fieldCustodyTotal: Number(dash.fieldCustodyTotal ?? 0),
+          criticalPendingCount: (dash.pendingVerificationPayments || 0) + (dash.searchingDriverOrders || 0),
           pendingDriverOrdersCount: dash.searchingDriverOrders || 0,
-          pendingBankTransfersCount: dash.pendingPayments || 0,
+          pendingBankTransfersCount: dash.pendingVerificationPayments || 0,
         });
       } catch (e) {
         console.warn('Dashboard fetch error:', e);
@@ -569,9 +576,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     const adminName = res.user.fullName || res.user.name || 'مدير النظام';
     setCurrentUser({
+      id: res.user.id,
       name: adminName,
       phone: res.user.phone,
       email: res.user.email,
+      role: res.user.role,
     });
     // Authentication should not wait for every dashboard resource. Load them after
     // navigation so slow or unavailable secondary endpoints do not delay sign-in.
@@ -592,7 +601,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return;
           }
           if (!active) return;
-          setCurrentUser({ name: user.fullName || user.name || 'مدير النظام', phone: user.phone, email: user.email });
+          setCurrentUser({ id: user.id, name: user.fullName || user.name || 'مدير النظام', phone: user.phone, email: user.email, role: user.role });
           navigateTo('dashboard');
           void refreshData();
         } catch (error: any) {
@@ -614,9 +623,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       throw new Error('تعذر إنشاء حساب إداري.');
     }
     setCurrentUser({
+      id: res.user.id,
       name: res.user.fullName || res.user.name || fullName,
       phone: res.user.phone,
       email: res.user.email,
+      role: res.user.role,
     });
     void refreshData();
     return true;

@@ -43,7 +43,7 @@ export const authApi = {
       user: { id: string; fullName?: string; name?: string; phone: string; email?: string; role: string };
     }>(
       '/auth/login',
-      { phone, password }
+      { phone, password, role: 'Admin' }
     );
     await api.setToken(res.accessToken);
     await api.setRefreshToken(res.refreshToken);
@@ -65,12 +65,23 @@ export const authApi = {
 export const adminApi = {
   getDashboard: () =>
     api.get<{
-      ordersToday: number;
-      salesToday: number;
-      pendingPayments: number;
+      totalOrdersToday: number;
+      totalSalesToday: number;
+      totalPurchaseCostToday: number;
+      totalGrossProfitToday: number;
+      salesChangePercent: number;
+      fieldCustodyTotal: number;
+      pendingVerificationPayments: number;
       searchingDriverOrders: number;
-      activeDrivers: number;
+      activeDriversCount: number;
     }>('/admin/dashboard'),
+
+  getManagedAccounts: () => api.get<any[]>('/admin/accounts'),
+  createManagedAccount: (data: { fullName: string; phone: string; password: string; role: 'Admin' | 'Driver'; governorateId?: string }) =>
+    api.post<any>('/admin/accounts', data),
+  updateManagedAccount: (id: string, data: { fullName: string; phone: string; password?: string; isActive: boolean; governorateId?: string }) =>
+    api.put<any>(`/admin/accounts/${id}`, data),
+  deleteManagedAccount: (id: string) => api.delete<any>(`/admin/accounts/${id}`),
 
   getOrders: (status?: string) => {
     const qs = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
@@ -108,7 +119,8 @@ export const adminApi = {
   getPendingDrivers: () => api.get<any[]>('/admin/drivers/pending'),
   approveDriver: (driverId: string) => api.post<any>(`/admin/drivers/${driverId}/approve`),
   rejectDriver: (driverId: string) => api.delete<any>(`/admin/drivers/${driverId}/application`),
-  createAdmin: (fullName: string, phone: string, password: string) => api.post<any>('/admin/admins', { fullName, phone, password }),
+  createAdmin: (fullName: string, phone: string, password: string) =>
+    api.post<any>('/admin/accounts', { fullName, phone, password, role: 'Admin' }),
 
   createSettlement: (driverId: string, amount: number, note?: string) =>
     api.post<any>(`/admin/drivers/${driverId}/settlement`, { amount, note }),

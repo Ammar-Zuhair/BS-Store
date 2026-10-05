@@ -11,7 +11,7 @@ export const authApi = {
     await api.clearSession();
     const res = await api.post<{ accessToken: string; refreshToken: string; user: { id: string; fullName?: string; name?: string; phone: string; role: string } }>(
       '/auth/login',
-      { phone, password }
+      { phone, password, role: 'Driver' }
     );
     if (res.user?.role !== 'Driver') throw new Error('هذا الحساب غير مسجل كموصل.');
     await api.setToken(res.accessToken);

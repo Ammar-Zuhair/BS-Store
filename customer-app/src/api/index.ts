@@ -10,7 +10,7 @@ export const authApi = {
   login: async (phone: string, password = 'Password123!') => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: { id: string; name?: string; fullName?: string; phone: string; role: string } }>(
       '/auth/login',
-      { phone, password }
+      { phone, password, role: 'Customer' }
     );
     await api.setToken(res.accessToken);
     await api.setRefreshToken(res.refreshToken);

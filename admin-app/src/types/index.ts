@@ -31,6 +31,7 @@ export interface FlaggedUser {
 }
 
 export interface AdminKPI {
+  ordersToday: number;
   salesTotal: number;
   salesChangePercent: number;
   grossProfit: number;

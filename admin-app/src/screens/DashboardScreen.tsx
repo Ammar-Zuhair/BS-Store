@@ -184,9 +184,10 @@ export const DashboardScreen: React.FC = () => {
             <Text style={styles.kpiValue}>
               {kpi.salesTotal.toLocaleString()} <Text style={styles.curr}>ر.ي</Text>
             </Text>
+            <Text style={styles.subtext}>عدد الطلبات اليوم: {kpi.ordersToday}</Text>
             <View style={styles.kpiTrend}>
-              <Text style={styles.trendText}>+{kpi.salesChangePercent}% عن الأمس</Text>
-              <Text style={styles.trendArrow}>↑</Text>
+              <Text style={styles.trendText}>{kpi.salesChangePercent >= 0 ? '+' : ''}{kpi.salesChangePercent}% عن الأمس</Text>
+              <Text style={styles.trendArrow}>{kpi.salesChangePercent >= 0 ? '↑' : '↓'}</Text>
             </View>
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: '78%', backgroundColor: colors.primary }]} />

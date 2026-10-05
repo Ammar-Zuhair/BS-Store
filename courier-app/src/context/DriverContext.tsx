@@ -8,7 +8,8 @@ import {
   TaskStop,
   TaskPurchasedItem,
 } from '../types';
-import { authApi, driverApi } from '../api';
+import { api, authApi, driverApi } from '../api';
+import { unregisterPushDevice } from '../notifications';
 
 export type CourierScreenName = 'dashboard' | 'route' | 'purchase' | 'wallet';
 
@@ -32,6 +33,7 @@ interface DriverContextType {
   authenticated: boolean;
   signIn: (phone: string, password: string) => Promise<void>;
   signUp: (name: string, phone: string, password: string, governorateId: string) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const DEFAULT_PROFILE: DriverProfile = {
@@ -76,6 +78,25 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const signUp = async (name: string, phone: string, password: string, governorateId: string): Promise<void> => {
     await authApi.register(name, phone, password, governorateId);
+  };
+
+  const signOut = async () => {
+    if (driver.shiftStatus === 'ONLINE' || driver.shiftStatus === 'BUSY') {
+      try { await driverApi.updateStatus(1); } catch (error) { console.warn('تعذر تحويل حالة الموصل إلى غير متصل:', error); }
+    }
+    try { await unregisterPushDevice(api); } catch (error) { console.warn('تعذر إلغاء تسجيل إشعارات الموصل:', error); }
+    try { await authApi.logout(); } catch (error) {
+      console.warn('تعذر إلغاء جلسة الموصل على الخادم:', error);
+    } finally {
+      setAuthenticated(false);
+      setDriver(DEFAULT_PROFILE);
+      setActiveTask(null);
+      setWallet(DEFAULT_WALLET);
+      setTransactions([]);
+      currentScreenRef.current = 'dashboard';
+      screenHistoryRef.current = [];
+      setCurrentScreen('dashboard');
+    }
   };
 
   const navigateTo = (screen: CourierScreenName) => {
@@ -352,6 +373,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isSessionRestoring,
       signIn,
       signUp,
+      signOut,
         navigateTo,
         driver,
         toggleShiftStatus,

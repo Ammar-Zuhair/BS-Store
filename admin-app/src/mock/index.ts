@@ -12,6 +12,7 @@ import {
 } from '../types';
 
 export const mockAdminKPI: AdminKPI = {
+  ordersToday: 0,
   salesTotal: 0,
   salesChangePercent: 0,
   grossProfit: 0,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, Alert, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { useDriver } from '../context/DriverContext';
 
@@ -10,10 +10,18 @@ interface DriverHeaderProps {
 }
 
 export const DriverHeader: React.FC<DriverHeaderProps> = ({ title, showBack = false, onBack }) => {
-  const { driver, toggleShiftStatus, navigateTo, navigateBack } = useDriver();
+  const { driver, activeTask, toggleShiftStatus, signOut, navigateTo, navigateBack } = useDriver();
   const [isToggling, setIsToggling] = useState(false);
   const isOnline = driver.shiftStatus === 'ONLINE';
   const handleToggle = async () => { if (isToggling) return; setIsToggling(true); try { await toggleShiftStatus(); } finally { setIsToggling(false); } };
+  const handleSignOut = () => Alert.alert(
+    'تسجيل الخروج',
+    activeTask ? 'لديك طلب نشط. سيبقى مسنداً إلى حسابك حتى تسجل الدخول مجدداً. هل تريد تسجيل الخروج؟' : 'هل تريد تسجيل الخروج من حساب الموصل؟',
+    [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'تسجيل الخروج', style: 'destructive', onPress: () => { void signOut(); } },
+    ],
+  );
 
   return (
     <View style={styles.container}>
@@ -41,6 +49,9 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({ title, showBack = fa
         )}
 
         <View style={styles.actions}>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut} accessibilityRole="button" accessibilityLabel="تسجيل الخروج">
+            <Text style={styles.logoutText}>خروج</Text>
+          </TouchableOpacity>
           {/* Shift Status Pill Button */}
           <TouchableOpacity
             style={[styles.statusPill, isOnline ? styles.pillOnline : styles.pillOffline]}
@@ -120,6 +131,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.baseXs,
   },
+  logoutBtn: {
+    minHeight: 34,
+    paddingHorizontal: 8,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.errorContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutText: { color: colors.error, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xs },
   statusPill: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
