@@ -9,7 +9,7 @@ import {
   Tajawal_800ExtraBold,
   Tajawal_900Black,
 } from '@expo-google-fonts/tajawal';
-import { AdminProvider, useAdmin, type AdminScreenName } from './src/context/AdminContext';
+import { AdminProvider, useAdmin } from './src/context/AdminContext';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { OrdersScreen } from './src/screens/OrdersScreen';
 import { PaymentsScreen } from './src/screens/PaymentsScreen';
@@ -26,21 +26,6 @@ import { colors } from './src/theme';
 import { usePushNotifications } from './src/notifications';
 import { api } from './src/api';
 import { SystemGate } from './src/system/SystemGate';
-import { BoosthisRuntime, BoosthisScreenTracker } from './src/monitoring/BoosthisRuntime';
-
-const BOOSTHIS_SCREEN_NAMES: Record<AdminScreenName, string> = {
-  dashboard: 'Dashboard',
-  orders: 'Orders',
-  payments: 'Payments',
-  inventory: 'Inventory',
-  add_product: 'ProductEditor',
-  categories: 'Categories',
-  financials: 'Financials',
-  price_changes: 'PriceChanges',
-  system_management: 'SystemManagement',
-  broadcasts: 'Notifications',
-  auth: 'Authentication',
-};
 
 const AdminNavigator: React.FC = () => {
   const { currentScreen, navigateTo, isSessionRestoring, currentUser, refreshData } = useAdmin();
@@ -113,7 +98,6 @@ const AdminNavigator: React.FC = () => {
       <View style={[styles.appContainer, { paddingTop: insets.top }]}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.surfaceContainerLowest} translucent={true} />
         {renderScreen()}
-        <BoosthisScreenTracker key={currentScreen} screen={BOOSTHIS_SCREEN_NAMES[currentScreen]} />
         {currentScreen !== 'auth' && <AdminBottomNav />}
       </View>
     </SystemGate>
@@ -141,9 +125,7 @@ export default function App() {
     <SafeAreaProvider>
       <View style={styles.safeArea}>
         <AdminProvider>
-          <BoosthisRuntime>
-            <AdminNavigator />
-          </BoosthisRuntime>
+          <AdminNavigator />
         </AdminProvider>
       </View>
     </SafeAreaProvider>
