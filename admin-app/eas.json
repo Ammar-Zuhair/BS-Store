@@ -3,14 +3,17 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "channel": "preview",
       "environment": "development"
     },
     "preview": {
       "distribution": "internal",
       "android": { "buildType": "apk" },
+      "channel": "preview",
       "environment": "preview"
     },
     "production": {
+      "channel": "production",
       "distribution": "internal",
       "android": {
         "buildType": "apk"

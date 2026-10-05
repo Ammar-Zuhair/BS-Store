@@ -109,7 +109,7 @@ const AdminNavigator: React.FC = () => {
   };
 
   return (
-    <SystemGate palette={colors} appType="admin" showMaintenance={false}>
+    <SystemGate palette={colors} appType="admin" safeToReload={currentScreen === 'dashboard' || currentScreen === 'auth'} showMaintenance={false}>
       <View style={[styles.appContainer, { paddingTop: insets.top }]}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.surfaceContainerLowest} translucent={true} />
         {renderScreen()}
