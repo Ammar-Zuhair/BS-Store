@@ -20,6 +20,7 @@ import { ordersApi, paymentsApi } from '../api';
 import { AppIcon, AppIconName } from '../components/AppIcon';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { CachedImage } from '../components/CachedImage';
+import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
 import { chooseTransferReceipt } from '../utils/transferReceipt';
 
 export const TrackingScreen: React.FC = () => {
@@ -270,6 +271,7 @@ export const TrackingScreen: React.FC = () => {
 
     return (
       <View style={styles.container}>
+        <BoosthisScreenTracker screen="OrderDetails" />
         <Header
           title={`تفاصيل طلب #${selectedOrder.orderNumber}`}
           showBack

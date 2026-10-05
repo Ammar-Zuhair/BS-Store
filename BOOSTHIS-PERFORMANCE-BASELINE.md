@@ -15,7 +15,7 @@ Instrumentation is installed, but a numeric baseline has **not** been collected.
 
 - Customer labels: Home, Categories, Stores, StoreDetails, ProductDetails, Cart, Checkout, Orders, OrderDetails, Profile, Authentication.
 - Admin labels: Dashboard, Orders, Payments, BankTransfers, DriverCustody, Inventory, Categories, Stores, Products, Deals, ServiceAreas, ProductEditor, Financials, PriceChanges, SystemManagement, Notifications, Authentication.
-- Courier labels: DriverHome, Delivery, Purchase, PriceChange, Earnings, Authentication.
+- Courier labels: DriverHome, Delivery, Purchase, Earnings, Authentication. There is no separate courier price-change screen.
 - Network wrapping reports duration and coarse outcome only. It does not send URLs, paths, headers, query strings, bodies, or HTTP status codes.
 - Trace propagation, route list/page map, control census, and detailed crash mode are off.
 

@@ -63,7 +63,7 @@ The RN kit CLI understands EXPO_PUBLIC_BOOSTHIS_PROJECT_KEY_RN, while the reques
 - Backend: src/BSStore.API/Program.cs, src/BSStore.API/Boosthis/*, and .env.example; ignored local backend/.env has the key and bubble setting.
 - Each active app: App.tsx, app.config.js, package.json, package-lock.json, new src/monitoring/BoosthisRuntime.tsx, and kit files/config/docs under the app root and lib/.
 - Admin nested screens: src/screens/InventoryScreen.tsx and src/screens/PaymentsScreen.tsx add fixed subtab measurements.
-- Customer also measures the fixed ProductDetails and OrderDetails labels; Courier adds a PriceChange phase label.
+- Customer also measures the fixed ProductDetails and OrderDetails labels. Typed maps cover every navigation route; admin inventory/payment tabs and customer product/order details have their own fixed labels. The courier purchase route is measured once at the navigator level.
 - Root docs: BOOSTHIS-INTEGRATION.md, BOOSTHIS-INTEGRATION-REPORT.md, and BOOSTHIS-PERFORMANCE-BASELINE.md.
 - Local .env files are ignored and were not staged. No actual key is in tracked files; eas.json, source constants, and docs contain no key values.
 

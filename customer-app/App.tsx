@@ -16,7 +16,7 @@ import {
   Tajawal_800ExtraBold,
   Tajawal_900Black,
 } from '@expo-google-fonts/tajawal';
-import { AppProvider, useApp } from './src/context/AppContext';
+import { AppProvider, useApp, type ScreenName } from './src/context/AppContext';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { CategoryStoresScreen } from './src/screens/CategoryStoresScreen';
 import { StoreDetailScreen } from './src/screens/StoreDetailScreen';
@@ -32,6 +32,19 @@ import { colors } from './src/theme';
 import { usePushNotifications } from './src/notifications';
 import { api } from './src/api';
 import { SystemGate } from './src/system/SystemGate';
+import { BoosthisRuntime, BoosthisScreenTracker } from './src/monitoring/BoosthisRuntime';
+
+const BOOSTHIS_SCREEN_NAMES: Record<ScreenName, string> = {
+  home: 'Home',
+  category: 'Categories',
+  category_stores: 'Stores',
+  store_detail: 'StoreDetails',
+  cart: 'Cart',
+  checkout: 'Checkout',
+  tracking: 'Orders',
+  profile: 'Profile',
+  auth: 'Authentication',
+};
 
 const MainNavigator: React.FC = () => {
   const {
@@ -151,6 +164,7 @@ const MainNavigator: React.FC = () => {
             hidden={false}
           />
           {renderScreen()}
+          <BoosthisScreenTracker key={currentScreen} screen={BOOSTHIS_SCREEN_NAMES[currentScreen]} />
           {currentScreen !== 'auth' && <FloatingCartBar />}
           {showNav && <BottomNav />}
         </View>
@@ -179,7 +193,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <MainNavigator />
+        <BoosthisRuntime>
+          <MainNavigator />
+        </BoosthisRuntime>
       </AppProvider>
     </SafeAreaProvider>
   );

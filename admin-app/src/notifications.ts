@@ -17,6 +17,9 @@ function loadNotificationsModule(): Promise<NotificationsModule | null> {
         handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true }),
       });
       return Notifications;
+    }).catch(error => {
+      console.warn('تعذر تهيئة الإشعارات؛ سيعمل التطبيق بدونها:', error);
+      return null;
     });
   }
   return notificationsModulePromise;
@@ -69,19 +72,31 @@ export function usePushNotifications(
     let subscription: NotificationSubscription | null = null;
     void loadNotificationsModule().then(Notifications => {
       if (!Notifications || !mounted) return;
-      if (enabled) registerPushDevice(apiRef.current, appType).catch(error => console.warn('تعذر تسجيل الإشعارات:', error));
-      const open = (response: import('expo-notifications').NotificationResponse | null) => {
-        if (!response || !mounted) return;
-        const responseId = response.notification.request.identifier;
-        if (responseId === lastResponseId) return;
-        lastResponseId = responseId;
-        const content = response.notification.request.content.data as any;
-        openRef.current(String(content?.type || ''), content?.data || {});
-      };
-      void Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});
-      subscription = Notifications.addNotificationResponseReceivedListener(response => {
-        open(response);
-      });
+      try {
+        if (enabled) registerPushDevice(apiRef.current, appType).catch(error => console.warn('تعذر تسجيل الإشعارات:', error));
+        const open = (response: import('expo-notifications').NotificationResponse | null) => {
+          if (!response || !mounted) return;
+          try {
+            const responseId = response.notification.request.identifier;
+            if (responseId === lastResponseId) return;
+            lastResponseId = responseId;
+            const content = response.notification.request.content.data as any;
+            openRef.current(String(content?.type || ''), content?.data || {});
+          } catch (error) {
+            console.warn('تعذر فتح الإشعار:', error);
+          }
+        };
+        void Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});
+        subscription = Notifications.addNotificationResponseReceivedListener(response => {
+          open(response);
+        });
+      } catch (error) {
+        subscription?.remove();
+        subscription = null;
+        console.warn('تعذر إعداد مستمع الإشعارات؛ سيعمل التطبيق بدونها:', error);
+      }
+    }).catch(error => {
+      if (mounted) console.warn('تعذر إعداد الإشعارات؛ سيعمل التطبيق بدونها:', error);
     });
     return () => { mounted = false; subscription?.remove(); };
   }, [enabled, appType]);

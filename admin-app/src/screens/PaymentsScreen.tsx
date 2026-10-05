@@ -4,6 +4,7 @@ import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 import { AdminHeader } from '../components/AdminHeader';
 import { useAdmin } from '../context/AdminContext';
 import { api } from '../api';
+import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
 
 type Tab = 'transfers' | 'custody';
 
@@ -30,6 +31,7 @@ export const PaymentsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <BoosthisScreenTracker key={tab} screen={tab === 'transfers' ? 'BankTransfers' : 'DriverCustody'} />
       <AdminHeader title="التحويلات والمدفوعات" showBack onBack={() => navigateTo('dashboard')} />
       <View style={styles.tabs}>
         <TouchableOpacity style={[styles.tab, tab === 'transfers' && styles.tabActive]} onPress={() => setTab('transfers')}>

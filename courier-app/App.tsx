@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect } from 'react';
 import { useFonts, Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold } from '@expo-google-fonts/tajawal';
 import { ActivityIndicator, Alert, BackHandler, StatusBar, StyleSheet, View, Platform, SafeAreaView, Text, TextInput } from 'react-native';
-import { DriverProvider, useDriver } from './src/context/DriverContext';
+import { DriverProvider, useDriver, type CourierScreenName } from './src/context/DriverContext';
 import { DriverDashboardScreen } from './src/screens/DriverDashboardScreen';
 import { ActiveTaskRouteScreen } from './src/screens/ActiveTaskRouteScreen';
 import { StorePurchaseScreen } from './src/screens/StorePurchaseScreen';
@@ -12,8 +12,15 @@ import { colors } from './src/theme';
 import { usePushNotifications } from './src/notifications';
 import { api } from './src/api';
 import { SystemGate } from './src/system/SystemGate';
+import { BoosthisRuntime, BoosthisScreenTracker } from './src/monitoring/BoosthisRuntime';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 0;
+const BOOSTHIS_SCREEN_NAMES: Record<CourierScreenName, string> = {
+  dashboard: 'DriverHome',
+  route: 'Delivery',
+  purchase: 'Purchase',
+  wallet: 'Earnings',
+};
 (Text as any).defaultProps = { ...(Text as any).defaultProps, style: [{ fontFamily: 'Tajawal_400Regular', fontSize: 16 }, (Text as any).defaultProps?.style] };
 (TextInput as any).defaultProps = { ...(TextInput as any).defaultProps, style: [{ fontFamily: 'Tajawal_400Regular', fontSize: 16 }, (TextInput as any).defaultProps?.style] };
 
@@ -49,7 +56,7 @@ const DriverNavigator: React.FC = () => {
 
   if (isSessionRestoring) return <SystemGate palette={colors} appType="courier" safeToReload={false}><View style={[styles.appContainer, styles.loading]}><ActivityIndicator size="large" color={colors.primary} /></View></SystemGate>;
 
-  if (!authenticated) return <SystemGate palette={colors} appType="courier" safeToReload><CourierAuthScreen /></SystemGate>;
+  if (!authenticated) return <SystemGate palette={colors} appType="courier" safeToReload><><BoosthisScreenTracker key="Authentication" screen="Authentication" /><CourierAuthScreen /></></SystemGate>;
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -76,6 +83,7 @@ const DriverNavigator: React.FC = () => {
           hidden={false}
         />
         {renderScreen()}
+        <BoosthisScreenTracker key={currentScreen} screen={BOOSTHIS_SCREEN_NAMES[currentScreen]} />
         <DriverBottomNav />
       </View>
     </SystemGate>
@@ -86,7 +94,9 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <DriverProvider>
-        <DriverNavigator />
+        <BoosthisRuntime>
+          <DriverNavigator />
+        </BoosthisRuntime>
       </DriverProvider>
     </SafeAreaView>
   );

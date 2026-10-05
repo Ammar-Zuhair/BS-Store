@@ -73,7 +73,9 @@ module.exports = ({ config }) => {
       ...config.updates,
       ...(easProjectId ? { url: `https://u.expo.dev/${easProjectId}` } : {}),
       enabled: true,
-      checkAutomatically: 'ON_LOAD',
+      // Start the embedded bundle first; SystemGate checks for OTA updates after
+      // the app is interactive so native update work cannot delay launch.
+      checkAutomatically: 'NEVER',
       fallbackToCacheTimeout: 0,
     },
     plugins: Array.from(new Set([...(config.plugins || []), 'expo-secure-store'])),

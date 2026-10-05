@@ -70,20 +70,24 @@ export const SystemGate: React.FC<{
   }, [refreshStatus]);
 
   useEffect(() => {
+    if (!initialCheckComplete) return;
     let active = true;
-    void (async () => {
-      try {
-        if (!Updates.isEnabled) return;
-        const result = await Updates.checkForUpdateAsync();
-        if (!result.isAvailable) return;
-        const fetched = await Updates.fetchUpdateAsync();
-        if (active && fetched.isNew) setIsOtaReady(true);
-      } catch {
-        // The embedded app remains usable when OTA is unavailable or offline.
-      }
-    })();
-    return () => { active = false; };
-  }, []);
+    const timer = setTimeout(() => {
+      if (!active) return;
+      void (async () => {
+        try {
+          if (!Updates.isEnabled) return;
+          const result = await Updates.checkForUpdateAsync();
+          if (!result.isAvailable) return;
+          const fetched = await Updates.fetchUpdateAsync();
+          if (active && fetched.isNew) setIsOtaReady(true);
+        } catch {
+          // The embedded app remains usable when OTA is unavailable or offline.
+        }
+      })();
+    }, 1200);
+    return () => { active = false; clearTimeout(timer); };
+  }, [initialCheckComplete]);
 
   const openUpdate = async () => {
     const url = versionStatus?.updateUrl;

@@ -62,7 +62,7 @@ Instrumented fixed labels:
 
 - Customer: Home, Categories, Stores, StoreDetails, ProductDetails, Cart, Checkout, Orders, OrderDetails, Profile, Authentication.
 - Admin: Dashboard, Orders, Payments, BankTransfers, DriverCustody, Inventory, Categories, Stores, Products, Deals, ServiceAreas, ProductEditor, Financials, PriceChanges, SystemManagement, Notifications, Authentication.
-- Courier: DriverHome, Delivery, Purchase, PriceChange, Earnings, Authentication.
+- Courier: DriverHome, Delivery, Purchase, Earnings, Authentication. The courier app has no separate price-change screen; price updates remain an admin action.
 
 Labels do not contain customer, order, product, store, driver IDs, phone numbers, addresses, or search text. The current Customer app has no distinct Notifications screen; notifications open an existing fixed route.
 
