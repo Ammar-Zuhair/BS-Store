@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { InteractionManager, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { isRunningInExpoGo } from 'expo';
@@ -26,6 +26,7 @@ function loadNotificationsModule(): Promise<NotificationsModule | null> {
 }
 
 const PUSH_TOKEN_KEY = '@bs_admin_push_token';
+const PUSH_BOOTSTRAP_DELAY_MS = 2500;
 
 export async function registerPushDevice(api: { post: (path: string, data: any) => Promise<any> }, appType: 'admin' | 'courier' | 'customer') {
   // Android Expo Go does not support remote notifications. Avoid importing the
@@ -67,37 +68,50 @@ export function usePushNotifications(
   openRef.current = onOpen;
   apiRef.current = api;
   useEffect(() => {
+    if (!enabled || Platform.OS === 'web' || isRunningInExpoGo()) return;
+
     let mounted = true;
     let lastResponseId: string | null = null;
     let subscription: NotificationSubscription | null = null;
-    void loadNotificationsModule().then(Notifications => {
-      if (!Notifications || !mounted) return;
-      try {
-        if (enabled) registerPushDevice(apiRef.current, appType).catch(error => console.warn('تعذر تسجيل الإشعارات:', error));
-        const open = (response: import('expo-notifications').NotificationResponse | null) => {
-          if (!response || !mounted) return;
+    let interactionTask: { cancel: () => void } | undefined;
+    const timer = setTimeout(() => {
+      interactionTask = InteractionManager.runAfterInteractions(() => {
+        if (!mounted) return;
+        void loadNotificationsModule().then(Notifications => {
+          if (!Notifications || !mounted) return;
           try {
-            const responseId = response.notification.request.identifier;
-            if (responseId === lastResponseId) return;
-            lastResponseId = responseId;
-            const content = response.notification.request.content.data as any;
-            openRef.current(String(content?.type || ''), content?.data || {});
+            registerPushDevice(apiRef.current, appType).catch(error => console.warn('تعذر تسجيل الإشعارات:', error));
+            const open = (response: import('expo-notifications').NotificationResponse | null) => {
+              if (!response || !mounted) return;
+              try {
+                const responseId = response.notification.request.identifier;
+                if (responseId === lastResponseId) return;
+                lastResponseId = responseId;
+                const content = response.notification.request.content.data as any;
+                openRef.current(String(content?.type || ''), content?.data || {});
+              } catch (error) {
+                console.warn('تعذر فتح الإشعار:', error);
+              }
+            };
+            void Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});
+            subscription = Notifications.addNotificationResponseReceivedListener(response => {
+              open(response);
+            });
           } catch (error) {
-            console.warn('تعذر فتح الإشعار:', error);
+            subscription?.remove();
+            subscription = null;
+            console.warn('تعذر إعداد مستمع الإشعارات؛ سيعمل التطبيق بدونها:', error);
           }
-        };
-        void Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});
-        subscription = Notifications.addNotificationResponseReceivedListener(response => {
-          open(response);
+        }).catch(error => {
+          if (mounted) console.warn('تعذر إعداد الإشعارات؛ سيعمل التطبيق بدونها:', error);
         });
-      } catch (error) {
-        subscription?.remove();
-        subscription = null;
-        console.warn('تعذر إعداد مستمع الإشعارات؛ سيعمل التطبيق بدونها:', error);
-      }
-    }).catch(error => {
-      if (mounted) console.warn('تعذر إعداد الإشعارات؛ سيعمل التطبيق بدونها:', error);
-    });
-    return () => { mounted = false; subscription?.remove(); };
+      });
+    }, PUSH_BOOTSTRAP_DELAY_MS);
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+      interactionTask?.cancel();
+      subscription?.remove();
+    };
   }, [enabled, appType]);
 }

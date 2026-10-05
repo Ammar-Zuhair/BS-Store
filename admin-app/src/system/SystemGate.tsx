@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
+import { ActivityIndicator, AppState, InteractionManager, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
-import * as Updates from 'expo-updates';
 import { api } from '../api';
 import { typography } from '../theme';
 
@@ -73,21 +72,25 @@ export const SystemGate: React.FC<{
   useEffect(() => {
     if (!initialCheckComplete) return;
     let active = true;
+    let interactionTask: { cancel: () => void } | undefined;
     const timer = setTimeout(() => {
       if (!active) return;
-      void (async () => {
-        try {
-          if (!Updates.isEnabled) return;
-          const result = await Updates.checkForUpdateAsync();
-          if (!result.isAvailable) return;
-          const fetched = await Updates.fetchUpdateAsync();
-          if (active && fetched.isNew) setIsOtaReady(true);
-        } catch {
-          // The embedded app remains usable when OTA is unavailable or offline.
-        }
-      })();
+      interactionTask = InteractionManager.runAfterInteractions(() => {
+        void (async () => {
+          try {
+            const Updates = await import('expo-updates');
+            if (!active || !Updates.isEnabled) return;
+            const result = await Updates.checkForUpdateAsync();
+            if (!result.isAvailable) return;
+            const fetched = await Updates.fetchUpdateAsync();
+            if (active && fetched.isNew) setIsOtaReady(true);
+          } catch {
+            // The embedded app remains usable when OTA is unavailable or offline.
+          }
+        })();
+      });
     }, 1200);
-    return () => { active = false; clearTimeout(timer); };
+    return () => { active = false; clearTimeout(timer); interactionTask?.cancel(); };
   }, [initialCheckComplete]);
 
   const openUpdate = async () => {
@@ -103,7 +106,10 @@ export const SystemGate: React.FC<{
   const applyOta = async () => {
     if (!safeToReload || isApplyingOta) return;
     setIsApplyingOta(true);
-    try { await Updates.reloadAsync(); }
+    try {
+      const Updates = await import('expo-updates');
+      await Updates.reloadAsync();
+    }
     catch {
       setIsApplyingOta(false);
       Alert.alert('تعذر تطبيق التحديث', 'سيبقى التطبيق على النسخة الحالية ويمكن المحاولة لاحقاً.');
