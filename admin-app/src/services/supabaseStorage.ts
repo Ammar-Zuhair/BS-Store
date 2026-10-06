@@ -1,20 +1,12 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Alert, Platform } from 'react-native';
-
-export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://ckrnqdagmxgxibjyenrk.supabase.co';
-export const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY || 'sb_publishable_AIbK1TO5XtdbkPO5YFxxhQ_Oot_q0Jv';
-export const SUPABASE_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_BUCKET || 'Product Images';
+import { api } from '../api/client';
 
 export interface PickedImage {
   uri: string;
   base64?: string | null;
   mimeType?: string | null;
-}
-
-export interface PickAndUploadResult {
-  url: string;
-  source: 'supabase' | 'local' | 'url';
 }
 
 /**
@@ -71,7 +63,7 @@ export const pickImageFromGallery = async (): Promise<PickedImage | null> => {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.85,
+      quality: 1,
       base64: true,
     });
 
@@ -93,7 +85,7 @@ export const pickImageFromGallery = async (): Promise<PickedImage | null> => {
 };
 
 /**
- * Upload an image (URI or PickedImage object) to Supabase Storage Bucket
+ * Send image bytes to the API for required optimization and Supabase storage.
  */
 export const uploadImageToSupabase = async (
   imageInput: string | PickedImage,
@@ -102,124 +94,29 @@ export const uploadImageToSupabase = async (
   try {
     const localUri = typeof imageInput === 'string' ? imageInput : imageInput.uri;
     const base64Data = typeof imageInput === 'object' ? imageInput.base64 : null;
-    const explicitMime = typeof imageInput === 'object' ? imageInput.mimeType : null;
 
-    // Generate unique file name
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    const ext = localUri.split('.').pop()?.split('?')[0]?.toLowerCase() || 'jpg';
-    const cleanExt = ext.length <= 4 && ext.length >= 2 ? ext : 'jpg';
-    const fileName = `${folder}_${timestamp}_${random}.${cleanExt}`;
-    const filePath = `${folder}/${fileName}`;
-
-    const mimeMap: Record<string, string> = {
-      jpg: 'image/jpeg',
-      jpeg: 'image/jpeg',
-      png: 'image/png',
-      webp: 'image/webp',
-      gif: 'image/gif',
-    };
-    const contentType = explicitMime || mimeMap[cleanExt] || 'image/jpeg';
-
-    const bucketEncoded = encodeURIComponent(SUPABASE_BUCKET);
-    const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${bucketEncoded}/${filePath}`;
-
-    // 1. If base64 data is already available in memory (from ImagePicker), upload directly
+    // Read the selected image once. The API guarantees resizing/re-encoding
+    // for every catalogue category before uploading it to Supabase.
+    let bytes: ArrayBuffer;
     if (base64Data) {
-      const uint8 = decodeBase64ToUint8Array(base64Data);
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': contentType,
-          'x-upsert': 'true',
-        },
-        body: uint8.buffer as ArrayBuffer,
-      });
-
-      if (uploadResponse.ok) {
-        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucketEncoded}/${filePath}`;
-        return publicUrl;
-      }
-      throw new Error('تعذر رفع الصورة. تحقق من الاتصال وحاول مجدداً.');
+      bytes = decodeBase64ToUint8Array(base64Data).buffer as ArrayBuffer;
+    } else if (Platform.OS !== 'web' && /^(file|content):\/\//.test(localUri)) {
+      const content = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+      bytes = decodeBase64ToUint8Array(content).buffer as ArrayBuffer;
+    } else {
+      const response = await fetch(localUri);
+      if (!response.ok) throw new Error('تعذر قراءة ملف الصورة.');
+      bytes = await response.arrayBuffer();
     }
-
-    // 2. On Native (iOS & Android): try high-speed binary streaming upload from filesystem
-    if (Platform.OS !== 'web' && localUri.startsWith('file://')) {
-      try {
-        const uploadResult = await (FileSystem as any).uploadAsync(uploadUrl, localUri, {
-          httpMethod: 'POST',
-          uploadType: (FileSystem as any).FileSystemUploadType?.BINARY_CONTENT ?? (FileSystem as any).UploadType?.BINARY_CONTENT ?? 1,
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': contentType,
-            'x-upsert': 'true',
-          },
-        });
-
-        if (uploadResult.status >= 200 && uploadResult.status < 300) {
-          const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucketEncoded}/${filePath}`;
-          return publicUrl;
-        }
-      } catch (fsErr) {
-        console.warn('FileSystem.uploadAsync error, falling back to base64 buffer:', fsErr);
-      }
-
-      // Fallback on native: read as base64 and upload ArrayBuffer
-      try {
-        const base64Content = await (FileSystem as any).readAsStringAsync(localUri, {
-          encoding: (FileSystem as any).EncodingType?.Base64 || 'base64',
-        });
-        const uint8 = decodeBase64ToUint8Array(base64Content);
-        const uploadResponse = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': contentType,
-            'x-upsert': 'true',
-          },
-          body: uint8.buffer as ArrayBuffer,
-        });
-
-        if (uploadResponse.ok) {
-          const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucketEncoded}/${filePath}`;
-          return publicUrl;
-        }
-      } catch (readErr) {
-        console.warn('FileSystem.readAsStringAsync error:', readErr);
-      }
-    }
-
-    // 3. Web or Blob fallback
-    const resp = await fetch(localUri);
-    const arrayBuffer = await resp.arrayBuffer();
-
-    // Verify valid byte size (prevent 14-byte 404 text upload)
-    if (arrayBuffer.byteLength < 50) {
-      throw new Error('حجم ملف الصورة غير صالح أو تعذر قراءته');
-    }
-
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': contentType,
-        'x-upsert': 'true',
-      },
-      body: arrayBuffer,
+    if (bytes.byteLength < 50) throw new Error('ملف الصورة فارغ أو غير صالح.');
+    if (bytes.byteLength > 15 * 1024 * 1024) throw new Error('حجم الصورة يتجاوز 15 ميجابايت. اختر صورة أصغر.');
+    const result = await api.request<{ url: string }>(`/admin/images?folder=${folder}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: bytes,
     });
-
-    if (!uploadResponse.ok) {
-      throw new Error('تعذر رفع الصورة. تحقق من الاتصال وحاول مجدداً.');
-    }
-
-    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucketEncoded}/${filePath}`;
-    return publicUrl;
-  } catch {
+    if (!result?.url) throw new Error('لم يرجع الخادم رابط الصورة المحفوظة.');
+    return result.url;
+  } catch (error) {
+    if (error instanceof Error) throw error;
     throw new Error('تعذر رفع الصورة. تحقق من الاتصال وحاول مجدداً.');
   }
 };

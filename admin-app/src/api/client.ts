@@ -86,7 +86,7 @@ class ApiClient {
     return this.token;
   }
 
-  async request<T>(endpoint: string, options: RequestInit = {}, hasRetried = false): Promise<T> {
+  private async send(endpoint: string, options: RequestInit = {}, hasRetried = false): Promise<Response> {
     await this.initSession();
     const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
@@ -96,7 +96,7 @@ class ApiClient {
       ...(options.headers as Record<string, string> || {}),
     };
 
-    if (!(options.body instanceof FormData)) {
+    if (!(options.body instanceof FormData) && !Object.keys(headers).some(key => key.toLowerCase() === 'content-type')) {
       headers['Content-Type'] = 'application/json';
     }
 
@@ -114,23 +114,50 @@ class ApiClient {
       throw new Error('تعذر الاتصال بالخدمة. تحقق من اتصال الإنترنت وحاول مجدداً.');
     }
 
-    const data = await response.json().catch(() => null);
-
     if (response.status === 401 && !hasRetried && !endpoint.includes('/auth/refresh') && this.refreshToken) {
       if (await this.refreshSession()) {
-        return this.request<T>(endpoint, options, true);
+        return this.send(endpoint, options, true);
       }
       await this.clearSession();
     }
 
     if (!response.ok) {
-      const error = new Error(getSafeHttpErrorMessage(response.status));
+      const data = await response.json().catch(() => null);
+      const error = new Error(data?.message || getSafeHttpErrorMessage(response.status));
       (error as any).code = 'REQUEST_FAILED';
       (error as any).status = response.status;
       throw error;
     }
 
+    return response;
+  }
+
+  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const response = await this.send(endpoint, options);
+    const data = await response.json().catch(() => null);
     return data?.data !== undefined ? data.data : data;
+  }
+
+  async getReceiptImage(url: string): Promise<string> {
+    const base = new URL(API_BASE_URL);
+    const resolved = new URL(url, `${API_BASE_URL}/`);
+    if (resolved.origin !== base.origin || !resolved.pathname.startsWith(`${base.pathname}/payments/receipts/`)) {
+      throw new Error('رابط الإيصال غير صالح. حدّث قائمة الحوالات.');
+    }
+    const endpoint = resolved.pathname.slice(base.pathname.length);
+    const response = await this.send(endpoint, { method: 'GET', headers: { Accept: 'image/*' } });
+    if (!response.headers.get('content-type')?.startsWith('image/')) {
+      throw new Error('الإيصال ليس صورة قابلة للعرض.');
+    }
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string'
+        ? resolve(reader.result)
+        : reject(new Error('تعذر قراءة صورة الإيصال.'));
+      reader.onerror = () => reject(new Error('تعذر قراءة صورة الإيصال.'));
+      reader.readAsDataURL(blob);
+    });
   }
 
   private async refreshSession(): Promise<boolean> {
@@ -141,7 +168,7 @@ class ApiClient {
       try {
         const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
           method: 'POST',
-          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
           body: JSON.stringify({ refreshToken: this.refreshToken }),
         });
         const payload = await response.json().catch(() => null);

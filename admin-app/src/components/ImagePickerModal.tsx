@@ -53,24 +53,10 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
         onImageSelected(publicUrl);
         onClose();
         Alert.alert('تم بنجاح', 'تم رفع الصورة بنجاح.');
-      } catch {
+      } catch (error) {
         setIsUploading(false);
         setUploadStatus('');
-        // If Supabase upload fails (e.g. policy/network), offer to use the local URI or direct URL
-        Alert.alert(
-          'تعذر رفع الصورة',
-          'لم نتمكن من رفع الصورة حالياً. هل تريد استخدام الصورة الموجودة على جهازك مؤقتاً؟',
-          [
-            { text: 'إلغاء', style: 'cancel' },
-            {
-              text: 'استخدام الصورة',
-              onPress: () => {
-                onImageSelected(picked.uri);
-                onClose();
-              },
-            },
-          ]
-        );
+        Alert.alert('تعذر رفع الصورة', error instanceof Error ? error.message : 'حاول رفع الصورة مجدداً.');
       }
     } catch (err: any) {
       setIsUploading(false);
@@ -79,15 +65,26 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
     }
   };
 
-  const handleApplyUrl = () => {
-    const trimmed = customUrl.trim();
+  const handleApplyUrl = async (value = customUrl) => {
+    if (isUploading) return;
+    const trimmed = value.trim();
     if (!trimmed) {
       Alert.alert('تنبيه', 'يرجى إدخال رابط الصورة أولاً');
       return;
     }
-    onImageSelected(trimmed);
-    setCustomUrl('');
-    onClose();
+    if (!/^https:\/\//i.test(trimmed)) {
+      Alert.alert('رابط غير صالح', 'أدخل رابط HTTPS صالحاً للصورة.');
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const url = await uploadImageToSupabase(trimmed, folder);
+      onImageSelected(url);
+      setCustomUrl('');
+      onClose();
+    } catch (error) {
+      Alert.alert('تعذر رفع الصورة', error instanceof Error ? error.message : 'تحقق من رابط الصورة.');
+    } finally { setIsUploading(false); }
   };
 
   return (
@@ -181,8 +178,8 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
 
               <TouchableOpacity
                 style={[styles.applyUrlBtn, !customUrl.trim() && styles.applyUrlBtnDisabled]}
-                disabled={!customUrl.trim()}
-                onPress={handleApplyUrl}
+                disabled={!customUrl.trim() || isUploading}
+                onPress={() => void handleApplyUrl()}
                 activeOpacity={0.85}
               >
                 <Text style={styles.applyUrlBtnText}>اعتماد الرابط ✓</Text>
@@ -199,10 +196,8 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
                   <TouchableOpacity
                     key={idx}
                     style={styles.sampleItem}
-                    onPress={() => {
-                      onImageSelected(sample.url);
-                      onClose();
-                    }}
+                    disabled={isUploading}
+                    onPress={() => void handleApplyUrl(sample.url)}
                   >
                     <Image source={{ uri: sample.url }} style={styles.sampleImg} />
                     <Text style={styles.sampleText}>{sample.label}</Text>

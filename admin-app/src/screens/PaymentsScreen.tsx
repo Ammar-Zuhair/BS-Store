@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
 import { AdminHeader } from '../components/AdminHeader';
 import { useAdmin } from '../context/AdminContext';
-import { api } from '../api';
+import { ReceiptImage } from '../components/ReceiptImage';
 import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
 
 type Tab = 'transfers' | 'custody';
@@ -16,12 +16,15 @@ export const PaymentsScreen: React.FC = () => {
   const [tab, setTab] = useState<Tab>('transfers');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [receivedAmounts, setReceivedAmounts] = useState<Record<string, string>>({});
+  const runningActions = useRef(new Set<string>());
 
   const run = async (id: string, action: () => Promise<void>, success: string) => {
+    if (runningActions.current.has(id)) return;
+    runningActions.current.add(id);
     setBusyId(id);
     try { await action(); Alert.alert('تم', success); }
     catch (error: any) { Alert.alert('تعذر التنفيذ', error?.message || 'تحقق من الاتصال ثم حاول مجدداً'); }
-    finally { setBusyId(null); }
+    finally { runningActions.current.delete(id); setBusyId(null); }
   };
 
   const pendingTransfers = bankTransfers.filter((item) => item.status === 'PENDING');
@@ -82,11 +85,7 @@ export const PaymentsScreen: React.FC = () => {
                     style={styles.amountInput}
                   />
                 </> : <Text style={styles.info}>المبلغ المستلم المؤكد: {item.amountReceived!.toLocaleString()} ر.ي{item.amountReceivedAt ? ` · ${new Date(item.amountReceivedAt).toLocaleString('ar')}` : ''}</Text>}
-                {item.receiptImageUrl ? <Image
-                  source={{ uri: item.receiptImageUrl, headers: { 'ngrok-skip-browser-warning': 'true', ...(api.getToken() ? { Authorization: `Bearer ${api.getToken()}` } : {}) } }}
-                  style={styles.receipt}
-                  resizeMode="contain"
-                /> : <Text style={styles.info}>لم يرفع العميل صورة إيصال بعد.</Text>}
+                {item.receiptImageUrl ? <ReceiptImage url={item.receiptImageUrl} /> : <Text style={styles.info}>لم يرفع العميل صورة إيصال بعد.</Text>}
                 {item.rejectionReason ? <Text style={[styles.info, { color: colors.error }]}>سبب الرفض السابق: {item.rejectionReason}</Text> : null}
                 {(pending || needsAmountConfirmation) && <View style={styles.actions}>
                   {pending && <TouchableOpacity style={[styles.button, styles.rejectButton]} disabled={busyId === item.id}

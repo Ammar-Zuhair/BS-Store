@@ -11,6 +11,12 @@ const platform = { OS: 'android' };
 const files = new Map();
 const tokens = new Map([['@bs_customer_token', 'test-customer']]);
 const cache = new Map();
+const originalFileReader = global.FileReader;
+global.FileReader = class {
+  readAsDataURL(blob) {
+    blob.arrayBuffer().then(bytes => { this.result = `data:${blob.type};base64,${Buffer.from(bytes).toString('base64')}`; this.onload?.(); }).catch(() => this.onerror?.());
+  }
+};
 let requests = [];
 let failRead = false;
 let server;
@@ -27,6 +33,7 @@ function load(file) {
   }).outputText;
   const localRequire = specifier => {
     if (specifier === 'expo-file-system/legacy') return fileSystem;
+    if (specifier === 'expo-image-picker') return {};
     if (specifier === 'react-native') return { Platform: platform };
     if (specifier === 'expo-constants') return { expoConfig: { extra: { apiBaseUrl: 'https://implosive-exchange-compacter.ngrok-free.dev/api' } } };
     if (specifier === './tokenStorage') return { tokenStorage: {
@@ -62,11 +69,14 @@ async function main() {
   const timeout = setTimeout(() => { child.kill('SIGTERM'); }, 180000);
   try {
     server = await ready;
-    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.from(Array.from({ length: 256 }, (_, i) => i)), Buffer.from([0xff, 0xd9])]);
+    const jpeg = Buffer.from(server.receiptBase64, 'base64');
     const uri = 'file:///receipt-test.jpg'; files.set(uri, jpeg);
     global.fetch = async (url, options) => {
       requests.push({ url, options });
-      if (String(url).endsWith('/auth/refresh')) return Response.json({ data: { accessToken: 'test-customer', refreshToken: 'test-refresh' } });
+      if (String(url).endsWith('/auth/refresh')) {
+        const admin = JSON.parse(options.body).refreshToken === 'admin-refresh';
+        return Response.json({ data: { accessToken: admin ? 'test-admin' : 'test-customer', refreshToken: admin ? 'admin-refresh' : 'test-refresh' } });
+      }
       const target = String(url).replace('https://implosive-exchange-compacter.ngrok-free.dev', server.url);
       return nativeFetch(target, options);
     };
@@ -98,6 +108,32 @@ async function main() {
     }
     assert.equal((await nativeFetch(`${server.url}${upload.receiptUrl}`)).status, 401);
     assert.equal((await nativeFetch(`${server.url}${upload.receiptUrl}`, { headers: { Authorization: 'Bearer test-other' } })).status, 404);
+
+    tokens.set('@bs_admin_access_token', 'expired-admin'); tokens.set('@bs_admin_refresh_token', 'admin-refresh');
+    const adminClient = load(path.join(root, 'admin-app/src/api/client.ts')).api;
+    const receiptUrl = `https://implosive-exchange-compacter.ngrok-free.dev${upload.receiptUrl}`;
+    const receiptData = await adminClient.getReceiptImage(receiptUrl);
+    assert.deepEqual(Buffer.from(receiptData.split(',')[1], 'base64'), jpeg, 'admin renderer gets the image through authenticated fetch');
+    const imageRequests = requests.filter(item => item.url.endsWith(upload.receiptUrl));
+    assert.equal(imageRequests.at(-2).options.headers.Authorization, 'Bearer expired-admin');
+    assert.equal(imageRequests.at(-1).options.headers.Authorization, 'Bearer test-admin');
+    const beforeUnsafeImage = requests.length;
+    await assert.rejects(adminClient.getReceiptImage('https://untrusted.example/image.jpg'), /غير صالح/);
+    assert.equal(requests.length, beforeUnsafeImage, 'receipt tokens must not be sent to a foreign host');
+
+    const { uploadImageToSupabase } = load(path.join(root, 'admin-app/src/services/supabaseStorage.ts'));
+    const source = Buffer.from(await (await nativeFetch(`${server.url}/test/catalogue-source`)).arrayBuffer());
+    for (const folder of ['stores', 'products', 'offers']) {
+      const savedUrl = await uploadImageToSupabase({ uri: 'file:///catalogue.png', base64: source.toString('base64'), mimeType: 'image/png' }, folder);
+      assert.match(savedUrl, new RegExp(`/public/Product%20Images/${folder}/.+\\.jpg$`));
+    }
+    const stored = await (await nativeFetch(`${server.url}/test/catalogue-upload`)).json();
+    assert.equal(stored.uploadCount, 3); assert.equal(stored.lastMime, 'image/jpeg');
+    assert.ok(stored.size < source.length / 2, 'large originals are reduced before remote storage');
+    const invalidImage = await nativeFetch(`${server.url}/api/admin/images?folder=products`, { method: 'POST', headers: { Authorization: 'Bearer test-admin', 'Content-Type': 'application/octet-stream' }, body: 'not an image' });
+    assert.equal(invalidImage.status, 400);
+    assert.equal((await nativeFetch(`${server.url}/api/admin/images`, { method: 'POST', headers: { Authorization: 'Bearer test-customer' }, body: source })).status, 403);
+    console.log(`PASS authenticated receipt display/refresh, same-origin protection, stores/products/offers compression (${source.length} to ${stored.size} bytes), invalid images and upload authorization`);
 
     await call(`/admin/payments/${server.paymentId}/reject`, 'test-admin', { reason: 'Test rejection' });
     const rejected = await paymentsApi.getTransferInfo(server.orderId);
@@ -136,7 +172,7 @@ async function main() {
     assert.deepEqual(Buffer.from(await webForm.get('file').arrayBuffer()), jpeg);
     console.log('PASS receipt bytes, authenticated multipart upload, stored metadata/file, admin receipt access, reject/resubmit/approve, session refresh, upload restrictions, invalid/missing/oversized files, web/data URI encoding');
   } finally {
-    clearTimeout(timeout); global.fetch = nativeFetch;
+    clearTimeout(timeout); global.fetch = nativeFetch; global.FileReader = originalFileReader;
     if (child.exitCode === null && child.signalCode === null) {
       const exited = new Promise(resolve => child.once('exit', resolve));
       child.kill('SIGTERM'); await exited;

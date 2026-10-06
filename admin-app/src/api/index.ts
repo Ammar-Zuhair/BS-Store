@@ -100,7 +100,7 @@ export const adminApi = {
 
   getPayments: (status?: string) => {
     const qs = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
-    return api.get<any[]>(`/admin/payments${qs}`).catch(() => api.get<any[]>('/admin/payments/pending'));
+    return api.get<any[]>(`/admin/payments${qs}`);
   },
 
   getPendingPayments: () =>

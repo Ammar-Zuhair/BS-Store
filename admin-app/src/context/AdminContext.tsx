@@ -221,6 +221,122 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const verificationRevision = useRef(0);
+
+  const refreshDashboard = async () => {
+    const revision = verificationRevision.current;
+    try {
+      const dash = await adminApi.getDashboard();
+      const salesTotal = Number(dash.totalSalesToday ?? 0);
+      const grossProfit = Number(dash.totalGrossProfitToday ?? 0);
+      if (revision !== verificationRevision.current) return;
+      setKpi({
+        ordersToday: Number(dash.totalOrdersToday ?? 0),
+        salesTotal,
+        salesChangePercent: Number(dash.salesChangePercent ?? 0),
+        grossProfit,
+        profitMarginPercent: salesTotal > 0 ? Math.round((grossProfit / salesTotal) * 1000) / 10 : 0,
+        purchaseCostTotal: Number(dash.totalPurchaseCostToday ?? 0),
+        fieldCustodyTotal: Number(dash.fieldCustodyTotal ?? 0),
+        criticalPendingCount: (dash.pendingVerificationPayments || 0) + (dash.searchingDriverOrders || 0),
+        pendingDriverOrdersCount: dash.searchingDriverOrders || 0,
+        pendingBankTransfersCount: dash.pendingVerificationPayments || 0,
+      });
+    } catch (e) {
+      console.warn('Dashboard fetch error:', e);
+    }
+  };
+
+  const refreshOrders = async () => {
+    const revision = verificationRevision.current;
+    try {
+      const ords = await adminApi.getOrders();
+      const mappedOrders: AdminOrder[] = ords.map((o: any) => ({
+        id: o.id,
+        orderNumber: o.orderNumber,
+        customerGovernorateId: o.customerGovernorateId,
+        customerName: o.customerName || (o.customer && o.customer.fullName) || 'عميل المنصة',
+        customerPhone: o.customerPhone || (o.customer && (o.customer.phone || (o.customer.user && o.customer.user.phone))) || '',
+        createdAt: new Date(o.createdAt || Date.now()).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
+        status: mapOrderStatus(o.status),
+        subtotal: o.subTotal,
+        deliveryFee: o.deliveryFee,
+        discount: o.discount,
+        totalAmount: o.totalAmount,
+        paymentMethod: o.paymentMethod === 1 || o.paymentMethod === 'ManualTransfer' ? 'MANUAL_TRANSFER' : 'CASH_ON_DELIVERY',
+        paymentStatus: o.paymentStatus === 2 || o.paymentStatus === 'Verified' ? 'VERIFIED' : o.paymentStatus === 3 || o.paymentStatus === 'Rejected' ? 'REJECTED' : 'PENDING',
+        assignedDriverName: o.driverName,
+        addressSummary: o.deliveryAddress || o.addressSummary || 'صنعاء، اليمن',
+        customerRating: o.customerRating,
+        customerReview: o.customerReview,
+        notes: o.notes,
+        subOrders: (o.subOrders || []).map((so: any) => ({
+          id: so.id,
+          storeId: so.storeId,
+          storeName: so.storeName,
+          governorateId: so.governorateId,
+          governorateName: so.governorateName,
+          status: so.status === 'Purchased' ? 'PURCHASED' : 'PENDING',
+          subtotal: Number(so.subTotal || 0),
+          expectedCost: so.expectedCost != null ? Number(so.expectedCost) : Number(so.subTotal || 0),
+          expectedProfit: so.expectedProfit != null ? Number(so.expectedProfit) : Math.max(0, Number(so.subTotal || 0) - (so.expectedCost != null ? Number(so.expectedCost) : Number(so.subTotal || 0))),
+          items: (so.items || []).map((i: any) => ({
+            productId: i.productId,
+            productName: i.productName || i.productNameSnapshot || 'منتج',
+            sellingPrice: Number(i.unitPrice ?? i.sellingPriceSnapshot ?? (i.totalPrice && i.quantity ? Math.round(i.totalPrice / i.quantity) : 0)),
+            quantity: i.quantity || 1,
+            expectedPurchaseCost: i.expectedPurchasePrice != null
+              ? Number(i.expectedPurchasePrice)
+              : Number(i.unitPrice ?? i.sellingPriceSnapshot ?? 0),
+            actualPurchaseCost: i.actualPurchasePrice != null ? Number(i.actualPurchasePrice) : undefined,
+          })),
+        })),
+      }));
+      if (revision === verificationRevision.current) setOrders(mappedOrders);
+    } catch (e) {
+      console.warn('Orders fetch error:', e);
+    }
+  };
+
+  const refreshPayments = async () => {
+    const revision = verificationRevision.current;
+    try {
+      const pmts = await adminApi.getPayments();
+      const mappedPmts: BankTransferRequest[] = (pmts || []).map((p: any) => {
+        let status: 'PENDING' | 'VERIFIED' | 'REJECTED' = 'PENDING';
+        if (p.status === 'VERIFIED' || p.rawStatus === 2) status = 'VERIFIED';
+        else if (p.status === 'REJECTED' || p.rawStatus === 3) status = 'REJECTED';
+
+        const receipt = p.receipts?.[0];
+        let receiptUrl = receipt?.url;
+        if (receiptUrl && !receiptUrl.startsWith('http')) {
+          receiptUrl = `${API_BASE_URL}/${receiptUrl.replace(/^\/+/, '')}`;
+        }
+
+        return {
+          id: p.id,
+          orderId: p.orderId,
+          orderNumber: p.orderNumber || '0000',
+          customerName: p.customerName || 'عميل المتجر',
+          customerPhone: p.customerPhone || '777000111',
+          amount: p.amount || 0,
+          amountReceived: p.amountReceived == null ? null : Number(p.amountReceived),
+          amountReceivedAt: p.amountReceivedAt || null,
+          amountReceivedBy: p.amountReceivedBy || null,
+          transferProvider: p.transferProvider || null,
+          transferReference: p.transferReference || '',
+          receiptImageUrl: receiptUrl || '',
+          uploadedAt: p.createdAt || receipt?.uploadedAt || new Date().toISOString(),
+          status,
+          rejectionReason: p.rejectionReason,
+        };
+      });
+      if (revision === verificationRevision.current) setBankTransfers(mappedPmts);
+    } catch (e) {
+      console.warn('Payments fetch error:', e);
+    }
+  };
+
   const refreshData = async () => {
     if (!api.getToken()) {
       setIsLoading(false);
@@ -229,111 +345,13 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsLoading(true);
     try {
       // 1. Dashboard KPI
-      try {
-        const dash = await adminApi.getDashboard();
-        const salesTotal = Number(dash.totalSalesToday ?? 0);
-        const grossProfit = Number(dash.totalGrossProfitToday ?? 0);
-        setKpi({
-          ordersToday: Number(dash.totalOrdersToday ?? 0),
-          salesTotal,
-          salesChangePercent: Number(dash.salesChangePercent ?? 0),
-          grossProfit,
-          profitMarginPercent: salesTotal > 0 ? Math.round((grossProfit / salesTotal) * 1000) / 10 : 0,
-          purchaseCostTotal: Number(dash.totalPurchaseCostToday ?? 0),
-          fieldCustodyTotal: Number(dash.fieldCustodyTotal ?? 0),
-          criticalPendingCount: (dash.pendingVerificationPayments || 0) + (dash.searchingDriverOrders || 0),
-          pendingDriverOrdersCount: dash.searchingDriverOrders || 0,
-          pendingBankTransfersCount: dash.pendingVerificationPayments || 0,
-        });
-      } catch (e) {
-        console.warn('Dashboard fetch error:', e);
-      }
+      await refreshDashboard();
 
       // 2. Orders
-      try {
-        const ords = await adminApi.getOrders();
-        const mappedOrders: AdminOrder[] = ords.map((o: any) => ({
-          id: o.id,
-          orderNumber: o.orderNumber,
-          customerGovernorateId: o.customerGovernorateId,
-          customerName: o.customerName || (o.customer && o.customer.fullName) || 'عميل المنصة',
-          customerPhone: o.customerPhone || (o.customer && (o.customer.phone || (o.customer.user && o.customer.user.phone))) || '',
-          createdAt: new Date(o.createdAt || Date.now()).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
-          status: mapOrderStatus(o.status),
-          subtotal: o.subTotal,
-          deliveryFee: o.deliveryFee,
-          discount: o.discount,
-          totalAmount: o.totalAmount,
-          paymentMethod: o.paymentMethod === 1 || o.paymentMethod === 'ManualTransfer' ? 'MANUAL_TRANSFER' : 'CASH_ON_DELIVERY',
-          paymentStatus: o.paymentStatus === 2 || o.paymentStatus === 'Verified' ? 'VERIFIED' : o.paymentStatus === 3 || o.paymentStatus === 'Rejected' ? 'REJECTED' : 'PENDING',
-          assignedDriverName: o.driverName,
-          addressSummary: o.deliveryAddress || o.addressSummary || 'صنعاء، اليمن',
-          customerRating: o.customerRating,
-          customerReview: o.customerReview,
-          notes: o.notes,
-          subOrders: (o.subOrders || []).map((so: any) => ({
-            id: so.id,
-            storeId: so.storeId,
-            storeName: so.storeName,
-            governorateId: so.governorateId,
-            governorateName: so.governorateName,
-            status: so.status === 'Purchased' ? 'PURCHASED' : 'PENDING',
-            subtotal: Number(so.subTotal || 0),
-            expectedCost: so.expectedCost != null ? Number(so.expectedCost) : Number(so.subTotal || 0),
-            expectedProfit: so.expectedProfit != null ? Number(so.expectedProfit) : Math.max(0, Number(so.subTotal || 0) - (so.expectedCost != null ? Number(so.expectedCost) : Number(so.subTotal || 0))),
-            items: (so.items || []).map((i: any) => ({
-              productId: i.productId,
-              productName: i.productName || i.productNameSnapshot || 'منتج',
-              sellingPrice: Number(i.unitPrice ?? i.sellingPriceSnapshot ?? (i.totalPrice && i.quantity ? Math.round(i.totalPrice / i.quantity) : 0)),
-              quantity: i.quantity || 1,
-              expectedPurchaseCost: i.expectedPurchasePrice != null
-                ? Number(i.expectedPurchasePrice)
-                : Number(i.unitPrice ?? i.sellingPriceSnapshot ?? 0),
-              actualPurchaseCost: i.actualPurchasePrice != null ? Number(i.actualPurchasePrice) : undefined,
-            })),
-          })),
-        }));
-        setOrders(mappedOrders);
-      } catch (e) {
-        console.warn('Orders fetch error:', e);
-      }
+      await refreshOrders();
 
       // 3. Payments (All Bank Transfers)
-      try {
-        const pmts = await adminApi.getPayments();
-        const mappedPmts: BankTransferRequest[] = (pmts || []).map((p: any) => {
-          let status: 'PENDING' | 'VERIFIED' | 'REJECTED' = 'PENDING';
-          if (p.status === 'VERIFIED' || p.rawStatus === 2) status = 'VERIFIED';
-          else if (p.status === 'REJECTED' || p.rawStatus === 3) status = 'REJECTED';
-
-          const receipt = p.receipts?.[0];
-          let receiptUrl = receipt?.url;
-          if (receiptUrl && !receiptUrl.startsWith('http')) {
-            receiptUrl = `${API_BASE_URL}/${receiptUrl.replace(/^\/+/, '')}`;
-          }
-
-          return {
-            id: p.id,
-            orderId: p.orderId,
-            orderNumber: p.orderNumber || '0000',
-            customerName: p.customerName || 'عميل المتجر',
-            customerPhone: p.customerPhone || '777000111',
-            amount: p.amount || 0,
-            amountReceived: p.amountReceived == null ? null : Number(p.amountReceived),
-            amountReceivedAt: p.amountReceivedAt || null,
-            amountReceivedBy: p.amountReceivedBy || null,
-            transferProvider: p.transferProvider || null,
-            transferReference: p.transferReference || '',
-            receiptImageUrl: receiptUrl || '',
-            uploadedAt: p.createdAt || receipt?.uploadedAt || new Date().toISOString(),
-            status,
-            rejectionReason: p.rejectionReason,
-          };
-        });
-        setBankTransfers(mappedPmts);
-      } catch (e) {
-        console.warn('Payments fetch error:', e);
-      }
+      await refreshPayments();
 
       // 3.1 Driver cash custody settlement requests
       try {
@@ -829,13 +847,31 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const verifyBankTransfer = async (id: string, approved: boolean, reason?: string, amountReceived?: number) => {
     try {
+      let confirmed: any;
       if (approved) {
         if (amountReceived == null) throw new Error('أدخل المبلغ الذي تم التحقق منه في الإيصال');
-        await adminApi.approvePayment(id, amountReceived);
+        confirmed = await adminApi.approvePayment(id, amountReceived);
       } else {
         await adminApi.rejectPayment(id, reason || 'إشعار غير مطابق');
       }
-      await refreshData();
+      verificationRevision.current += 1;
+      setBankTransfers(current => current.map(item => item.id === id ? {
+        ...item,
+        status: approved ? 'VERIFIED' : 'REJECTED',
+        rejectionReason: approved ? undefined : reason || 'إشعار غير مطابق',
+        ...(approved ? {
+          amountReceived: confirmed?.amountReceived ?? amountReceived,
+          amountReceivedAt: confirmed?.amountReceivedAt ?? new Date().toISOString(),
+          amountReceivedBy: confirmed?.amountReceivedBy ?? currentUser?.id,
+        } : {}),
+      } : item));
+      if (confirmed?.orderId && confirmed?.orderStatus != null) {
+        setOrders(current => current.map(order => order.id === confirmed.orderId
+          ? { ...order, status: mapOrderStatus(confirmed.orderStatus), paymentStatus: 'VERIFIED' } : order));
+      }
+      // Acknowledge the saved payment immediately. Only relevant data refreshes
+      // in parallel; product/store/custody queries must not hold this action open.
+      void Promise.all([refreshPayments(), refreshOrders(), refreshDashboard()]);
     } catch (e) {
       console.error('Failed to verify bank transfer:', e);
       throw e;

@@ -23,15 +23,15 @@ export async function chooseTransferReceipt(): Promise<TransferReceiptImage | nu
   const asset = result.assets[0];
   const context = ImageManipulator.manipulate(asset.uri);
   const longestSide = Math.max(asset.width, asset.height);
-  if (longestSide > 2000) {
-    if (asset.width >= asset.height) context.resize({ width: 2000 });
-    else context.resize({ height: 2000 });
+  if (longestSide > 2200) {
+    if (asset.width >= asset.height) context.resize({ width: 2200 });
+    else context.resize({ height: 2200 });
   }
 
   try {
     const image = await context.renderAsync();
     try {
-      const compressed = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.78 });
+      const compressed = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.85 });
       return { uri: compressed.uri, fileName: 'transfer-receipt.jpg', mimeType: 'image/jpeg' };
     } finally {
       image.release();

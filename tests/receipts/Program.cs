@@ -10,6 +10,9 @@ using BSStore.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.PixelFormats;
 
 // This host runs the actual receipt/review controllers with isolated metadata
 // and temporary file storage. It never loads the production database or secrets.
@@ -23,14 +26,27 @@ var databaseName = Guid.NewGuid().ToString();
 builder.Services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(databaseName));
 builder.Services.AddScoped<IStorageService, LocalStorageService>();
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("CatalogueStorage").ConfigurePrimaryHttpMessageHandler(() => new TestCatalogueStorage());
 builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddControllers().AddApplicationPart(typeof(PaymentsController).Assembly);
 builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuthentication>("Test", _ => { });
 builder.Services.AddAuthorization();
 var app = builder.Build();
+// Verify that already small and transparent images preserve dimensions/alpha.
+using (var transparent = new Image<Rgba32>(16, 12))
+{
+    await using var png = new MemoryStream();
+    transparent.SaveAsPng(png); png.Position = 0;
+    var optimized = await CatalogueImageOptimizer.OptimizeAsync(png, CancellationToken.None);
+    using var decoded = Image.Load<Rgba32>(optimized.Bytes);
+    if (optimized.MimeType != "image/png" || decoded.Width != 16 || decoded.Height != 12 || decoded[0, 0].A != 0)
+        throw new InvalidOperationException($"Transparent images must not be flattened or upscaled: {optimized.MimeType}, {decoded.Width}x{decoded.Height}, alpha {decoded[0, 0].A}");
+}
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapGet("/test/catalogue-source", () => Results.File(TestCatalogueStorage.Source, "image/jpeg"));
+app.MapGet("/test/catalogue-upload", () => Results.Json(new { TestCatalogueStorage.UploadCount, Size = TestCatalogueStorage.LastImage?.Length, TestCatalogueStorage.LastMime }));
 
 Guid orderId;
 Guid paymentId;
@@ -50,7 +66,7 @@ using (var scope = app.Services.CreateScope())
 try
 {
     await app.StartAsync();
-    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { url = app.Urls.Single(), orderId, paymentId }));
+    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { url = app.Urls.Single(), orderId, paymentId, receiptBase64 = Convert.ToBase64String(TestCatalogueStorage.Receipt) }));
     await app.WaitForShutdownAsync();
 }
 finally
@@ -72,5 +88,40 @@ sealed class TestAuthentication(IOptionsMonitor<AuthenticationSchemeOptions> opt
         var id = token == "Bearer test-customer" ? CustomerId : Guid.Parse("00000000-0000-0000-0000-000000000001");
         var identity = new ClaimsIdentity([new Claim("userId", id.ToString()), new Claim(ClaimTypes.Role, role)], Scheme.Name);
         return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name)));
+    }
+}
+
+sealed class TestCatalogueStorage : HttpMessageHandler
+{
+    public static readonly byte[] Source = MakeImage(3200, 1800);
+    public static readonly byte[] Receipt = MakeImage(256, 128);
+    public static byte[]? LastImage;
+    public static string? LastMime;
+    public static int UploadCount;
+    private static byte[] MakeImage(int width, int height)
+    {
+        using var image = new Image<Rgb24>(width, height);
+        image.ProcessPixelRows(rows =>
+        {
+            for (var y = 0; y < height; y++)
+            {
+                var row = rows.GetRowSpan(y);
+                for (var x = 0; x < width; x++) row[x] = new Rgb24((byte)(x % 256), (byte)(y % 256), (byte)((x + y) % 256));
+            }
+        });
+        using var stream = new MemoryStream();
+        image.Save(stream, new JpegEncoder { Quality = 100 });
+        return stream.ToArray();
+    }
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    {
+        LastImage = await request.Content!.ReadAsByteArrayAsync(ct);
+        LastMime = request.Content.Headers.ContentType?.MediaType;
+        using var decoded = Image.Load<Rgba32>(LastImage);
+        if (decoded.Width > 1600 || decoded.Height > 1600) throw new InvalidOperationException("Original dimensions reached catalogue storage");
+        if (!request.Headers.Contains("apikey") || request.Headers.Authorization != null)
+            throw new InvalidOperationException("Publishable storage key must use apikey, not Bearer");
+        UploadCount++;
+        return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent("{}") };
     }
 }
