@@ -20,3 +20,14 @@ Run `node tests/admin-payments.cjs` to check actual admin provider/screen behavi
 approval finishes even when background queries never finish, rapid taps are
 deduplicated, failed approvals do not alter confirmed amounts, receipt loading
 can retry, and customer receipts use the image manipulation/cleanup path.
+
+Run `node tests/receipts/run.cjs --r2` for the same real-controller flow with R2
+storage. Only the external S3 boundary is mocked: uploaded catalogue objects
+are fetched through the real public image route and receipts through their
+protected route. Startup also checks migration dry-run/verification/retry,
+corruption rejection, backup/original preservation, old local receipt reads,
+SDK flags, endpoint restrictions, service gateways and dotenv precedence.
+
+Run `node tests/service-gateways.cjs` for the actual mobile registration adapters
+and generated Leaflet scripts. Run `node scripts/audit-mobile-env.cjs` to print
+only dotenv names/paths and reject app service credentials.

@@ -48,17 +48,18 @@ function load(file) {
   return module.exports;
 }
 async function main() {
+  const r2Mode = process.argv.includes('--r2');
   const dotnet = fs.existsSync(path.join(root, '.tools/dotnet/dotnet')) ? path.join(root, '.tools/dotnet/dotnet') : 'dotnet';
   const testEnvironment = Object.fromEntries(['PATH', 'HOME', 'TMPDIR', 'DOTNET_CLI_HOME', 'NUGET_PACKAGES', 'SSL_CERT_FILE', 'SSL_CERT_DIR']
     .filter(name => process.env[name]).map(name => [name, process.env[name]]));
   const child = spawn(dotnet, ['run', '--project', path.join(__dirname, 'ReceiptFlow.csproj'), '--no-launch-profile'], {
-    cwd: root, env: { ...testEnvironment, ...(path.isAbsolute(dotnet) ? { DOTNET_ROOT: path.dirname(dotnet) } : {}), DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1' }, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: root, env: { ...testEnvironment, ...(path.isAbsolute(dotnet) ? { DOTNET_ROOT: path.dirname(dotnet) } : {}), DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1', TEST_STORAGE_MODE: r2Mode ? 'r2' : 'supabase' }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
   const ready = new Promise((resolve, reject) => {
     child.stdout.on('data', chunk => {
       output += chunk;
-      for (const line of output.split('\n')) {
+      for (const line of output.split('\n').slice(0, -1)) {
         if (line.startsWith('{"url":')) { resolve(JSON.parse(line)); return; }
       }
     });
@@ -69,6 +70,7 @@ async function main() {
   const timeout = setTimeout(() => { child.kill('SIGTERM'); }, 180000);
   try {
     server = await ready;
+    console.log(output.split("\n").find(line => line.startsWith("PASS R2 upload")));
     const jpeg = Buffer.from(server.receiptBase64, 'base64');
     const uri = 'file:///receipt-test.jpg'; files.set(uri, jpeg);
     global.fetch = async (url, options) => {
@@ -121,11 +123,21 @@ async function main() {
     await assert.rejects(adminClient.getReceiptImage('https://untrusted.example/image.jpg'), /غير صالح/);
     assert.equal(requests.length, beforeUnsafeImage, 'receipt tokens must not be sent to a foreign host');
 
-    const { uploadImageToSupabase } = load(path.join(root, 'admin-app/src/services/supabaseStorage.ts'));
+    const { uploadCatalogueImage } = load(path.join(root, 'admin-app/src/services/imageStorage.ts'));
     const source = Buffer.from(await (await nativeFetch(`${server.url}/test/catalogue-source`)).arrayBuffer());
     for (const folder of ['stores', 'products', 'offers']) {
-      const savedUrl = await uploadImageToSupabase({ uri: 'file:///catalogue.png', base64: source.toString('base64'), mimeType: 'image/png' }, folder);
-      assert.match(savedUrl, new RegExp(`/public/Product%20Images/${folder}/.+\\.jpg$`));
+      const savedUrl = await uploadCatalogueImage({ uri: 'file:///catalogue.png', base64: source.toString('base64'), mimeType: 'image/png' }, folder);
+      assert.match(savedUrl, new RegExp(r2Mode ? `/api/images/${folder}/[a-f0-9]{32}\\.jpg$` : `/public/Product%20Images/${folder}/.+\\.jpg$`));
+      if (r2Mode) {
+        const image = await nativeFetch(savedUrl.replace('https://implosive-exchange-compacter.ngrok-free.dev', server.url));
+        assert.equal(image.status, 200); assert.equal(image.headers.get('content-type'), 'image/jpeg');
+        assert.match(image.headers.get('cache-control'), /public/);
+        assert.ok((await image.arrayBuffer()).byteLength < source.length / 2);
+      }
+    }
+    if (r2Mode) {
+      assert.equal((await nativeFetch(`${server.url}/api/images/receipts/${'a'.repeat(32)}.jpg`)).status, 404);
+      assert.equal((await nativeFetch(`${server.url}/api/images/private/${'a'.repeat(32)}.jpg`)).status, 404);
     }
     const stored = await (await nativeFetch(`${server.url}/test/catalogue-upload`)).json();
     assert.equal(stored.uploadCount, 3); assert.equal(stored.lastMime, 'image/jpeg');

@@ -17,6 +17,8 @@ import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import { colors, typography, borderRadius, shadows, spacing } from '../theme';
 
+import { API_BASE_URL } from '../api/client';
+
 export interface LocationResult {
   latitude: number;
   longitude: number;
@@ -34,9 +36,9 @@ interface LocationPickerModalProps {
   title?: string;
 }
 
-const CARTO_API_KEY = process.env.EXPO_PUBLIC_CARTO_API_KEY || '';
+const MAP_TILE_URL = `${API_BASE_URL}/maps/tiles/{z}/{x}/{y}.png`;
 
-const buildLeafletHtml = (lat: number, lng: number, apiKey: string = '') => `<!doctype html>
+const buildLeafletHtml = (lat: number, lng: number, tileUrl: string) => `<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8"/>
@@ -45,7 +47,7 @@ const buildLeafletHtml = (lat: number, lng: number, apiKey: string = '') => `<!d
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; background: #E8EBEF; overflow: hidden; }
-    .leaflet-control-attribution { display: none !important; }
+    .leaflet-control-attribution { font-size: 9px; }
     .center-pin-container {
       position: absolute;
       top: 50%;
@@ -114,20 +116,34 @@ const buildLeafletHtml = (lat: number, lng: number, apiKey: string = '') => `<!d
         center: [${lat}, ${lng}],
         zoom: 16,
         zoomControl: false,
-        attributionControl: false,
+        attributionControl: true,
         fadeAnimation: true,
         zoomAnimation: true
       });
       window.map = map;
 
       // CartoDB Voyager tiles (Fast, worldwide CDN, high-contrast Arabic labels)
-      var cartoKey = ${JSON.stringify(apiKey)};
-      var cartoUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png' + (cartoKey ? ('?key=' + encodeURIComponent(cartoKey)) : '');
+      var cartoUrl = ${JSON.stringify(tileUrl)};
       var cartoVoyager = L.tileLayer(cartoUrl, {
         maxZoom: 19,
         subdomains: ['a', 'b', 'c', 'd'],
         attribution: '© OpenStreetMap, © CartoDB'
       });
+
+      // Fetch through the backend so the provider key stays on the server.
+      cartoVoyager.createTile = function(coords, done) {
+        var tile = document.createElement('img');
+        var url = L.Util.template(cartoUrl, coords);
+        fetch(url, { headers: { 'ngrok-skip-browser-warning': 'true' } })
+          .then(function(response) { if (!response.ok) throw new Error('Tile unavailable'); return response.blob(); })
+          .then(function(blob) {
+            var objectUrl = URL.createObjectURL(blob);
+            tile.onload = function() { URL.revokeObjectURL(objectUrl); done(null, tile); };
+            tile.onerror = function() { URL.revokeObjectURL(objectUrl); done(new Error('Tile unavailable'), tile); };
+            tile.src = objectUrl;
+          }).catch(function(error) { done(error, tile); });
+        return tile;
+      };
 
       // OSM standard fallback
       var osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -430,7 +446,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const leafletHtml = React.useMemo(() => {
     const lat = initialCoordsRef.current.lat || 15.35;
     const lng = initialCoordsRef.current.lng || 44.20;
-    return buildLeafletHtml(lat, lng, CARTO_API_KEY);
+    return buildLeafletHtml(lat, lng, MAP_TILE_URL);
   }, [sessionKey]);
 
   return (

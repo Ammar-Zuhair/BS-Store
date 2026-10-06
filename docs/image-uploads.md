@@ -6,17 +6,17 @@ to `POST /api/admin/images?folder=stores|products|offers`. The authenticated API
 decodes actual content, applies orientation, limits the longest side to 1600 px,
 encodes opaque images as JPEG at quality 85, and preserves transparency as PNG.
 Smaller images are never upscaled. Only optimized bytes reach the existing
-Supabase public bucket. Unreadable files and inputs over 15 MiB fail explicitly;
+storage provider selected by the backend (R2 after credentials are added). Unreadable files and inputs over 15 MiB fail explicitly;
 local device URIs are never saved as remotely accessible image URLs.
 
-Configure storage on the backend with `EXPO_PUBLIC_SUPABASE_URL`,
-`EXPO_PUBLIC_SUPABASE_KEY` and `EXPO_PUBLIC_SUPABASE_BUCKET` (or existing valid
-Supabase URL/AnonKey configuration). Current project defaults remain supported.
-Publishable keys use the `apikey` header; legacy anon JWTs also use Bearer.
+R2 configuration, protected storage, backend image routes, migration commands and
+the mobile credential audit are documented in [r2-storage.md](r2-storage.md).
+The legacy Supabase provider is retained during preparation. No storage keys
+are present in mobile dotenv files or source integrations.
 
 Customer transfer receipts are converted to JPEG at quality 0.85 with a longest
 side of 2200 px before uploading. This path is shared by checkout and re-upload
-from order details. The 5 MiB server limit, private file storage and payment
+from order details. The 5 MiB server limit, private storage (R2 when enabled, local otherwise) and payment
 metadata remain in effect. PDFs accepted through the API are documents and are
 not subjected to lossy image encoding.
 

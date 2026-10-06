@@ -87,7 +87,7 @@ export const pickImageFromGallery = async (): Promise<PickedImage | null> => {
 /**
  * Send image bytes to the API for required optimization and Supabase storage.
  */
-export const uploadImageToSupabase = async (
+export const uploadCatalogueImage = async (
   imageInput: string | PickedImage,
   folder: 'stores' | 'products' | 'offers' = 'products'
 ): Promise<string> => {

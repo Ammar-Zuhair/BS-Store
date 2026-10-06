@@ -1,9 +1,7 @@
 {
   "version": "1.0.0-alpha.271",
   "ingest": {
-    "url": "",
-    "token": "",
-    "inviteKey": ""
+    "url": ""
   },
   "budgets": {
     "screenP75Ms": 500,

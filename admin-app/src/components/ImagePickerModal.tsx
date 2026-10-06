@@ -12,7 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
-import { pickImageFromGallery, uploadImageToSupabase } from '../services/supabaseStorage';
+import { pickImageFromGallery, uploadCatalogueImage } from '../services/imageStorage';
 
 interface ImagePickerModalProps {
   visible: boolean;
@@ -47,7 +47,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
       setUploadStatus('جاري رفع الصورة...');
 
       try {
-        const publicUrl = await uploadImageToSupabase(picked, folder);
+        const publicUrl = await uploadCatalogueImage(picked, folder);
         setIsUploading(false);
         setUploadStatus('');
         onImageSelected(publicUrl);
@@ -78,7 +78,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
     }
     setIsUploading(true);
     try {
-      const url = await uploadImageToSupabase(trimmed, folder);
+      const url = await uploadCatalogueImage(trimmed, folder);
       onImageSelected(url);
       setCustomUrl('');
       onClose();
@@ -129,7 +129,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
                 <View style={styles.loadingBox}>
                   <ActivityIndicator size="large" color={colors.primary} />
                   <Text style={styles.loadingText}>{uploadStatus}</Text>
-                  <Text style={styles.loadingSub}>يتم الآن التخزين في سحابة Supabase Storage</Text>
+                  <Text style={styles.loadingSub}>يتم الآن ضغط الصورة وحفظها</Text>
                 </View>
               ) : (
                 <View style={styles.gallerySection}>
@@ -143,7 +143,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
                     </View>
                     <Text style={styles.uploadCardTitle}>اختر صورة من جهازك</Text>
                     <Text style={styles.uploadCardSub}>
-                      اضغط هنا لتحديد صورة من المعرض وسيتم رفعها وتخزينها تلقائياً على Supabase
+                      اضغط هنا لتحديد صورة من المعرض وسيتم رفعها وتخزينها تلقائياً في التخزين
                     </Text>
                     <View style={styles.uploadActionBadge}>
                       <Text style={styles.uploadActionText}>+ فتح المعرض والرفع</Text>

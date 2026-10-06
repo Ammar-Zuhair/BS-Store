@@ -3,6 +3,7 @@ import { InteractionManager, View, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { fetch as expoFetch } from 'expo/fetch';
+import { API_BASE_URL } from '../api/client';
 import {
   enableTelemetry,
   markBoot,
@@ -15,7 +16,19 @@ import {
 
 const INSTALL_ID_KEY = '@bs-store/admin/boosthis-install-id-v1';
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PROJECT_KEY = process.env.EXPO_PUBLIC_BOOSTHIS_PROJECT_KEY?.trim();
+// This marker is not a credential. Only the backend adds the project key to
+// the registration request; installation-specific session tokens stay local.
+const GATEWAY_MARKER = 'bsstore_backend_gateway';
+const telemetryFetch: typeof expoFetch = (input, options) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+  if (url === 'https://www.boosthis.com/api/installs/consent') {
+    const headers = new Headers(options?.headers);
+    headers.delete('Authorization');
+    headers.set('ngrok-skip-browser-warning', 'true');
+    return expoFetch(`${API_BASE_URL}/telemetry/admin/consent`, { ...options, headers });
+  }
+  return expoFetch(input, options);
+};
 let initialization: Promise<void> | undefined;
 
 async function getInstallId(): Promise<string> {
@@ -30,7 +43,6 @@ async function getInstallId(): Promise<string> {
 function initializeBoosthis(): Promise<void> {
   if (initialization) return initialization;
   initialization = (async () => {
-    if (!PROJECT_KEY) return;
     try {
       const installId = await getInstallId();
       setRouteListEnabled(false);
@@ -39,8 +51,8 @@ function initializeBoosthis(): Promise<void> {
         installId,
         appName: 'BS Store Admin',
         endpoint: 'https://www.boosthis.com/api',
-        inviteKey: PROJECT_KEY,
-        fetchOptions: { fetchImpl: expoFetch },
+        inviteKey: GATEWAY_MARKER,
+        fetchOptions: { fetchImpl: telemetryFetch },
         autoWrapNetwork: true,
         trackUnhandledErrors: true,
         trackImageWeight: true,
@@ -69,7 +81,7 @@ export const BoosthisRuntime: React.FC<React.PropsWithChildren> = ({ children })
     void initializeBoosthis();
   }, []);
 
-  return <View {...(PROJECT_KEY ? panHandlers : undefined)} style={styles.root}>{children}</View>;
+  return <View {...panHandlers} style={styles.root}>{children}</View>;
 };
 
 export const BoosthisScreenTracker: React.FC<{ screen: string }> = ({ screen }) => {

@@ -17,21 +17,38 @@ using SixLabors.ImageSharp.PixelFormats;
 // This host runs the actual receipt/review controllers with isolated metadata
 // and temporary file storage. It never loads the production database or secrets.
 var root = Path.Combine(Path.GetTempPath(), $"bsstore-receipt-test-{Guid.NewGuid():N}");
+var r2Mode = Environment.GetEnvironmentVariable("TEST_STORAGE_MODE") == "r2";
+var objectClient = new TestR2Client();
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.WebHost.UseUrls("http://127.0.0.1:0");
-builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["Storage:LocalPath"] = root });
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["Storage:LocalPath"] = root, ["STORAGE_PROVIDER"] = r2Mode ? "r2" : "supabase",
+    ["R2_BUCKET_NAME"] = "test-private-bucket", ["APP_PUBLIC_URL"] = "https://implosive-exchange-compacter.ngrok-free.dev",
+    ["LEGACY_SUPABASE_STORAGE_URL"] = "https://storage.test", ["LEGACY_SUPABASE_STORAGE_KEY"] = "sb_publishable_test",
+    ["LEGACY_SUPABASE_STORAGE_BUCKET"] = "Product Images"
+});
 // Every request must share the same isolated in-memory database.
 var databaseName = Guid.NewGuid().ToString();
 builder.Services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(databaseName));
-builder.Services.AddScoped<IStorageService, LocalStorageService>();
+builder.Services.AddScoped<LocalStorageService>();
+builder.Services.AddScoped<IStorageService, HybridStorageService>();
+builder.Services.AddSingleton<Amazon.S3.IAmazonS3>(objectClient);
+builder.Services.AddSingleton<R2ObjectStore>();
+builder.Services.AddSingleton<R2Settings>();
+builder.Services.AddScoped<CatalogueStorageService>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("CatalogueStorage").ConfigurePrimaryHttpMessageHandler(() => new TestCatalogueStorage());
 builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddControllers().AddApplicationPart(typeof(PaymentsController).Assembly);
 builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuthentication>("Test", _ => { });
 builder.Services.AddAuthorization();
+builder.Services.AddOutputCache(options => options.AddPolicy("public-images", policy => policy.Expire(TimeSpan.FromDays(1))));
+builder.Services.AddRateLimiter(options => options.AddPolicy("public-assets", context =>
+    System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("test")));
 var app = builder.Build();
+await R2Checks.RunAsync(TestCatalogueStorage.Receipt, Path.Combine(root, "r2-checks"));
 // Verify that already small and transparent images preserve dimensions/alpha.
 using (var transparent = new Image<Rgba32>(16, 12))
 {
@@ -44,9 +61,16 @@ using (var transparent = new Image<Rgba32>(16, 12))
 }
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
+app.UseOutputCache();
 app.MapControllers();
 app.MapGet("/test/catalogue-source", () => Results.File(TestCatalogueStorage.Source, "image/jpeg"));
-app.MapGet("/test/catalogue-upload", () => Results.Json(new { TestCatalogueStorage.UploadCount, Size = TestCatalogueStorage.LastImage?.Length, TestCatalogueStorage.LastMime }));
+app.MapGet("/test/catalogue-upload", () =>
+{
+    var catalogue = objectClient.Objects.Where(x => x.Key.StartsWith("catalogue/")).ToList();
+    return r2Mode ? Results.Json(new { UploadCount = catalogue.Count, Size = catalogue.LastOrDefault().Value?.Length, LastMime = "image/jpeg" })
+        : Results.Json(new { TestCatalogueStorage.UploadCount, Size = TestCatalogueStorage.LastImage?.Length, TestCatalogueStorage.LastMime });
+});
 
 Guid orderId;
 Guid paymentId;
