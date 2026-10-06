@@ -51,6 +51,12 @@ module.exports = ({ config }) => {
   const configuredApi = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_URL) || normalizeApiBaseUrl(readEnvFile('EXPO_PUBLIC_API_URL'));
   const isBuild = process.env.EAS_BUILD === 'true' || process.env.EAS_BUILD === '1' || Boolean(process.env.EAS_BUILD_PROFILE);
   const isProductionBuild = process.env.NODE_ENV === 'production' || isBuild;
+  // Compatible JS hotfixes may target installed 1.0.0 builds. Native builds
+  // continue to use appVersion and must never inherit an OTA-only override.
+  const otaRuntime = process.env.BSSTORE_OTA_RUNTIME_VERSION;
+  if (otaRuntime && (isBuild || !['1.0.0', '1.0.1'].includes(otaRuntime))) {
+    throw new Error('BSSTORE_OTA_RUNTIME_VERSION is only for compatible OTA updates to 1.0.0 or 1.0.1.');
+  }
   const apiBaseUrl = configuredApi && (!isProductionBuild || !isDevelopmentTunnel(configuredApi) || isApprovedProductionApi(configuredApi)) ? configuredApi : undefined;
   if (!apiBaseUrl && isProductionBuild) throw new Error('EXPO_PUBLIC_API_URL must be a stable HTTPS API URL for production/EAS builds.');
   const requiredPrivacyReasons = [
@@ -68,7 +74,7 @@ module.exports = ({ config }) => {
   }
   return {
     ...config,
-    runtimeVersion: { policy: 'appVersion' },
+    runtimeVersion: otaRuntime || { policy: 'appVersion' },
     updates: {
       ...config.updates,
       ...(easProjectId ? { url: `https://u.expo.dev/${easProjectId}` } : {}),

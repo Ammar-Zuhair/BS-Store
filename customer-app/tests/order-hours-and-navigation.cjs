@@ -91,6 +91,8 @@ async function main() {
     await act(async () => { tree = create(React.createElement(AppProvider, null, React.createElement(Harness))); });
     await act(async () => { await app.refreshOrders(); });
     assert.equal(app.orders.length, 1);
+    assert.match(app.orders[0].createdAt, /٢٠٢٦/, 'the complete year must be shown beside the order time');
+    assert.match(app.orders[0].createdAt, /٠٦.*١٠.*٢٠٢٦.*·.*٠٩:٠٠/, 'order dates and times use the same Yemen time zone');
     assert.equal(app.currentOrder, null, 'refresh must not select the most recent order');
     assert.equal(tree.root.findByType('Header').props.title, 'طلباتي');
 

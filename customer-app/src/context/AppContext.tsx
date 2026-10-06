@@ -1,3 +1,4 @@
+import { formatOrderDate } from '../utils/orderDate';
 import * as React from 'react';
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Alert, AppState } from 'react-native';
@@ -464,9 +465,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const mappedOrders: Order[] = ordersRes.map((o: any) => ({
         id: o.id,
         orderNumber: o.orderNumber,
-        createdAt: o.createdAt
-          ? new Date(o.createdAt).toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' })
-          : '',
+        createdAt: formatOrderDate(o.createdAt),
         status: mapBackendOrderStatus(o.status),
         items: (o.subOrders || []).flatMap((so: any) =>
           (so.items || []).map((i: any) => ({
@@ -912,7 +911,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const newOrder: Order = {
         id: res.id,
         orderNumber: res.orderNumber,
-        createdAt: new Date().toLocaleTimeString('ar-YE', { hour: '2-digit', minute: '2-digit' }),
+        createdAt: formatOrderDate(res.createdAt || new Date()),
         status: isManual && receiptUploaded ? 'PAYMENT_PENDING_VERIFICATION' : mapBackendOrderStatus(res.status),
         items: [...cart],
         subtotal: res.subTotal,

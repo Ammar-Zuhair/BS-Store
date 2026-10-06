@@ -31,3 +31,18 @@ node customer-app/tests/order-hours-and-navigation.cjs
 ```
 
 TypeScript checks use `--ignoreDeprecations 6.0` because the existing tsconfig includes `baseUrl`. Expo autolinking detects the exit module in all three apps. Android native compilation and physical-device exit behavior require the APK build/device verification.
+
+## Compatible OTA hotfixes
+
+Customer order timestamps display the full Gregorian date and time in `Asia/Aden`, both after creation and when reloading history/details. Empty or malformed server timestamps remain empty instead of displaying an invalid date.
+
+For compatible JS changes, admin/customer configuration accepts an explicit `BSSTORE_OTA_RUNTIME_VERSION=1.0.0` or `1.0.1` override. This setting is only for OTA publication: EAS native builds reject it and otherwise retain the `appVersion` policy. Publish each runtime separately when both are in use, with the project's `production` environment/channel. The optional exit module continues to use its legacy fallback on binaries that do not contain it.
+
+Older Android/iOS binaries without SecureStore keep their existing session-token storage instead of failing during module import. Binaries that include SecureStore continue to encrypt tokens and migrate/delete the legacy copy; failures of an available SecureStore are not silently downgraded.
+
+```sh
+BSSTORE_OTA_RUNTIME_VERSION=1.0.0 eas update --channel production --environment production --message "Full order dates and account improvements" --non-interactive
+BSSTORE_OTA_RUNTIME_VERSION=1.0.1 eas update --channel production --environment production --message "Full order dates and account improvements" --non-interactive
+```
+
+The compatibility and midnight-rollover checks run with `node tests/ota-compatibility.cjs`.
