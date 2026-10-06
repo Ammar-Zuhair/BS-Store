@@ -26,6 +26,14 @@ from R2 without app credentials and displays a data URI. Native Image
 is not responsible for bearer-token renewal. URLs outside the API receipt route
 are rejected before sending credentials. Receipt contents aren't disk-cached.
 
+In admin payments, tapping the receipt opens a full-screen safe-area viewer
+using the already downloaded data URI (no extra network request). Two-finger
+pinch and one-finger drag allow inspection, with zoom-in/out and fit-to-screen
+buttons and a 1–6x zoom range. Panning is bounded by the fitted image dimensions;
+viewport resizing, reopening and changing the receipt reset the view. Android
+back and the close button dismiss it. The viewer retains source detail rather
+than downsampling to thumbnail size, and adds no native dependency.
+
 JPEG quality is an encoder setting, not a promised percentage reduction in file
 size. Existing stored images aren't changed; the policy applies to new uploads.
 Validation commands are documented in `tests/receipts/README.md`.

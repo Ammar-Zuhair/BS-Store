@@ -39,7 +39,10 @@ const apiMock = {
 };
 const native = {
   StyleSheet: { create: value => value }, Alert: { alert: (...args) => alerts.push(args) },
-  ...Object.fromEntries(['View', 'Text', 'Image', 'TextInput', 'ScrollView', 'TouchableOpacity', 'ActivityIndicator'].map(name => [name, name])),
+  PanResponder: { create: handlers => ({ panHandlers: Object.fromEntries(
+    ['Grant', 'Start', 'Move', 'End', 'Release', 'Terminate'].map(name => [`onResponder${name}`, handlers[`onPanResponder${name}`]]),
+  ) }) },
+  ...Object.fromEntries(['View', 'Text', 'Image', 'Modal', 'TextInput', 'ScrollView', 'TouchableOpacity', 'ActivityIndicator'].map(name => [name, name])),
 };
 let asset = { uri: 'file:///receipt.jpg', width: 4400, height: 2200 };
 let cancelled = false;
@@ -58,6 +61,7 @@ function load(file) {
   }).outputText;
   const localRequire = specifier => {
     if (specifier === 'react-native') return native;
+    if (specifier === 'react-native-safe-area-context') return { SafeAreaProvider: 'SafeAreaProvider', SafeAreaView: 'SafeAreaView' };
     if (specifier === 'react') return React;
     if (specifier === 'react/jsx-runtime') return require(path.join(root, 'customer-app/node_modules/react/jsx-runtime'));
     if (specifier === '../api') return apiMock;
@@ -89,6 +93,43 @@ async function main() {
     const image = tree.root.findByType('Image');
     assert.match(image.props.source.uri, /^data:image\//, 'native Image displays an authenticated download, not a raw protected URL');
     assert.equal(image.props.source.headers, undefined);
+    const initialImageCalls = imageCalls;
+    const control = label => tree.root.findAllByType('TouchableOpacity').find(node => node.props.accessibilityLabel === label);
+    await act(async () => { control('فتح صورة الإيصال وتكبيرها').props.onPress(); });
+    assert.equal(tree.root.findAllByType('Modal').length, 1);
+    const fullImage = tree.root.findAllByType('Image')[1];
+    assert.equal(fullImage.props.source.uri, image.props.source.uri, 'viewer reuses the protected download, without fetching another signed link');
+    assert.equal(fullImage.props.resizeMethod, 'scale', 'inspection keeps the uploaded image detail on Android');
+    assert.equal(imageCalls, initialImageCalls);
+    const viewport = tree.root.find(node => node.props.testID === 'receipt-viewport');
+    await act(async () => {
+      viewport.props.onLayout({ nativeEvent: { layout: { width: 400, height: 600 } } });
+      fullImage.props.onLoad({ nativeEvent: { source: { width: 440, height: 880 } } });
+    });
+    const renderedTransform = () => Object.assign({}, ...fullImage.parent.props.style[1].transform);
+    const touches = (...points) => ({ nativeEvent: { touches: points.map(([locationX, locationY]) => ({ locationX, locationY })) } });
+    await act(async () => { viewport.props.onResponderGrant(touches([100, 300], [300, 300]));
+      viewport.props.onResponderMove(touches([0, 300], [400, 300])); });
+    assert.deepEqual(renderedTransform(), { translateX: 0, translateY: 0, scale: 2 }, 'pinch expands the receipt around the fingers');
+    await act(async () => { viewport.props.onResponderEnd(touches([200, 300])); });
+    assert.equal(renderedTransform().scale, 2, 'lifting one finger must not jump/reset zoom');
+    await act(async () => { viewport.props.onResponderMove(touches([250, 320])); });
+    assert.deepEqual(renderedTransform(), { translateX: 50, translateY: 20, scale: 2 }, 'one-finger drag exposes receipt detail');
+    await act(async () => { viewport.props.onResponderMove(touches([999, 999])); });
+    assert.deepEqual(renderedTransform(), { translateX: 100, translateY: 300, scale: 2 }, 'panning stops at the fitted receipt edges');
+    await act(async () => { viewport.props.onResponderRelease(); control('ملاءمة الإيصال للشاشة').props.onPress(); });
+    assert.deepEqual(renderedTransform(), { translateX: 0, translateY: 0, scale: 1 });
+    assert.equal(control('تصغير الإيصال').props.disabled, true);
+    for (let i = 0; i < 6; i++) await act(async () => { control('تكبير الإيصال').props.onPress(); });
+    assert.equal(renderedTransform().scale, 6, 'zoom buttons are capped at 6x');
+    assert.equal(control('تكبير الإيصال').props.disabled, true);
+    await act(async () => { viewport.props.onLayout({ nativeEvent: { layout: { width: 600, height: 400 } } }); });
+    assert.deepEqual(renderedTransform(), { translateX: 0, translateY: 0, scale: 1 }, 'rotation refits the receipt instead of leaving detail off-screen');
+    await act(async () => { tree.root.findByType('Modal').props.onRequestClose(); });
+    assert.equal(tree.root.findAllByType('Modal').length, 0, 'Android back closes the viewer');
+    await act(async () => { control('فتح صورة الإيصال وتكبيرها').props.onPress(); });
+    assert.equal(tree.root.findAllByType('Image')[1].parent.props.style[1].transform[2].scale, 1, 'reopening starts fitted to the screen');
+    await act(async () => { control('إغلاق استعراض الإيصال').props.onPress(); });
     await act(async () => { tree.root.findByType('TextInput').props.onChangeText('2400'); });
     const button = tree.root.findAllByType('TouchableOpacity').find(node => node.findAllByType('Text').some(text => text.props.children === 'اعتماد وتسجيل المبلغ'));
     calls.length = 0; blockRefresh = true;
@@ -115,6 +156,16 @@ async function main() {
     const previousImageCalls = imageCalls; imageFails = false;
     await act(async () => { standalone.root.findByType('TouchableOpacity').props.onPress(); });
     assert.equal(imageCalls, previousImageCalls + 1); assert.match(standalone.root.findByType('Image').props.source.uri, /^data:image\//);
+    await act(async () => { standalone.root.findByType('TouchableOpacity').props.onPress(); });
+    assert.equal(standalone.root.findAllByType('Modal').length, 1);
+    await act(async () => { standalone.update(React.createElement(ReceiptImage, { url: 'https://example.test/api/payments/receipts/another' })); });
+    assert.equal(standalone.root.findAllByType('Modal').length, 0, 'changing receipt must dismiss the old private image');
+
+    const { clampReceiptTransform, zoomReceiptAround } = load(path.join(root, 'admin-app/src/utils/receiptZoom.ts'));
+    assert.deepEqual(zoomReceiptAround({ scale: 2, x: 30, y: 40 }, 4, { x: 80, y: 60 }, { x: 90, y: 70 }),
+      { scale: 4, x: -10, y: 30 }, 'off-centre zoom keeps the same source-image point beneath moving fingers');
+    assert.deepEqual(clampReceiptTransform({ scale: 2, x: 999, y: 999 }, { width: 400, height: 600 }, { width: 2000, height: 1000 }),
+      { scale: 2, x: 200, y: 0 }, 'wide receipts can pan horizontally without drifting vertically into empty space');
 
     const { chooseTransferReceipt } = load(path.join(root, 'customer-app/src/utils/transferReceipt.ts'));
     const receipt = await chooseTransferReceipt();
@@ -125,7 +176,7 @@ async function main() {
     manipulations.length = 0; asset = { ...asset, width: 600, height: 800 }; await chooseTransferReceipt();
     assert.equal(manipulations.some(call => call[0] === 'resize'), false, 'small receipts must not be upscaled');
     cancelled = true; assert.equal(await chooseTransferReceipt(), null);
-    console.log('PASS authenticated image display/retry, single approval per tap sequence, immediate confirmed payment despite blocked refreshes, no false success on failure, receipt compression/cleanup/cancellation');
+    console.log('PASS authenticated image display/retry, full-screen viewer/pinch/pan/zoom limits/close, single approval per tap sequence, immediate confirmed payment despite blocked refreshes, no false success on failure, receipt compression/cleanup/cancellation');
   } finally {
     if (tree) await act(async () => tree.unmount());
     if (standalone) await act(async () => standalone.unmount());
