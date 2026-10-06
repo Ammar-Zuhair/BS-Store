@@ -36,7 +36,12 @@ export const CourierAuthScreen: React.FC = () => {
     }
   };
 
-  return <View style={styles.container}>
+  return <ScrollView
+    style={styles.scrollView}
+    contentContainerStyle={styles.container}
+    keyboardShouldPersistTaps="handled"
+    keyboardDismissMode="on-drag"
+  >
     <Text style={styles.title}>تطبيق الموصل</Text>
     <Text style={styles.subtitle}>{mode === 'login' ? 'سجّل الدخول لاستقبال الطلبات' : 'أرسل طلب انضمامك للمراجعة'}</Text>
     {mode === 'register' && <View style={styles.fieldGroup}>
@@ -66,11 +71,12 @@ export const CourierAuthScreen: React.FC = () => {
       <Text style={styles.switch}>{mode === 'login' ? 'ليس لديك حساب؟ أنشئ حساباً' : 'لديك حساب معتمد؟ سجل الدخول'}</Text>
     </TouchableOpacity>
     <Modal visible={showGovernorates} transparent animationType="slide" onRequestClose={() => setShowGovernorates(false)}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:'#0008'}}><View style={{maxHeight:'70%',backgroundColor:'#fff',padding:18,borderTopLeftRadius:20,borderTopRightRadius:20}}><ScrollView>{governorates.map(g=><TouchableOpacity key={g.id} style={{padding:14}} onPress={()=>{setGovernorateId(g.id);setShowGovernorates(false);}}><Text style={{textAlign:'right'}}>{g.name}</Text></TouchableOpacity>)}</ScrollView></View></View></Modal>
-  </View>;
+  </ScrollView>;
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: spacing.screenGutter, backgroundColor: colors.background, gap: spacing.baseSm },
+  scrollView: { flex: 1, backgroundColor: colors.background },
+  container: { flexGrow: 1, justifyContent: 'center', padding: spacing.screenGutter, backgroundColor: colors.background, gap: spacing.baseSm },
   fieldGroup: { gap: 4 },
   fieldLabel: { textAlign: 'right', color: colors.onSurface, fontWeight: typography.fontWeight.bold, marginTop: 4 },
   fieldHint: { textAlign: 'right', color: colors.onSurfaceVariant, fontSize: typography.fontSize.xs, lineHeight: 18 },

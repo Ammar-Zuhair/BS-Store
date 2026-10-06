@@ -44,7 +44,7 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({ title, showBack = fa
 
         {title && (
           <View style={styles.titleCenter}>
-            <Text style={styles.titleText}>{title}</Text>
+            <Text style={styles.titleText} numberOfLines={1} ellipsizeMode="tail">{title}</Text>
           </View>
         )}
 
@@ -119,12 +119,17 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
   },
   titleCenter: {
+    flex: 1,
+    minWidth: 0,
     alignItems: 'center',
+    paddingHorizontal: spacing.baseXs,
   },
   titleText: {
+    maxWidth: '100%',
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.bold,
     color: colors.onSurface,
+    textAlign: 'center',
   },
   actions: {
     flexDirection: 'row-reverse',

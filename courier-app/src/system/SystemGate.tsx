@@ -27,7 +27,9 @@ export const SystemGate: React.FC<{
   safeToReload: boolean;
   showMaintenance?: boolean;
 }> = ({ children, appType, palette, safeToReload, showMaintenance = true }) => {
-  const safeTopInset = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0;
+  const safeTopInset = Platform.OS === 'android'
+    ? Math.max(StatusBar.currentHeight || 0, 24)
+    : 0;
   const [maintenance, setMaintenance] = useState<MaintenanceStatus | null>(null);
   const [versionStatus, setVersionStatus] = useState<VersionStatus | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -130,7 +132,7 @@ export const SystemGate: React.FC<{
       return (
         <View style={{ flex: 1 }}>
           {children}
-          <View accessibilityRole="alert" style={[styles.maintenanceNotice, { top: safeTopInset + 8, backgroundColor: palette.surfaceContainerLowest || '#FFFFFF', borderColor: palette.outlineVariant || '#DDE1E7' }]}>
+          <View accessibilityRole="alert" style={[styles.maintenanceNotice, { top: safeTopInset + 12, backgroundColor: palette.surfaceContainerLowest || '#FFFFFF', borderColor: palette.outlineVariant || '#DDE1E7' }]}>
             <Text style={[styles.maintenanceNoticeTitle, { color: palette.onSurface }]}>{maintenance.title || 'وضع الصيانة مفعل'}</Text>
             <Text style={[styles.maintenanceNoticeMessage, { color: palette.onSurfaceVariant }]}>{maintenance.message || 'أوقفنا العمليات مؤقتاً. ستبقى هذه الشاشة مفتوحة حتى لا تفقد بيانات المهمة الحالية.'}</Text>
             <Pressable accessibilityRole="button" onPress={() => void refreshStatus()} style={[styles.maintenanceNoticeButton, { backgroundColor: palette.primary }]}>
@@ -151,7 +153,7 @@ export const SystemGate: React.FC<{
     <View style={{ flex: 1 }}>
       {children}
       {isOtaReady && safeToReload && !isOtaDismissed && (
-        <View style={[styles.banner, { top: safeTopInset + 8, backgroundColor: palette.surfaceContainerLowest || '#FFFFFF', borderColor: palette.outlineVariant || '#DDE1E7' }]}>
+        <View style={[styles.banner, { top: safeTopInset + 12, backgroundColor: palette.surfaceContainerLowest || '#FFFFFF', borderColor: palette.outlineVariant || '#DDE1E7' }]}>
           <View style={styles.bannerCopy}>
             <Text style={[styles.bannerTitle, { color: palette.onSurface }]}>يتوفر تحديث جديد</Text>
             <Text style={[styles.bannerMessage, { color: palette.onSurfaceVariant }]}>تم تنزيل تحسينات جديدة للتطبيق.</Text>
@@ -165,7 +167,7 @@ export const SystemGate: React.FC<{
         </View>
       )}
       {!!versionStatus?.updateAvailable && !versionStatus.updateRequired && (
-        <Pressable accessibilityRole="button" onPress={() => void openUpdate()} style={[styles.versionBanner, { top: safeTopInset + 84, backgroundColor: palette.primary }]}>
+        <Pressable accessibilityRole="button" onPress={() => void openUpdate()} style={[styles.versionBanner, { top: safeTopInset + 92, backgroundColor: palette.primary }]}>
           <Text style={styles.primaryButtonText}>{versionStatus.title || `يتوفر الإصدار ${versionStatus.latestVersion}`}</Text>
           <Text style={styles.versionBannerMessage} numberOfLines={2}>{versionStatus.message || 'حدّث التطبيق للاستفادة من التحسينات الجديدة.'}</Text>
           <Text style={styles.versionBannerAction}>عرض التحديث</Text>
