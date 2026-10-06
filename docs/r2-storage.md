@@ -19,12 +19,18 @@ automated, and is not used by this storage implementation.
 Keep this bucket private (disable public r2.dev/custom-domain access), since it
 also holds receipts. Catalogue objects live under `catalogue/products`,
 `catalogue/stores`, and `catalogue/offers`; receipts live under `private/receipts`.
-Public `GET /api/images/{folder}/{filename}` exposes only catalogue JPEG/PNG
-objects with validated generated names and cache headers. The authenticated
-receipt endpoint retains its ownership/admin checks. No S3 credentials or
-permanent public receipt URLs are sent to clients. Images pass through the
-backend; this does not create a Cloudflare CDN/custom domain or eliminate the
-backend's own bandwidth use.
+Public `GET /api/images/{folder}/{filename}` validates generated catalogue
+JPEG/PNG names and returns a 302 redirect to a signed GET URL valid for one hour.
+Only the redirect is cached (five minutes); image bodies travel directly from
+R2 to the device. The authenticated receipt endpoint checks ownership/admin role
+before issuing a one-minute link, with `private, no-store` response headers.
+The admin first requests `/api/payments/receipts/{id}/download-link`, then fetches
+the signed R2 URL without app Authorization/ngrok headers/cookies. Signing is
+local and requires no R2 object download. Permanent signed URLs are never stored
+in the database. This does not configure a Cloudflare CDN/custom domain.
+Uploads still pass through the backend for validation/compression. Full object
+reads on the server are reserved for migration verification or unmigrated local
+receipt compatibility, rather than normal R2 display.
 
 `APP_PUBLIC_URL` is the public HTTPS origin of the backend, without `/api`,
 used for stable image URLs. It is already set in the local backend environment.
@@ -64,7 +70,18 @@ Before changes, references are backed up with mode 0600 under
 be read or verified, the migration stops; already completed records remain
 valid and it can be rerun. This copies referenced files, not orphaned objects
 with no database reference. Supabase downloads during migration still incur
-any applicable source-side usage. The production migration has not run yet.
+any applicable source-side usage. The operator verifies live credentials before
+applying the production migration.
+
+Production activation on 2026-10-06 verified object upload/read, signed direct
+download, and blocked unsigned access using the supplied Secrets; test objects
+were deleted. The backend was published/restarted and 25 legacy references were
+copied with hash verification, retaining their originals and a private reference
+backup. A public catalogue URL returned 302 with an empty body, followed by a
+successful image download directly from R2. Receipt authorization and credential
+isolation were verified in isolated controller/client tests; no device or EAS
+publish was performed. Browser CORS was absent during the live check; configure
+the rule below before using direct receipt downloads in a browser build.
 
 ## Completed environment audit
 
@@ -102,5 +119,27 @@ service gateways. Review/revoke old service credentials after cutover as needed.
 Validation: `node scripts/audit-mobile-env.cjs`, `node tests/receipts/run.cjs`
 and `node tests/receipts/run.cjs --r2`. R2 tests use a mocked S3 boundary, isolated
 in-memory metadata, and temporary local files, covering compression, public
-catalogue reads, private receipt authorization, dry-run/migration/retry,
+catalogue redirects without backend body reads, private receipt authorization, direct authenticated link issuance without forwarding app credentials, dry-run/migration/retry,
 corruption protection and SDK settings. Live R2 connectivity requires the keys.
+
+## Browser-only CORS
+
+Native Android/iOS downloads do not require browser CORS. If a web version uses
+JavaScript to read receipt bytes, R2 needs a read-only CORS rule such as:
+
+```json
+[
+  {
+    "AllowedOrigins": ["*"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "ExposeHeaders": ["ETag", "Content-Type"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Configure this in the bucket settings if it is absent, keeping any existing
+rules. It grants no public access: every object read still requires the signed
+URL. Object Read & Write credentials may lack permission to manage bucket CORS;
+that configuration uses the dashboard or an appropriately scoped management
+API token, not mobile app keys.

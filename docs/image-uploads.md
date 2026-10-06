@@ -21,7 +21,8 @@ metadata remain in effect. PDFs accepted through the API are documents and are
 not subjected to lossy image encoding.
 
 The admin downloads protected receipts through its API client, including session
-refresh, and displays a data URI from the authenticated response. Native Image
+refresh to obtain a short-lived download link, then downloads image bytes directly
+from R2 without app credentials and displays a data URI. Native Image
 is not responsible for bearer-token renewal. URLs outside the API receipt route
 are rejected before sending credentials. Receipt contents aren't disk-cached.
 

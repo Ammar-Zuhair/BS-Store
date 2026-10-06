@@ -71,6 +71,13 @@ app.MapGet("/test/catalogue-upload", () =>
     return r2Mode ? Results.Json(new { UploadCount = catalogue.Count, Size = catalogue.LastOrDefault().Value?.Length, LastMime = "image/jpeg" })
         : Results.Json(new { TestCatalogueStorage.UploadCount, Size = TestCatalogueStorage.LastImage?.Length, TestCatalogueStorage.LastMime });
 });
+app.MapGet("/test/r2-object/{**key}", (string key, HttpContext context) =>
+{
+    if (context.Request.Headers.ContainsKey("Authorization")) throw new Exception("App session must never be sent to R2");
+    if (context.Request.Query["X-Amz-Signature"] != "test-only" || !objectClient.Objects.TryGetValue(key, out var bytes)) return Results.NotFound();
+    return Results.File(bytes, key.EndsWith(".png") ? "image/png" : "image/jpeg");
+});
+app.MapGet("/test/r2-read-count", () => Results.Json(new { objectClient.GetCount }));
 
 Guid orderId;
 Guid paymentId;

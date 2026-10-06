@@ -23,8 +23,9 @@ can retry, and customer receipts use the image manipulation/cleanup path.
 
 Run `node tests/receipts/run.cjs --r2` for the same real-controller flow with R2
 storage. Only the external S3 boundary is mocked: uploaded catalogue objects
-are fetched through the real public image route and receipts through their
-protected route. Startup also checks migration dry-run/verification/retry,
+are fetched after the real public image redirect and receipts after their
+protected download-link route. Tests assert zero backend object reads during
+display and no app Authorization/cookies on the R2 fetch. Startup also checks migration dry-run/verification/retry,
 corruption rejection, backup/original preservation, old local receipt reads,
 SDK flags, endpoint restrictions, service gateways and dotenv precedence.
 

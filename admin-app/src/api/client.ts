@@ -145,7 +145,22 @@ class ApiClient {
       throw new Error('رابط الإيصال غير صالح. حدّث قائمة الحوالات.');
     }
     const endpoint = resolved.pathname.slice(base.pathname.length);
-    const response = await this.send(endpoint, { method: 'GET', headers: { Accept: 'image/*' } });
+    const link = await this.request<{ url: string | null; mimeType: string }>(`${endpoint}/download-link`, { method: 'GET' });
+    let response: Response;
+    if (link.url) {
+      const direct = new URL(link.url);
+      if (direct.protocol !== 'https:' || direct.username || direct.password ||
+          !direct.hostname.endsWith('.r2.cloudflarestorage.com') ||
+          direct.searchParams.get('X-Amz-Algorithm') !== 'AWS4-HMAC-SHA256') {
+        throw new Error('رابط تحميل الإيصال غير صالح.');
+      }
+      // The R2 URL has its own short-lived signature. Never forward the admin
+      // session token, ngrok headers or cookies to the storage service.
+      response = await fetch(link.url, { headers: { Accept: 'image/*' }, credentials: 'omit' });
+      if (!response.ok) throw new Error('انتهت صلاحية رابط الإيصال أو تعذر تحميله. أعد المحاولة.');
+    } else {
+      response = await this.send(endpoint, { method: 'GET', headers: { Accept: 'image/*' } });
+    }
     if (!response.headers.get('content-type')?.startsWith('image/')) {
       throw new Error('الإيصال ليس صورة قابلة للعرض.');
     }

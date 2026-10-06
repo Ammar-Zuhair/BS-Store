@@ -38,6 +38,9 @@ static class R2Checks
         var newKey = await hybrid.UploadFileAsync(bytes, "receipt.jpg", "image/jpeg", "receipts");
         Check(newKey.StartsWith("r2:private/receipts/"), "Private receipt prefix");
         await using (var current = await hybrid.OpenFileReadAsync(newKey)) Check(current != null && await Equal(current, jpeg), "R2 receipt bytes");
+        var direct = await hybrid.GetDirectReadUrlAsync(newKey, TimeSpan.FromMinutes(1));
+        Check(direct!.Contains("X-Amz-Algorithm=AWS4-HMAC-SHA256") && client.LastExpiry <= DateTime.UtcNow.AddSeconds(61), "Receipt links are signed for at most one minute");
+        Check(await hybrid.GetDirectReadUrlAsync(oldKey, TimeSpan.FromMinutes(1)) == null, "Old local receipts use compatibility read until migrated");
         Check(await hybrid.OpenFileReadAsync("r2:../secret") == null, "Storage key traversal rejected");
         Check(!R2ObjectStore.ValidKey("catalogue/receipts/" + Guid.NewGuid().ToString("N") + ".jpg"), "Public catalogue cannot access receipts");
         Check(await hybrid.DeleteFileAsync(newKey) && await hybrid.OpenFileReadAsync(newKey) == null, "R2 deletion and missing file");
@@ -137,11 +140,20 @@ sealed class GatewayHandler(byte[] image) : HttpMessageHandler
     }
 }
 
-sealed class TestR2Client() : AmazonS3Client(new AnonymousAWSCredentials(), new AmazonS3Config { ServiceURL = "https://not-contacted.test" })
+sealed class TestR2Client() : AmazonS3Client(new AnonymousAWSCredentials(), new AmazonS3Config { ServiceURL = "https://not-contacted.test" }), IAmazonS3
 {
     public readonly Dictionary<string, byte[]> Objects = [];
     public int PutCount;
     public bool CorruptRead;
+    public int GetCount;
+    public DateTime LastExpiry;
+    string IAmazonS3.GetPreSignedURL(GetPreSignedUrlRequest request)
+    {
+        if (request.Verb != HttpVerb.GET || !R2ObjectStore.ValidKey(request.Key)) throw new Exception("Signing must grant only a single validated GET");
+        LastExpiry = request.Expires;
+        return "https://" + new string('a', 32) + ".r2.cloudflarestorage.com/test-bucket/" + request.Key
+            + "?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=test-only";
+    }
     public override async Task<PutObjectResponse> PutObjectAsync(PutObjectRequest request, CancellationToken ct = default)
     {
         if (request.DisablePayloadSigning != true || request.DisableDefaultChecksumValidation != true || request.UseChunkEncoding || request.AutoCloseStream)
@@ -152,6 +164,7 @@ sealed class TestR2Client() : AmazonS3Client(new AnonymousAWSCredentials(), new 
     }
     public override Task<GetObjectResponse> GetObjectAsync(GetObjectRequest request, CancellationToken ct = default)
     {
+        GetCount++;
         if (!Objects.TryGetValue(request.Key, out var bytes))
             throw new AmazonS3Exception("Missing") { StatusCode = System.Net.HttpStatusCode.NotFound };
         return Task.FromResult(new GetObjectResponse { ResponseStream = new MemoryStream(CorruptRead ? [0, 1, 2] : bytes), ContentLength = bytes.Length });

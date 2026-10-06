@@ -79,7 +79,10 @@ async function main() {
         const admin = JSON.parse(options.body).refreshToken === 'admin-refresh';
         return Response.json({ data: { accessToken: admin ? 'test-admin' : 'test-customer', refreshToken: admin ? 'admin-refresh' : 'test-refresh' } });
       }
-      const target = String(url).replace('https://implosive-exchange-compacter.ngrok-free.dev', server.url);
+      const parsed = new URL(String(url));
+      const target = parsed.hostname.endsWith('.r2.cloudflarestorage.com')
+        ? `${server.url}/test/r2-object/${parsed.pathname.replace(/^\/test-bucket\//, '')}${parsed.search}`
+        : String(url).replace('https://implosive-exchange-compacter.ngrok-free.dev', server.url);
       return nativeFetch(target, options);
     };
     const { paymentsApi, api } = load(path.join(root, 'customer-app/src/api/index.ts'));
@@ -104,7 +107,12 @@ async function main() {
     const adminPayments = await call('/admin/payments/pending');
     assert.equal(adminPayments.length, 1); assert.equal(adminPayments[0].receipts[0].id, upload.receiptId);
     for (const token of ['test-customer', 'test-admin']) {
-      const receipt = await nativeFetch(`${server.url}${upload.receiptUrl}`, { headers: { Authorization: `Bearer ${token}` } });
+      let receipt = await nativeFetch(`${server.url}${upload.receiptUrl}`, { headers: { Authorization: `Bearer ${token}` }, redirect: 'manual' });
+      if (r2Mode) {
+        assert.equal(receipt.status, 302);
+        const direct = new URL(receipt.headers.get('location'));
+        receipt = await nativeFetch(`${server.url}/test/r2-object/${direct.pathname.replace(/^\/test-bucket\//, '')}${direct.search}`);
+      }
       assert.equal(receipt.status, 200); assert.equal(receipt.headers.get('content-type'), 'image/jpeg');
       assert.deepEqual(Buffer.from(await receipt.arrayBuffer()), jpeg, 'stored bytes survive upload and protected download');
     }
@@ -116,9 +124,18 @@ async function main() {
     const receiptUrl = `https://implosive-exchange-compacter.ngrok-free.dev${upload.receiptUrl}`;
     const receiptData = await adminClient.getReceiptImage(receiptUrl);
     assert.deepEqual(Buffer.from(receiptData.split(',')[1], 'base64'), jpeg, 'admin renderer gets the image through authenticated fetch');
-    const imageRequests = requests.filter(item => item.url.endsWith(upload.receiptUrl));
+    const imageRequests = requests.filter(item => item.url.endsWith(`${upload.receiptUrl}/download-link`));
     assert.equal(imageRequests.at(-2).options.headers.Authorization, 'Bearer expired-admin');
     assert.equal(imageRequests.at(-1).options.headers.Authorization, 'Bearer test-admin');
+    if (r2Mode) {
+      const directRequests = requests.filter(item => new URL(item.url).hostname.endsWith('.r2.cloudflarestorage.com'));
+      assert.equal(directRequests.length, 1);
+      assert.equal(directRequests[0].options.headers.Authorization, undefined);
+      assert.equal(directRequests[0].options.headers['ngrok-skip-browser-warning'], undefined);
+      assert.equal(directRequests[0].options.credentials, 'omit');
+      assert.equal((await nativeFetch(`${server.url}${upload.receiptUrl}/download-link`)).status, 401);
+      assert.equal((await nativeFetch(`${server.url}${upload.receiptUrl}/download-link`, { headers: { Authorization: 'Bearer test-other' } })).status, 404);
+    }
     const beforeUnsafeImage = requests.length;
     await assert.rejects(adminClient.getReceiptImage('https://untrusted.example/image.jpg'), /غير صالح/);
     assert.equal(requests.length, beforeUnsafeImage, 'receipt tokens must not be sent to a foreign host');
@@ -129,9 +146,12 @@ async function main() {
       const savedUrl = await uploadCatalogueImage({ uri: 'file:///catalogue.png', base64: source.toString('base64'), mimeType: 'image/png' }, folder);
       assert.match(savedUrl, new RegExp(r2Mode ? `/api/images/${folder}/[a-f0-9]{32}\\.jpg$` : `/public/Product%20Images/${folder}/.+\\.jpg$`));
       if (r2Mode) {
-        const image = await nativeFetch(savedUrl.replace('https://implosive-exchange-compacter.ngrok-free.dev', server.url));
+        const redirect = await nativeFetch(savedUrl.replace('https://implosive-exchange-compacter.ngrok-free.dev', server.url), { redirect: 'manual' });
+        assert.equal(redirect.status, 302);
+        assert.match(redirect.headers.get('cache-control'), /max-age=300/);
+        const direct = new URL(redirect.headers.get('location'));
+        const image = await nativeFetch(`${server.url}/test/r2-object/${direct.pathname.replace(/^\/test-bucket\//, '')}${direct.search}`);
         assert.equal(image.status, 200); assert.equal(image.headers.get('content-type'), 'image/jpeg');
-        assert.match(image.headers.get('cache-control'), /public/);
         assert.ok((await image.arrayBuffer()).byteLength < source.length / 2);
       }
     }
@@ -139,6 +159,8 @@ async function main() {
       assert.equal((await nativeFetch(`${server.url}/api/images/receipts/${'a'.repeat(32)}.jpg`)).status, 404);
       assert.equal((await nativeFetch(`${server.url}/api/images/private/${'a'.repeat(32)}.jpg`)).status, 404);
     }
+    if (r2Mode) assert.equal((await (await nativeFetch(`${server.url}/test/r2-read-count`)).json()).getCount, 0,
+      'backend display controllers sign URLs without fetching object bodies');
     const stored = await (await nativeFetch(`${server.url}/test/catalogue-upload`)).json();
     assert.equal(stored.uploadCount, 3); assert.equal(stored.lastMime, 'image/jpeg');
     assert.ok(stored.size < source.length / 2, 'large originals are reduced before remote storage');
