@@ -10,7 +10,17 @@ interface DriverHeaderProps {
 }
 
 export const DriverHeader: React.FC<DriverHeaderProps> = ({ title, showBack = false, onBack }) => {
-  const { driver, activeTask, toggleShiftStatus, signOut, navigateTo, navigateBack } = useDriver();
+  const { driver, activeTask, toggleShiftStatus, signOut, navigateTo, navigateBack, refreshData } = useDriver();
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try { await refreshData(); } catch (e: any) { Alert.alert('تعذر التحديث', e?.message || 'تحقق من الاتصال وحاول مجدداً.'); }
+    finally { setRefreshing(false); }
+  };
+  const refreshButton = <TouchableOpacity onPress={() => void refresh()} disabled={refreshing} accessibilityRole="button" accessibilityLabel="تحديث البيانات" hitSlop={6} style={{ width: 36, height: 38, justifyContent: 'center', alignItems: 'center' }}>
+    {refreshing ? <ActivityIndicator size="small" color={colors.primary} /> : <Text style={{ fontFamily: 'Tajawal_700Bold', color: colors.primary, fontSize: 26 }}>↻</Text>}
+  </TouchableOpacity>;
   const [isToggling, setIsToggling] = useState(false);
   const isOnline = driver.shiftStatus === 'ONLINE';
   const handleToggle = async () => { if (isToggling) return; setIsToggling(true); try { await toggleShiftStatus(); } finally { setIsToggling(false); } };
@@ -48,7 +58,9 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({ title, showBack = fa
           </View>
         )}
 
-        <View style={styles.actions}>
+      </View>
+        <View style={[styles.actions, { paddingHorizontal: spacing.screenGutter, paddingBottom: 10 }]}>
+            {refreshButton}
           <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut} accessibilityRole="button" accessibilityLabel="تسجيل الخروج" accessibilityHint="إنهاء جلسة حساب الموصل">
             <Text style={styles.logoutText}>تسجيل الخروج</Text>
           </TouchableOpacity>
@@ -70,7 +82,6 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({ title, showBack = fa
             <View style={styles.notifDot} />
           </TouchableOpacity>
         </View>
-      </View>
     </View>
   );
 };

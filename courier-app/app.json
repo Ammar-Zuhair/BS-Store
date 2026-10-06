@@ -3,7 +3,7 @@
     "name": "BS Store Courier",
     "owner": "ultra-horizon",
     "slug": "bs-store-courier",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "extra": {
       "eas": {
         "projectId": "ed8a7e42-be89-4bb1-8ee7-a99608dcda2c"

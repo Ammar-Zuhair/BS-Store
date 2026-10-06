@@ -3,7 +3,7 @@
     "name": "متجر بي اس",
     "owner": "ultra-horizon",
     "slug": "bs-store-customer",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "extra": {
       "eas": {
         "projectId": "4bddebb7-5c80-4360-b310-dbc00824cd29"

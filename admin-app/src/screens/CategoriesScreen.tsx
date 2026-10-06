@@ -1235,9 +1235,9 @@ export const CategoriesScreen: React.FC = () => {
                 <TouchableOpacity
                   style={styles.storeDeleteBtn}
                   onPress={() => {
-                    Alert.alert('تأكيد الحذف', `هل أنت متأكد من حذف متجر "${st.name}"؟`, [
+                    Alert.alert('تأكيد الحذف', `هل أنت متأكد من حذف متجر "${st.name}" ومنتجاته؟ تبقى سجلات الطلبات محفوظة.`, [
                       { text: 'إلغاء', style: 'cancel' },
-                      { text: 'حذف', style: 'destructive', onPress: () => deleteStore(st.id) },
+                      { text: 'حذف', style: 'destructive', onPress: () => { void deleteStore(st.id).catch((e: any) => Alert.alert('تعذر الحذف', e?.message || 'حاول مجدداً.')); } },
                     ]);
                   }}
                 >
@@ -1516,7 +1516,7 @@ export const CategoriesScreen: React.FC = () => {
               <View style={styles.dealAdminActionsRow}>
                 <TouchableOpacity
                   style={styles.storeDeleteBtn}
-                  onPress={() => deleteFlashDeal(deal.id)}
+                  onPress={() => { void deleteFlashDeal(deal.id).catch((e: any) => Alert.alert('تعذر الحذف', e?.message || 'حاول مجدداً.')); }}
                 >
                   <Text style={styles.storeDeleteBtnText}>🗑️ حذف</Text>
                 </TouchableOpacity>
@@ -1525,7 +1525,7 @@ export const CategoriesScreen: React.FC = () => {
                     styles.dealStatusToggleBtn,
                     { backgroundColor: deal.isActive ? colors.primary : colors.surfaceContainerHigh },
                   ]}
-                  onPress={() => toggleFlashDealStatus(deal.id)}
+                  onPress={() => { void toggleFlashDealStatus(deal.id).catch((e: any) => Alert.alert('تعذر تعديل العرض', e?.message || 'حاول مجدداً.')); }}
                 >
                   <Text
                     style={[

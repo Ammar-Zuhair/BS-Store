@@ -72,6 +72,7 @@ function load(file) {
     if (specifier.endsWith('/notifications')) return {};
     if (specifier.endsWith('/BoosthisRuntime')) return { BoosthisScreenTracker: () => null };
     if (specifier.endsWith('/AdminHeader')) return { AdminHeader: 'AdminHeader' };
+    if (specifier === 'expo-file-system/legacy') return {};
     if (specifier === 'expo-image-picker') return picker;
     if (specifier === 'expo-image-manipulator') return manipulator;
     const base = path.resolve(path.dirname(file), specifier);

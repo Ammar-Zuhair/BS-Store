@@ -1,6 +1,6 @@
 {
   "name": "courier-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "BS Store Courier App - تطبيق الكابتن والتوصيل لمتجر BS Store",
   "main": "expo/AppEntry.js",
   "scripts": {

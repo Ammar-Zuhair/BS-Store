@@ -1,3 +1,4 @@
+import { exitApplication } from './src/utils/exitApplication';
 import React, { useCallback, useEffect } from 'react';
 import { StatusBar, StyleSheet, View, ActivityIndicator, BackHandler, Alert } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -64,7 +65,7 @@ const AdminNavigator: React.FC = () => {
             {
               text: 'موافق',
               style: 'destructive',
-              onPress: () => BackHandler.exitApp(),
+              onPress: () => { void exitApplication(); },
             },
           ],
           { cancelable: true }

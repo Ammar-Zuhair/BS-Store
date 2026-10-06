@@ -119,8 +119,8 @@ export const CheckoutScreen: React.FC = () => {
     }
   };
 
-  const handleLocationPicked = (loc: LocationResult) => {
-    addNewAddress({
+  const handleLocationPicked = async (loc: LocationResult) => {
+    try { await addNewAddress({
       label: 'المنزل',
       city: loc.city || '',
       district: loc.district || '',
@@ -131,6 +131,7 @@ export const CheckoutScreen: React.FC = () => {
       isDefault: true,
     });
     setShowMapPicker(false);
+    } catch (e: any) { Alert.alert('تعذر حفظ العنوان', e?.message || 'تحقق من الاتصال وحاول مجدداً.'); }
   };
 
   const handleConfirmOrder = async () => {

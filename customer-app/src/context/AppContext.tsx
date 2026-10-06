@@ -83,6 +83,9 @@ interface AppContextType {
   user: { name: string; phone: string; email?: string } | null;
   registeredUser: { name: string; phone: string; email: string } | null;
   setRegisteredUser: React.Dispatch<React.SetStateAction<{ name: string; phone: string; email: string } | null>>;
+  refreshData: () => Promise<void>;
+  updateSavedAddress: (id: string, addr: Omit<Address, 'id'>) => Promise<void>;
+  deleteSavedAddress: (id: string) => Promise<void>;
   refreshCatalog: () => Promise<void>;
   refreshOrders: () => Promise<void>;
   isFreeDeliveryPromo: boolean;
@@ -333,7 +336,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const addressMutationRevision = useRef(0);
   const refreshAddresses = async () => {
+    const revision = addressMutationRevision.current;
     const token = api.getToken() || (await api.initToken());
     if (!token) {
       setAddresses([]);
@@ -343,6 +348,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       const serverAddresses = await addressApi.getAddresses();
+      if (revision !== addressMutationRevision.current) return;
       setAddresses(serverAddresses);
       setSelectedAddress((current) =>
         serverAddresses.find((address) => address.id === current?.id) ||
@@ -352,8 +358,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
     } catch (err) {
       console.warn('Failed to load addresses from backend:', err);
-      setAddresses([]);
-      setSelectedAddress(null);
     }
   };
 
@@ -787,14 +791,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    try {
-      const saved = await addressApi.addAddress(addr);
-      const updated = [...addresses.filter((address) => address.id !== saved.id), saved];
-      setAddresses(updated);
-      setSelectedAddress(saved);
-    } catch (err: any) {
-      Alert.alert('تعذر حفظ العنوان', err?.message || 'تعذر حفظ العنوان في الخادم.');
+    const saved = await addressApi.addAddress(addr);
+    addressMutationRevision.current++;
+    setAddresses(current => [...current.map(a => saved.isDefault ? { ...a, isDefault: false } : a), saved]);
+    await refreshAddresses();
+    setSelectedAddress(saved);
+  };
+
+  const updateSavedAddress = async (id: string, addr: Omit<Address, 'id'>) => {
+    const saved = await addressApi.updateAddress(id, addr);
+    const wasSelected = selectedAddress?.id === id;
+    addressMutationRevision.current++;
+    const updated = { ...addr, id: saved.id, isDefault: saved.isDefault };
+    setAddresses(current => [...current.filter(a => a.id !== id).map(a => saved.isDefault ? { ...a, isDefault: false } : a), updated]);
+    if (wasSelected) setSelectedAddress(updated);
+    await refreshAddresses();
+  };
+  const deleteSavedAddress = async (id: string) => {
+    await addressApi.deleteAddress(id);
+    addressMutationRevision.current++;
+    const remaining = addresses.filter(a => a.id !== id);
+    setAddresses(remaining);
+    setSelectedAddress(current => current?.id === id ? remaining.find(a => a.isDefault) || remaining[0] || null : current);
+    await refreshAddresses();
+  };
+  const refreshData = async () => {
+    const jobs = [refreshCatalog()];
+    if (isAuthenticated) {
+      jobs.push(refreshOrders(), refreshAddresses(), authApi.me().then(async fresh => {
+        const updated = { name: fresh.fullName || fresh.name || '', phone: fresh.phone };
+        setUser(updated);
+        await AsyncStorage.setItem('@bs_customer_user', JSON.stringify(updated));
+      }));
     }
+    await Promise.all(jobs);
   };
 
   const placeOrder = async (
@@ -1056,6 +1086,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         user,
         registeredUser,
         setRegisteredUser,
+        refreshData,
+        updateSavedAddress,
+        deleteSavedAddress,
         refreshCatalog,
         refreshOrders,
         deals,

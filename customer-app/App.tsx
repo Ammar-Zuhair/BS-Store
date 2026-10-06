@@ -1,3 +1,4 @@
+import { exitApplication } from './src/utils/exitApplication';
 import React, { useCallback, useEffect } from 'react';
 import {
   StatusBar,
@@ -74,7 +75,7 @@ const MainNavigator: React.FC = () => {
             {
               text: 'موافق',
               style: 'destructive',
-              onPress: () => BackHandler.exitApp(),
+              onPress: () => { void exitApplication(); },
             },
           ],
           { cancelable: true }

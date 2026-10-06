@@ -64,7 +64,7 @@ export const pickImageFromGallery = async (): Promise<PickedImage | null> => {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1,
-      base64: true,
+      base64: false,
     });
 
     if (result.canceled || !result.assets || result.assets.length === 0) {
@@ -85,7 +85,7 @@ export const pickImageFromGallery = async (): Promise<PickedImage | null> => {
 };
 
 /**
- * Send image bytes to the API for required optimization and Supabase storage.
+ * Send image bytes to the API for required optimization and R2 storage.
  */
 export const uploadCatalogueImage = async (
   imageInput: string | PickedImage,
@@ -96,7 +96,7 @@ export const uploadCatalogueImage = async (
     const base64Data = typeof imageInput === 'object' ? imageInput.base64 : null;
 
     // Read the selected image once. The API guarantees resizing/re-encoding
-    // for every catalogue category before uploading it to Supabase.
+    // for every catalogue category before uploading it to R2.
     let bytes: ArrayBuffer;
     if (base64Data) {
       bytes = decodeBase64ToUint8Array(base64Data).buffer as ArrayBuffer;
@@ -120,3 +120,44 @@ export const uploadCatalogueImage = async (
     throw new Error('تعذر رفع الصورة. تحقق من الاتصال وحاول مجدداً.');
   }
 };
+
+// Selected files stay on this device until the enclosing form is submitted.
+const drafts = new Map<string, PickedImage>();
+export const stageCatalogueImage = (image: PickedImage): string => {
+  drafts.set(image.uri, image);
+  if (drafts.size > 64) drafts.delete(drafts.keys().next().value!);
+  return image.uri;
+};
+
+export async function saveCatalogueForm<T, R>(payload: T, folder: 'stores' | 'products' | 'offers', save: (prepared: T) => Promise<R>): Promise<R> {
+  const uploaded: string[] = [];
+  const converted = new Map<string, string>();
+  const prepareImage = async (value: string): Promise<string> => {
+    if (!value || /\/api\/images\/(stores|products|offers)\/[a-f0-9]{32}\.(jpg|jpeg|png|webp)(?:$|[?#])/i.test(value)) return value;
+    if (converted.has(value)) return converted.get(value)!;
+    const url = await uploadCatalogueImage(drafts.get(value) || value, folder);
+    uploaded.push(url); converted.set(value, url); return url;
+  };
+  const prepare = async (value: any, imageField = false): Promise<any> => {
+    if (typeof value === 'string') return imageField ? prepareImage(value) : value;
+    if (Array.isArray(value)) {
+      const items: any[] = [];
+      for (const item of value) items.push(await prepare(item, imageField));
+      return items;
+    }
+    if (value && typeof value === 'object') {
+      const result: any = {};
+      for (const [key, item] of Object.entries(value)) result[key] = await prepare(item, ['images', 'imageUrl', 'imageKey'].includes(key));
+      return result;
+    }
+    return value;
+  };
+  try {
+    const result = await save(await prepare(payload));
+    for (const uri of converted.keys()) drafts.delete(uri);
+    return result;
+  } catch (error) {
+    await Promise.allSettled(uploaded.map(url => api.request('/admin/images', { method: 'DELETE', body: JSON.stringify({ url }) })));
+    throw error;
+  }
+}

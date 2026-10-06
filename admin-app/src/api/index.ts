@@ -197,6 +197,8 @@ export const adminApi = {
   updateStore: (id: string, data: any) =>
     api.put<any>(`/admin/stores/${id}`, data),
 
+  deleteStore: (id: string) => api.delete(`/admin/stores/${id}`),
+
   toggleStore: (id: string) =>
     api.patch<boolean>(`/admin/stores/${id}/toggle`).catch(() => api.patch<boolean>(`/stores/${id}/toggle`)),
 

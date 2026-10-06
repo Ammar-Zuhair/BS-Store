@@ -1,3 +1,4 @@
+import { exitApplication } from './src/utils/exitApplication';
 import React, { useCallback, useEffect } from 'react';
 import { useFonts, Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold } from '@expo-google-fonts/tajawal';
 import { ActivityIndicator, Alert, BackHandler, StatusBar, StyleSheet, View, Platform, SafeAreaView, Text, TextInput } from 'react-native';
@@ -44,7 +45,7 @@ const DriverNavigator: React.FC = () => {
 
       Alert.alert('تأكيد الخروج', 'هل تريد إغلاق تطبيق الموصل؟', [
         { text: 'البقاء في التطبيق', style: 'cancel' },
-        { text: 'خروج', style: 'destructive', onPress: () => BackHandler.exitApp() },
+        { text: 'خروج', style: 'destructive', onPress: () => { void exitApplication(); } },
       ]);
       return true;
     });

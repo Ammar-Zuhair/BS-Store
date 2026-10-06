@@ -1,6 +1,6 @@
 {
   "name": "admin-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "BS Store Admin App - تطبيق المدير والعمليات لمتجر BS Store",
   "main": "expo/AppEntry.js",
   "scripts": {

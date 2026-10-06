@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, Alert, ActivityIndicator } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { LocationPickerModal, LocationResult } from './LocationPickerModal';
@@ -13,7 +13,17 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack, rightAction }) => {
-  const { selectedAddress, setSelectedAddress, addresses, navigateTo, colors: themeColors } = useApp();
+  const { selectedAddress, setSelectedAddress, addresses, navigateTo, colors: themeColors, refreshData } = useApp();
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try { await refreshData(); } catch (e: any) { Alert.alert('تعذر التحديث', e?.message || 'تحقق من الاتصال وحاول مجدداً.'); }
+    finally { setRefreshing(false); }
+  };
+  const refreshButton = <TouchableOpacity onPress={() => void refresh()} disabled={refreshing} accessibilityRole="button" accessibilityLabel="تحديث البيانات" hitSlop={6} style={{ width: 36, height: 38, justifyContent: 'center', alignItems: 'center' }}>
+    {refreshing ? <ActivityIndicator size="small" color={themeColors.primary} /> : <Text style={{ fontFamily: 'Tajawal_700Bold', color: themeColors.primary, fontSize: 26 }}>↻</Text>}
+  </TouchableOpacity>;
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
@@ -50,6 +60,7 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
             <Text style={styles.titleText}>{title}</Text>
           </View>
           <View style={styles.actions}>
+            {refreshButton}
             {rightAction !== undefined ? rightAction : <View style={{ width: 38 }} />}
           </View>
         </View>
@@ -60,6 +71,7 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
             <Text style={styles.titleText}>{title}</Text>
           </View>
           <View style={styles.actions}>
+            {refreshButton}
             {rightAction !== undefined ? rightAction : <View style={{ width: 38 }} />}
           </View>
         </View>
@@ -80,6 +92,7 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
             </View>
 
             <View style={styles.actions}>
+            {refreshButton}
               {rightAction !== undefined ? (
                 rightAction
               ) : (

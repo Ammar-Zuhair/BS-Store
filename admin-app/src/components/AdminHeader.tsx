@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { useAdmin } from '../context/AdminContext';
 
@@ -10,7 +10,17 @@ interface AdminHeaderProps {
 }
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({ title, showBack = false, onBack }) => {
-  const { navigateTo, currentUser, logout } = useAdmin();
+  const { navigateTo, currentUser, logout, refreshData } = useAdmin();
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try { await refreshData(); } catch (e: any) { Alert.alert('تعذر التحديث', e?.message || 'تحقق من الاتصال وحاول مجدداً.'); }
+    finally { setRefreshing(false); }
+  };
+  const refreshButton = <TouchableOpacity onPress={() => void refresh()} disabled={refreshing} accessibilityRole="button" accessibilityLabel="تحديث البيانات" hitSlop={6} style={{ width: 36, height: 38, justifyContent: 'center', alignItems: 'center' }}>
+    {refreshing ? <ActivityIndicator size="small" color={colors.primary} /> : <Text style={{ fontFamily: 'Tajawal_700Bold', color: colors.primary, fontSize: 26 }}>↻</Text>}
+  </TouchableOpacity>;
 
   const handleLogout = () => {
     Alert.alert(
@@ -66,6 +76,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ title, showBack = fals
 
         {/* Left side: logout or login */}
         <View style={styles.actions}>
+            {refreshButton}
           {currentUser ? (
             <TouchableOpacity
               style={styles.logoutBtn}

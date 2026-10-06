@@ -12,7 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
-import { pickImageFromGallery, uploadCatalogueImage } from '../services/imageStorage';
+import { pickImageFromGallery, stageCatalogueImage } from '../services/imageStorage';
 
 interface ImagePickerModalProps {
   visible: boolean;
@@ -35,38 +35,26 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'gallery' | 'url'>('gallery');
   const [customUrl, setCustomUrl] = useState(initialUrl);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<string>('');
+  const [isPicking, setIsPicking] = useState(false);
 
   const handlePickFromGallery = async () => {
+    if (isPicking) return;
+    setIsPicking(true);
     try {
       const picked = await pickImageFromGallery();
       if (!picked) return;
 
-      setIsUploading(true);
-      setUploadStatus('جاري رفع الصورة...');
-
-      try {
-        const publicUrl = await uploadCatalogueImage(picked, folder);
-        setIsUploading(false);
-        setUploadStatus('');
-        onImageSelected(publicUrl);
-        onClose();
-        Alert.alert('تم بنجاح', 'تم رفع الصورة بنجاح.');
-      } catch (error) {
-        setIsUploading(false);
-        setUploadStatus('');
-        Alert.alert('تعذر رفع الصورة', error instanceof Error ? error.message : 'حاول رفع الصورة مجدداً.');
-      }
+      onImageSelected(stageCatalogueImage(picked));
+      onClose();
     } catch (err: any) {
-      setIsUploading(false);
-      setUploadStatus('');
       Alert.alert('خطأ', 'حدث خطأ أثناء اختيار الصورة');
+    } finally {
+      setIsPicking(false);
     }
   };
 
   const handleApplyUrl = async (value = customUrl) => {
-    if (isUploading) return;
+    if (isPicking) return;
     const trimmed = value.trim();
     if (!trimmed) {
       Alert.alert('تنبيه', 'يرجى إدخال رابط الصورة أولاً');
@@ -76,15 +64,9 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
       Alert.alert('رابط غير صالح', 'أدخل رابط HTTPS صالحاً للصورة.');
       return;
     }
-    setIsUploading(true);
-    try {
-      const url = await uploadCatalogueImage(trimmed, folder);
-      onImageSelected(url);
-      setCustomUrl('');
-      onClose();
-    } catch (error) {
-      Alert.alert('تعذر رفع الصورة', error instanceof Error ? error.message : 'تحقق من رابط الصورة.');
-    } finally { setIsUploading(false); }
+    onImageSelected(trimmed);
+    setCustomUrl('');
+    onClose();
   };
 
   return (
@@ -96,7 +78,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
 
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>
-            يمكنك رفع صورة من معرض جهازك أو إضافة رابط صورة
+            اختر صورة من جهازك أو رابطاً؛ تُحفظ الصورة عند إرسال النموذج
           </Text>
 
           {/* Mode Switcher Tabs */}
@@ -125,11 +107,11 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
           {/* Tab 1: Gallery Upload */}
           {activeTab === 'gallery' && (
             <View style={styles.tabContent}>
-              {isUploading ? (
+              {isPicking ? (
                 <View style={styles.loadingBox}>
                   <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={styles.loadingText}>{uploadStatus}</Text>
-                  <Text style={styles.loadingSub}>يتم الآن ضغط الصورة وحفظها</Text>
+                  <Text style={styles.loadingText}>جاري فتح المعرض...</Text>
+                  <Text style={styles.loadingSub}>اختر الصورة المطلوبة؛ يبدأ الحفظ عند إرسال النموذج</Text>
                 </View>
               ) : (
                 <View style={styles.gallerySection}>
@@ -143,10 +125,10 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
                     </View>
                     <Text style={styles.uploadCardTitle}>اختر صورة من جهازك</Text>
                     <Text style={styles.uploadCardSub}>
-                      اضغط هنا لتحديد صورة من المعرض وسيتم رفعها وتخزينها تلقائياً في التخزين
+                      تظهر معاينة الصورة الآن، ويبدأ رفعها عند الضغط على حفظ
                     </Text>
                     <View style={styles.uploadActionBadge}>
-                      <Text style={styles.uploadActionText}>+ فتح المعرض والرفع</Text>
+                      <Text style={styles.uploadActionText}>+ فتح المعرض</Text>
                     </View>
                   </TouchableOpacity>
                 </View>
@@ -178,7 +160,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
 
               <TouchableOpacity
                 style={[styles.applyUrlBtn, !customUrl.trim() && styles.applyUrlBtnDisabled]}
-                disabled={!customUrl.trim() || isUploading}
+                disabled={!customUrl.trim() || isPicking}
                 onPress={() => void handleApplyUrl()}
                 activeOpacity={0.85}
               >
@@ -196,7 +178,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
                   <TouchableOpacity
                     key={idx}
                     style={styles.sampleItem}
-                    disabled={isUploading}
+                    disabled={isPicking}
                     onPress={() => void handleApplyUrl(sample.url)}
                   >
                     <Image source={{ uri: sample.url }} style={styles.sampleImg} />

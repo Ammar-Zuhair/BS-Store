@@ -3,7 +3,7 @@
     "name": "BS Store Admin",
     "owner": "ultra-horizon",
     "slug": "bs-store-admin",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "extra": {
       "eas": {
         "projectId": "9e0835f4-81c4-4338-8455-f5a73b529082"

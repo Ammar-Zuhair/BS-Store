@@ -1,726 +1,220 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  Switch,
-  Modal,
-} from 'react-native';
-import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Switch, Modal, Linking, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
+import { ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
-import { governorateApi } from '../api';
-import { AppIcon } from '../components/AppIcon';
+import { authApi, governorateApi } from '../api';
+import { AppIcon, AppIconName } from '../components/AppIcon';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
+import { LocationPickerModal } from '../components/LocationPickerModal';
+import { Address } from '../types';
+
+const emptyAddress = (): Omit<Address, 'id'> => ({ label: 'أخرى', city: '', district: '', street: '', building: '', description: '', latitude: 0, longitude: 0, isDefault: false });
+const SUPPORT_PHONE = '783053937';
+const DEVELOPER_PHONE = '775479340';
 
 export const ProfileScreen: React.FC = () => {
-  const {
-    user,
-    addresses,
-    orders,
-    logout,
-    addNewAddress,
-    setCurrentOrder,
-    navigateTo,
-    isAuthenticated,
-    isDarkMode,
-    toggleTheme,
-    colors: themeColors,
-    refreshCatalog,
-  } = useApp();
-
-  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
-
-  const [showAddAddress, setShowAddAddress] = useState(false);
-  const [city, setCity] = useState('');
-  const [district, setDistrict] = useState('');
-  const [street, setStreet] = useState('');
-  const [desc, setDesc] = useState('');
-  const [governorates, setGovernorates] = useState<{id:string;name:string}[]>([]);
+  const { user, addresses, logout, addNewAddress, updateSavedAddress, deleteSavedAddress, navigateTo, isAuthenticated, isDarkMode, toggleTheme, colors, refreshCatalog, refreshData } = useApp();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [page, setPage] = useState<'support' | 'about' | 'password' | 'address' | 'governorates' | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [addressId, setAddressId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Omit<Address, 'id'>>(emptyAddress);
+  const [showMap, setShowMap] = useState(false);
+  const [governorates, setGovernorates] = useState<{ id: string; name: string }[]>([]);
   const [governorateId, setGovernorateId] = useState('');
-  const [showGovernorates, setShowGovernorates] = useState(false);
-  useEffect(() => { if (isAuthenticated) Promise.all([governorateApi.list(), governorateApi.mine()]).then(([list, mine]) => { setGovernorates(list); setGovernorateId(mine.governorateId || ''); }).catch(() => {}); }, [isAuthenticated]);
-  const saveGovernorate = async (id: string) => { try { await governorateApi.update(id); setGovernorateId(id); setShowGovernorates(false); await refreshCatalog(); Alert.alert('تم التحديث', 'تم تغيير محافظة حسابك وتحديث قائمة المتاجر.'); } catch (e:any) { Alert.alert('تعذر التحديث', e?.message || 'حاول مرة أخرى.'); } };
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
-  const handleSaveAddress = () => {
-    if (!city.trim() || !district.trim() || !street.trim()) {
-      Alert.alert('خطأ', 'يرجى إدخال اسم المدينة والحي والشارع');
-      return;
-    }
-    addNewAddress({
-      label: 'أخرى',
-      city: city.trim(),
-      district: district.trim(),
-      street: street.trim(),
-      description: desc.trim(),
-      latitude: 0,
-      longitude: 0,
-      isDefault: false,
-    });
-    setCity('');
-    setDistrict('');
-    setStreet('');
-    setDesc('');
-    setShowAddAddress(false);
-    Alert.alert('تم بنجاح', 'تمت إضافة العنوان الجديد إلى قائمتك');
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let active = true;
+    Promise.all([governorateApi.list(), governorateApi.mine()]).then(([list, mine]) => {
+      if (active) { setGovernorates(list); setGovernorateId(mine.governorateId || ''); }
+    }).catch(() => {});
+    void refreshData().catch(() => {});
+    return () => { active = false; };
+  }, [isAuthenticated]);
+
+  const showError = (error: any) => Alert.alert('تعذر إكمال العملية', error?.message || 'تحقق من الاتصال وحاول مجدداً.');
+  const openWhatsApp = async (phone: string) => {
+    try { await Linking.openURL(`https://wa.me/967${phone}`); } catch { Alert.alert('تعذر فتح واتساب', 'تأكد من توفر واتساب أو متصفح على جهازك.'); }
   };
-
-  return (
-    <View style={styles.container}>
-      <Header title="حسابي والملف الشخصي" showBack onBack={() => navigateTo('home')} />
-
-      <KeyboardAwareScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* User Card / Guest Card */}
-        {!isAuthenticated ? (
-          <View style={styles.guestCard}>
-            <View style={styles.avatarIconWrap}>
-              <AppIcon name="sparkles" size={23} color={themeColors.primary} />
-            </View>
-            <View style={styles.guestInfo}>
-              <Text style={styles.guestTitle}>أهلاً بك في متجر بي اس</Text>
-              <Text style={styles.guestSubtitle}>
-                سجل الدخول لإدارة طلباتك، تتبع شحناتك، وحفظ عناوينك
-              </Text>
-              <TouchableOpacity
-                style={styles.loginBtn}
-                onPress={() => navigateTo('auth')}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="تسجيل الدخول أو إنشاء حساب"
-              >
-                <AppIcon name="arrow-right" size={16} color={themeColors.onPrimary} />
-                <Text style={styles.loginBtnText}>تسجيل الدخول / إنشاء حساب</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.userCard}>
-            <View style={styles.avatarIconWrap}>
-              <AppIcon name="user" size={22} color={themeColors.primary} />
-            </View>
-            <View style={styles.userInfo}>
-              <View style={styles.nameRow}>
-                {!!user?.name && <Text style={styles.userName}>{user.name}</Text>}
-              </View>
-              <Text style={styles.userPhone}>{user?.phone || ''}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Appearance & Dark Mode Toggle Card */}
-        {isAuthenticated && <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>محافظة التسوق</Text>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => setShowGovernorates(true)}
-            accessibilityRole="button"
-            accessibilityLabel="اختيار محافظة التسوق"
-          >
-            <AppIcon name="chevron-down" size={18} color={themeColors.onSurfaceVariant} />
-            <Text style={styles.menuText}>{governorates.find(g => g.id === governorateId)?.name || 'اختر المحافظة'}</Text>
-          </TouchableOpacity>
-        </View>}
-        <Modal visible={showGovernorates} transparent animationType="slide" onRequestClose={() => setShowGovernorates(false)}>
-          <View style={styles.governorateOverlay}>
-            <View style={styles.governorateSheet}>
-              <Text style={styles.governorateTitle}>اختر المحافظة</Text>
-              <ScrollView>
-                {governorates.map((g) => (
-                  <TouchableOpacity
-                    key={g.id}
-                    style={styles.governorateOption}
-                    onPress={() => saveGovernorate(g.id)}
-                    accessibilityRole="radio"
-                    accessibilityLabel={g.name}
-                    accessibilityState={{ checked: g.id === governorateId }}
-                  >
-                    <Text style={styles.governorateOptionText}>{g.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>المظهر والتفضيلات</Text>
-          <View style={styles.themeRow}>
-            <Switch
-              value={isDarkMode}
-              onValueChange={toggleTheme}
-              accessibilityLabel="تبديل الوضع الداكن"
-              trackColor={{ false: themeColors.surfaceContainerHighest, true: themeColors.primary }}
-              thumbColor={isDarkMode ? themeColors.onPrimary : '#FFFFFF'}
-            />
-            <View style={styles.themeInfo}>
-              <View style={styles.themeTitleRow}>
-                <Text style={styles.themeTitle}>
-                  {isDarkMode ? 'الوضع الداكن (الليلي)' : 'الوضع الفاتح (النهاري)'}
-                </Text>
-                <AppIcon name={isDarkMode ? 'moon' : 'sun'} size={18} color={themeColors.primary} />
-              </View>
-              <Text style={styles.themeDesc}>
-                {isDarkMode
-                  ? 'مظهر داكن مريح للعين في الإضاءة الخافتة'
-                  : 'المظهر الافتراضي المشرق عالي الوضوح'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Saved Addresses Section */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <TouchableOpacity
-              onPress={() => setShowAddAddress(!showAddAddress)}
-              accessibilityRole="button"
-              accessibilityLabel={showAddAddress ? 'إلغاء إضافة العنوان' : 'إضافة عنوان'}
-            >
-              <View style={styles.actionRow}>
-                {!showAddAddress && <AppIcon name="plus" size={15} color={themeColors.primary} />}
-                <Text style={styles.actionText}>{showAddAddress ? 'إلغاء' : 'إضافة عنوان'}</Text>
-              </View>
-            </TouchableOpacity>
-            <Text style={styles.sectionTitle}>العناوين المحفوظة</Text>
-          </View>
-
-          {showAddAddress && (
-            <View style={styles.addAddressForm}>
-              <Text style={styles.formTitle}>إضافة عنوان جديد</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="المدينة (مثال: صنعاء، عدن، تعز، ...)"
-                placeholderTextColor={themeColors.outline}
-                value={city}
-                onChangeText={setCity}
-                textAlign="right"
-                accessibilityLabel="المدينة"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="الحي / المنطقة"
-                placeholderTextColor={themeColors.outline}
-                value={district}
-                onChangeText={setDistrict}
-                textAlign="right"
-                accessibilityLabel="الحي أو المنطقة"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="الشارع أو المعلم البارز"
-                placeholderTextColor={themeColors.outline}
-                value={street}
-                onChangeText={setStreet}
-                textAlign="right"
-                accessibilityLabel="الشارع أو المعلم البارز"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="تفاصيل إضافية (عمارة، شقة، علامة مميزة)"
-                placeholderTextColor={themeColors.outline}
-                value={desc}
-                onChangeText={setDesc}
-                textAlign="right"
-                accessibilityLabel="تفاصيل إضافية للعنوان"
-              />
-              <TouchableOpacity
-                style={styles.saveAddrBtn}
-                onPress={handleSaveAddress}
-                accessibilityRole="button"
-                accessibilityLabel="حفظ العنوان"
-              >
-                <Text style={styles.saveAddrBtnText}>حفظ العنوان</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {addresses.length === 0 ? (
-            <Text style={styles.emptyNotice}>لا توجد عناوين محفوظة حتى الآن</Text>
-          ) : (
-            addresses.map((addr) => (
-              <View key={addr.id} style={styles.addressRow}>
-                <View style={styles.addrIconWrap}>
-                  <AppIcon
-                    name={addr.label === 'المنزل' ? 'house' : 'building'}
-                    size={19}
-                    color={themeColors.primary}
-                  />
-                </View>
-                <View style={styles.addrInfo}>
-                  <View style={styles.addrLabelRow}>
-                    <Text style={styles.addrLabel}>{addr.label}</Text>
-                    {addr.isDefault && <Text style={styles.defaultBadge}>الرئيسي</Text>}
-                  </View>
-                  <Text style={styles.addrStreet}>
-                    {addr.city ? `${addr.city} - ` : ''}{addr.district}، {addr.street}
-                  </Text>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-
-        {/* Past Orders History */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>سجل الطلبات السابقة</Text>
-          {orders.length === 0 ? (
-            <Text style={styles.emptyNotice}>لا توجد طلبات سابقة حتى الآن</Text>
-          ) : (
-            orders.map((ord) => (
-              <View key={ord.id} style={styles.orderHistoryItem}>
-                <View style={styles.orderHistoryTop}>
-                  <TouchableOpacity
-                    style={styles.trackBtn}
-                    onPress={() => {
-                      setCurrentOrder(ord);
-                      navigateTo('tracking');
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={'تتبع الطلب رقم ' + ord.orderNumber}
-                  >
-                    <Text style={styles.trackBtnText}>تتبع</Text>
-                  </TouchableOpacity>
-                  <View style={styles.orderHistoryInfo}>
-                    <Text style={styles.orderHistNum}>طلب #{ord.orderNumber}</Text>
-                    <Text style={styles.orderHistDate}>{ord.createdAt}</Text>
-                  </View>
-                </View>
-                <View style={styles.orderHistoryBottom}>
-                  <Text style={styles.orderHistTotal}>
-                    {ord.totalAmount.toLocaleString()} ر.ي
-                  </Text>
-                  <View style={styles.statusPill}>
-                    <Text style={styles.statusPillText}>
-                      {ord.status === 'DELIVERED'
-                        ? 'تم التوصيل'
-                        : ord.status === 'OUT_FOR_DELIVERY'
-                        ? 'في الطريق'
-                        : 'قيد التنفيذ'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-
-        {/* Support & Logout */}
-        <View style={styles.sectionCard}>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => Alert.alert('خدمة العملاء', 'بيانات الدعم غير متاحة حالياً.')}
-            accessibilityRole="button"
-            accessibilityLabel="مركز المساعدة والدعم الفني"
-          >
-            <AppIcon name="chevron-left" size={18} color={themeColors.onSurfaceVariant} />
-            <View style={styles.menuTitleRow}>
-              <Text style={styles.menuText}>مركز المساعدة والدعم الفني</Text>
-              <AppIcon name="message" size={19} color={themeColors.primary} />
-            </View>
-          </TouchableOpacity>
-
-          {isAuthenticated && (
-            <TouchableOpacity
-              style={[styles.menuItem, styles.logoutItem]}
-              onPress={logout}
-              accessibilityRole="button"
-              accessibilityLabel="تسجيل الخروج"
-            >
-              <AppIcon name="chevron-left" size={18} color={themeColors.error} />
-              <View style={styles.menuTitleRow}>
-                <Text style={styles.logoutText}>تسجيل الخروج</Text>
-                <AppIcon name="logout" size={19} color={themeColors.error} />
-              </View>
-            </TouchableOpacity>
-          )}
-        </View>
-      </KeyboardAwareScrollView>
-    </View>
+  const button = (label: string, onPress: () => void, icon: AppIconName = 'chevron-left', danger = false) => (
+    <TouchableOpacity onPress={onPress} disabled={busy} style={styles.menu} accessibilityRole="button" accessibilityLabel={label}>
+      <AppIcon name={icon} size={20} color={danger ? colors.error : colors.primary} />
+      <Text style={[styles.menuText, danger && { color: colors.error }]}>{label}</Text>
+    </TouchableOpacity>
   );
+  const openAddress = (address?: Address) => {
+    setAddressId(address?.id || null); setDraft(address ? { ...address } : emptyAddress()); setPage('address');
+  };
+  const saveAddress = async () => {
+    if (!draft.city.trim() || !draft.street.trim() || (!draft.latitude && !draft.longitude)) {
+      Alert.alert('بيانات ناقصة', 'أدخل المدينة والشارع وحدد موقع العنوان على الخريطة.'); return;
+    }
+    setBusy(true);
+    try {
+      if (addressId) await updateSavedAddress(addressId, draft); else await addNewAddress(draft);
+      setPage(null); Alert.alert('تم الحفظ', addressId ? 'تم تعديل عنوانك.' : 'تمت إضافة العنوان.');
+    } catch (e) { showError(e); } finally { setBusy(false); }
+  };
+  const removeAddress = (address: Address) => Alert.alert('حذف العنوان', 'هل تريد حذف هذا العنوان من عناوينك المحفوظة؟ تبقى عناوين الطلبات السابقة محفوظة.', [
+    { text: 'إلغاء', style: 'cancel' },
+    { text: 'حذف', style: 'destructive', onPress: async () => { setBusy(true); try { await deleteSavedAddress(address.id); } catch (e) { showError(e); } finally { setBusy(false); } } },
+  ]);
+  const savePassword = async () => {
+    if (!currentPassword || newPassword.length < 8) { Alert.alert('تحقق من كلمة المرور', 'أدخل كلمة المرور الحالية وكلمة جديدة من 8 أحرف على الأقل.'); return; }
+    if (newPassword !== confirmPassword) { Alert.alert('تحقق من كلمة المرور', 'تأكيد كلمة المرور لا يطابق الكلمة الجديدة.'); return; }
+    setBusy(true);
+    try {
+      await authApi.changePassword(currentPassword, newPassword);
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setPage(null);
+      Alert.alert('تم التغيير', 'تم تغيير كلمة المرور.');
+    } catch (e) { showError(e); } finally { setBusy(false); }
+  };
+  const saveGovernorate = async (id: string) => {
+    setBusy(true);
+    try { await governorateApi.update(id); setGovernorateId(id); await refreshCatalog(); setPage(null); } catch (e) { showError(e); } finally { setBusy(false); }
+  };
+  const closePage = () => {
+    if (busy) return;
+    if (page === 'password') { setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setPasswordVisible(false); }
+    setPage(null);
+  };
+  const phoneCard = (phone: string) => <View style={styles.card}>
+    <Text style={styles.phone}>{phone}</Text>
+    {button('التواصل عبر واتساب', () => void openWhatsApp(phone), 'message')}
+    {button('اتصال هاتفي', () => { void Linking.openURL(`tel:+967${phone}`).catch(showError); }, 'phone')}
+  </View>;
+  const title = page === 'support' ? 'تواصل مع الدعم الفني' : page === 'about' ? 'حول التطبيق' : page === 'password' ? 'تغيير كلمة المرور' : page === 'governorates' ? 'محافظة التسوق' : addressId ? 'تعديل العنوان' : 'إضافة عنوان';
+
+  return <View style={styles.container}>
+    <Header title="حسابي" showBack onBack={() => navigateTo('home')} />
+    <KeyboardAwareScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
+        <View style={styles.identity}>
+          <View style={styles.avatar}><AppIcon name="user" size={30} color={colors.primary} /></View>
+          <View style={styles.identityText}>
+            <Text style={styles.heading}>{isAuthenticated ? user?.name || 'اسم المستخدم' : 'أهلاً بك في متجر بي اس'}</Text>
+            <Text style={styles.text}>{isAuthenticated ? user?.phone : 'سجل الدخول لحفظ عناوينك ومتابعة طلباتك'}</Text>
+          </View>
+        </View>
+        {isAuthenticated ? button('تغيير كلمة المرور', () => { setPasswordVisible(false); setPage('password'); }, 'lock') : button('تسجيل الدخول / إنشاء حساب', () => navigateTo('auth'), 'arrow-right')}
+      </View>
+      {isAuthenticated && <>
+        <View style={styles.card}>
+          <Text style={styles.heading}>محافظة التسوق</Text>
+          {button(governorates.find(g => g.id === governorateId)?.name || 'اختر المحافظة', () => setPage('governorates'), 'map-pin')}
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.heading}>عناويني المحفوظة</Text>
+          {addresses.length === 0 && <Text style={styles.text}>لم تحفظ عنواناً بعد.</Text>}
+          {addresses.map(address => <View key={address.id} style={styles.address}>
+            <Text style={styles.subheading}>{address.label || 'المنزل'}{address.isDefault ? ' · الافتراضي' : ''}</Text>
+            <Text style={styles.text}>{[address.city, address.district, address.street, address.building].filter(Boolean).join('، ')}</Text>
+            {!!address.description && <Text style={styles.text}>{address.description}</Text>}
+            <View style={styles.row}>
+              {button('تعديل', () => openAddress(address), 'edit')}
+              {button('حذف', () => removeAddress(address), 'trash', true)}
+            </View>
+          </View>)}
+          {button('إضافة عنوان جديد', () => openAddress(), 'plus')}
+        </View>
+      </>}
+      <View style={styles.card}>
+        <View style={styles.row}>
+          <Switch value={isDarkMode} onValueChange={toggleTheme} trackColor={{ false: colors.outline, true: colors.primary }} />
+          <Text style={styles.menuText}>الوضع الليلي</Text>
+        </View>
+      </View>
+      <View style={styles.card}>
+        {button('تواصل مع الدعم الفني', () => setPage('support'), 'phone')}
+        {button('حول التطبيق', () => setPage('about'), 'info')}
+      </View>
+      {isAuthenticated && <View style={styles.card}>{button('تسجيل الخروج', () => Alert.alert('تسجيل الخروج', 'هل تريد تسجيل الخروج من حسابك؟', [
+        { text: 'إلغاء', style: 'cancel' }, { text: 'تسجيل الخروج', style: 'destructive', onPress: () => void logout() },
+      ]), 'logout', true)}</View>}
+    </KeyboardAwareScrollView>
+
+    <Modal visible={page !== null && !showMap} animationType="slide" onRequestClose={closePage}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={closePage} disabled={busy} accessibilityRole="button" accessibilityLabel="إغلاق"><AppIcon name="close" size={25} color={colors.onSurface} /></TouchableOpacity>
+          <Text style={styles.heading}>{title}</Text>
+        </View>
+        <KeyboardAwareScrollView contentContainerStyle={styles.content}>
+          {page === 'support' && <>
+            <Text style={styles.heading}>إدارة متجر بي اس</Text>
+            <Text style={styles.text}>للاستفسار عن طلباتك أو التحويلات أو لحل مشكلة في التطبيق، تواصل مع الإدارة.</Text>
+            {phoneCard(SUPPORT_PHONE)}
+          </>}
+          {page === 'about' && <>
+            <View style={styles.card}>
+              <Text style={styles.heading}>متجر بي اس · BS Store</Text>
+              <Text style={styles.text}>تطبيق للتسوق من المتاجر والعروض المتاحة في محافظتك، مع إدارة عناوين التوصيل ومتابعة طلباتك.</Text>
+              <Text style={styles.text}>يدعم الدفع عند الاستلام والتحويل، وإرسال إيصال التحويل للإدارة لمراجعته واعتماده.</Text>
+              <Text style={styles.text}>يمكنك معرفة أوقات استقبال الطلبات ومواعيد المتاجر من الواجهة الرئيسية وبطاقات المتاجر.</Text>
+              <Text style={styles.text}>إصدار التطبيق: {Constants.expoConfig?.version || '1.0.1'}</Text>
+            </View>
+            <Text style={styles.heading}>تم التطوير بواسطة: عمار المقطري</Text>
+            {phoneCard(DEVELOPER_PHONE)}
+          </>}
+          {page === 'password' && <View style={styles.card}>
+            {[
+              ['كلمة المرور الحالية', currentPassword, setCurrentPassword],
+              ['كلمة المرور الجديدة (8 أحرف على الأقل)', newPassword, setNewPassword],
+              ['تأكيد كلمة المرور الجديدة', confirmPassword, setConfirmPassword],
+            ].map(([label, value, setter], index) => <View key={index}>
+              <Text style={styles.label}>{label as string}</Text>
+              <TextInput style={styles.input} value={value as string} onChangeText={setter as (v: string) => void} secureTextEntry={!passwordVisible} autoCapitalize="none" autoCorrect={false} editable={!busy} textContentType={index === 0 ? 'password' : 'newPassword'} accessibilityLabel={label as string} />
+            </View>)}
+            {button(passwordVisible ? 'إخفاء كلمات المرور' : 'إظهار كلمات المرور', () => setPasswordVisible(v => !v), passwordVisible ? 'eye-off' : 'eye')}
+            <TouchableOpacity style={styles.primary} onPress={() => void savePassword()} disabled={busy}>{busy ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.primaryText}>حفظ كلمة المرور</Text>}</TouchableOpacity>
+          </View>}
+          {page === 'governorates' && <View style={styles.card}>{governorates.map(g => <View key={g.id}>{button(g.name + (g.id === governorateId ? ' ✓' : ''), () => void saveGovernorate(g.id), 'map-pin')}</View>)}</View>}
+          {page === 'address' && <View style={styles.card}>
+            <View style={styles.row}>{(['المنزل', 'العمل', 'أخرى'] as const).map(label => <TouchableOpacity key={label} style={[styles.chip, draft.label === label && { backgroundColor: colors.primary + '20' }]} onPress={() => setDraft(d => ({ ...d, label }))}><Text style={styles.text}>{label}</Text></TouchableOpacity>)}</View>
+            {(['city', 'district', 'street', 'building', 'description'] as const).map((key, index) => <View key={key}>
+              <Text style={styles.label}>{['المدينة *', 'الحي', 'الشارع *', 'المبنى / المنزل', 'علامة مميزة وتعليمات التوصيل'][index]}</Text>
+              <TextInput style={styles.input} value={draft[key] || ''} onChangeText={value => setDraft(d => ({ ...d, [key]: value }))} editable={!busy} textAlign="right" />
+            </View>)}
+            {button(draft.latitude || draft.longitude ? 'تعديل الموقع على الخريطة ✓' : 'تحديد الموقع على الخريطة *', () => setShowMap(true), 'map-pin')}
+            <View style={styles.row}><Switch value={draft.isDefault} onValueChange={value => setDraft(d => ({ ...d, isDefault: value }))} /><Text style={styles.text}>عنواني الافتراضي</Text></View>
+            <TouchableOpacity style={styles.primary} onPress={() => void saveAddress()} disabled={busy}>{busy ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.primaryText}>حفظ العنوان</Text>}</TouchableOpacity>
+          </View>}
+        </KeyboardAwareScrollView>
+      </SafeAreaView>
+    </Modal>
+    <LocationPickerModal visible={showMap} initialLat={draft.latitude || undefined} initialLng={draft.longitude || undefined} initialDistrict={draft.district} onClose={() => setShowMap(false)} onConfirm={location => {
+      setDraft(d => ({ ...d, latitude: location.latitude, longitude: location.longitude, city: location.city || d.city, district: location.district || d.district, street: location.street || d.street })); setShowMap(false);
+    }} />
+  </View>;
 };
 
-const createStyles = (c: ThemeColors) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: c.background,
-    },
-    scrollContent: {
-      paddingHorizontal: spacing.screenGutter,
-      paddingVertical: spacing.baseSm,
-      paddingBottom: 130,
-    },
-    guestCard: {
-      backgroundColor: c.surfaceContainerLowest,
-      borderRadius: borderRadius.xl,
-      padding: spacing.baseMd,
-      flexDirection: 'row-reverse',
-      alignItems: 'center',
-      marginBottom: spacing.baseSm,
-      borderWidth: 1,
-      borderColor: c.primary + '30',
-      ...shadows.card,
-    },
-    guestInfo: {
-      flex: 1,
-      alignItems: 'flex-end',
-    },
-    guestTitle: {
-      fontSize: typography.fontSize.md,
-      fontWeight: typography.fontWeight.bold,
-      color: c.onSurface,
-    },
-    guestSubtitle: {
-      fontSize: typography.fontSize.xs,
-      color: c.onSurfaceVariant,
-      marginTop: 2,
-      marginBottom: spacing.baseXs,
-      textAlign: 'right',
-    },
-    loginBtn: {
-      backgroundColor: c.primary,
-      paddingHorizontal: spacing.baseSm,
-      minHeight: 44,
-      borderRadius: borderRadius.lg,
-      marginTop: 4,
-      flexDirection: 'row-reverse',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-    },
-    loginBtnText: {
-      color: c.onPrimary,
-      fontSize: typography.fontSize.xs,
-      fontWeight: typography.fontWeight.bold,
-    },
-    userCard: {
-      backgroundColor: c.surfaceContainerLowest,
-      borderRadius: borderRadius.xl,
-      padding: spacing.baseMd,
-      flexDirection: 'row-reverse',
-      alignItems: 'center',
-      marginBottom: spacing.baseSm,
-      borderWidth: 1,
-      borderColor: c.outlineVariant + '40',
-      ...shadows.card,
-    },
-    avatarIconWrap: {
-      width: 52,
-      height: 52,
-      borderRadius: borderRadius.full,
-      backgroundColor: c.primaryFixed + '40',
-      borderWidth: 1.5,
-      borderColor: c.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginLeft: spacing.baseSm,
-    },
-    actionRow: {
-      minHeight: 44,
-      flexDirection: 'row-reverse',
-      alignItems: 'center',
-      gap: 4,
-    },
-    userInfo: {
-      flex: 1,
-      alignItems: 'flex-end',
-    },
-    nameRow: {
-      flexDirection: 'row-reverse',
-      alignItems: 'center',
-      gap: 6,
-    },
-    userName: {
-      fontSize: typography.fontSize.md,
-      fontWeight: typography.fontWeight.bold,
-      color: c.onSurface,
-    },
-    userPhone: {
-      fontSize: typography.fontSize.xs,
-      color: c.onSurfaceVariant,
-      marginTop: 2,
-    },
-    sectionCard: {
-      backgroundColor: c.surfaceContainerLowest,
-      borderRadius: borderRadius.xl,
-      padding: spacing.baseMd,
-      marginBottom: spacing.baseSm,
-      borderWidth: 1,
-      borderColor: c.outlineVariant + '40',
-      ...shadows.card,
-    },
-    governorateOverlay: {
-      flex: 1,
-      justifyContent: 'flex-end',
-      backgroundColor: 'rgba(0, 0, 0, 0.52)',
-    },
-    governorateSheet: {
-      maxHeight: '70%',
-      backgroundColor: c.surfaceContainerLowest,
-      borderTopLeftRadius: borderRadius.xxl,
-      borderTopRightRadius: borderRadius.xxl,
-      padding: spacing.baseMd,
-    },
-    governorateTitle: {
-      textAlign: 'right',
-      fontSize: typography.fontSize.lg,
-      fontWeight: typography.fontWeight.bold,
-      color: c.onSurface,
-      marginBottom: spacing.baseSm,
-    },
-    governorateOption: {
-      minHeight: 48,
-      justifyContent: 'center',
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderColor: c.outlineVariant,
-    },
-    governorateOptionText: {
-      textAlign: 'right',
-      color: c.onSurface,
-      fontSize: typography.fontSize.md,
-    },
-    sectionHeader: {
-      flexDirection: 'row-reverse',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: spacing.baseSm,
-    },
-    sectionTitle: {
-      fontSize: typography.fontSize.sm,
-      fontWeight: typography.fontWeight.bold,
-      color: c.onSurface,
-      textAlign: 'right',
-    },
-    actionText: {
-      fontSize: typography.fontSize.xs,
-      fontWeight: typography.fontWeight.bold,
-      color: c.primary,
-    },
-    themeRow: {
-      flexDirection: 'row-reverse',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 6,
-    },
-    themeInfo: {
-      alignItems: 'flex-end',
-      flex: 1,
-      marginRight: spacing.baseSm,
-    },
-    themeTitleRow: {
-      flexDirection: 'row-reverse',
-      alignItems: 'center',
-      gap: 6,
-    },
-    themeTitle: {
-      fontSize: typography.fontSize.sm,
-      fontWeight: typography.fontWeight.bold,
-      color: c.onSurface,
-    },
-    themeIcon: {
-      fontSize: 18,
-    },
-    themeDesc: {
-      fontSize: 11,
-      color: c.onSurfaceVariant,
-      marginTop: 2,
-      textAlign: 'right',
-    },
-    addAddressForm: {
-      backgroundColor: c.surfaceContainerLow,
-      padding: spacing.baseSm,
-      borderRadius: borderRadius.lg,
-      marginBottom: spacing.baseSm,
-    },
-    formTitle: {
-      fontSize: typography.fontSize.xs,
-      fontWeight: typography.fontWeight.bold,
-      color: c.onSurface,
-      textAlign: 'right',
-      marginBottom: 6,
-    },
-    input: {
-      backgroundColor: c.surfaceContainerLowest,
-      borderRadius: borderRadius.md,
-      paddingHorizontal: spacing.baseSm,
-      minHeight: 48,
-      paddingVertical: spacing.baseXs,
-      fontSize: typography.fontSize.xs,
-      color: c.onSurface,
-      marginBottom: 6,
-      borderWidth: 1,
-      borderColor: c.outlineVariant + '40',
-    },
-    saveAddrBtn: {
-      backgroundColor: c.primary,
-      minHeight: 48,
-      borderRadius: borderRadius.md,
-      alignItems: 'center',
-      marginTop: 2,
-    },
-    saveAddrBtnText: {
-      color: c.onPrimary,
-      fontSize: typography.fontSize.xs,
-      fontWeight: typography.fontWeight.bold,
-    },
-    emptyNotice: {
-      fontSize: typography.fontSize.xs,
-      color: c.onSurfaceVariant,
-      textAlign: 'center',
-      paddingVertical: 12,
-    },
-    addressRow: {
-      flexDirection: 'row-reverse',
-      alignItems: 'center',
-      paddingVertical: 8,
-      borderBottomWidth: 1,
-      borderBottomColor: c.surfaceContainerLow,
-    },
-    addrIconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: borderRadius.md,
-      backgroundColor: c.surfaceContainerLow,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginLeft: spacing.baseSm,
-    },
-    addrIcon: {
-      fontSize: 16,
-    },
-    addrInfo: {
-      flex: 1,
-      alignItems: 'flex-end',
-    },
-    addrLabelRow: {
-      flexDirection: 'row-reverse',
-      alignItems: 'center',
-      gap: 6,
-    },
-    addrLabel: {
-      fontSize: typography.fontSize.xs,
-      fontWeight: typography.fontWeight.bold,
-      color: c.onSurface,
-    },
-    defaultBadge: {
-      fontSize: 9,
-      color: c.onPrimary,
-      backgroundColor: c.primary,
-      paddingHorizontal: 4,
-      paddingVertical: 1,
-      borderRadius: borderRadius.sm,
-      fontWeight: typography.fontWeight.bold,
-    },
-    addrStreet: {
-      fontSize: 11,
-      color: c.onSurfaceVariant,
-      marginTop: 2,
-    },
-    orderHistoryItem: {
-      backgroundColor: c.surfaceContainerLow,
-      borderRadius: borderRadius.lg,
-      padding: spacing.baseSm,
-      marginTop: spacing.baseXs,
-    },
-    orderHistoryTop: {
-      flexDirection: 'row-reverse',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    orderHistoryInfo: {
-      alignItems: 'flex-end',
-    },
-    orderHistNum: {
-      fontSize: typography.fontSize.xs,
-      fontWeight: typography.fontWeight.bold,
-      color: c.primary,
-    },
-    orderHistDate: {
-      fontSize: 10,
-      color: c.onSurfaceVariant,
-    },
-    trackBtn: {
-      backgroundColor: c.primary,
-      paddingHorizontal: 12,
-      paddingVertical: 4,
-      borderRadius: borderRadius.md,
-    },
-    trackBtnText: {
-      color: c.onPrimary,
-      fontSize: 10,
-      fontWeight: typography.fontWeight.bold,
-    },
-    orderHistoryBottom: {
-      flexDirection: 'row-reverse',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginTop: 6,
-      paddingTop: 6,
-      borderTopWidth: 1,
-      borderTopColor: c.surfaceContainerLowest,
-    },
-    orderHistTotal: {
-      fontSize: typography.fontSize.xs,
-      fontWeight: typography.fontWeight.bold,
-      color: c.onSurface,
-    },
-    statusPill: {
-      backgroundColor: c.primaryFixedDim + '40',
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: borderRadius.sm,
-    },
-    statusPillText: {
-      fontSize: 9,
-      fontWeight: typography.fontWeight.bold,
-      color: c.primary,
-    },
-    menuItem: {
-      flexDirection: 'row-reverse',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: c.surfaceContainerLow,
-    },
-    menuTitleRow: {
-      flexDirection: 'row-reverse',
-      alignItems: 'center',
-      gap: 8,
-    },
-    menuIcon: {
-      fontSize: 16,
-    },
-    menuText: {
-      fontSize: typography.fontSize.xs,
-      fontWeight: typography.fontWeight.semiBold,
-      color: c.onSurface,
-    },
-    menuArrow: {
-      fontSize: 18,
-      color: c.outline,
-    },
-    logoutItem: {
-      borderBottomWidth: 0,
-      paddingTop: 12,
-    },
-    logoutIcon: {
-      fontSize: 16,
-    },
-    logoutText: {
-      fontSize: typography.fontSize.xs,
-      fontWeight: typography.fontWeight.bold,
-      color: c.error,
-    },
-    logoutArrow: {
-      fontSize: 18,
-      color: c.error,
-    },
-  });
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.surface },
+  content: { padding: 18, paddingBottom: 110, gap: 16 },
+  card: { backgroundColor: c.surfaceContainerLowest, borderRadius: 18, padding: 16, gap: 12, borderWidth: 1, borderColor: c.outline + '30' },
+  identity: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14 },
+  identityText: { flex: 1 },
+  avatar: { width: 58, height: 58, borderRadius: 29, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' },
+  heading: { fontFamily: 'Tajawal_700Bold', fontSize: 21, color: c.onSurface, textAlign: 'right' },
+  subheading: { fontFamily: 'Tajawal_700Bold', fontSize: 17, color: c.onSurface, textAlign: 'right' },
+  text: { fontFamily: 'Tajawal_400Regular', fontSize: 16, lineHeight: 26, color: c.onSurfaceVariant, textAlign: 'right' },
+  phone: { fontFamily: 'Tajawal_700Bold', fontSize: 26, color: c.onSurface, textAlign: 'center' },
+  menu: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 4, minHeight: 48 },
+  menuText: { fontFamily: 'Tajawal_500Medium', fontSize: 17, textAlign: 'right', color: c.onSurface, flex: 1 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
+  address: { borderBottomWidth: 1, borderBottomColor: c.outline + '30', paddingBottom: 10, gap: 4 },
+  modalHeader: { padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: c.outline + '30' },
+  label: { fontFamily: 'Tajawal_500Medium', fontSize: 16, textAlign: 'right', color: c.onSurface, marginBottom: 8, marginTop: 8 },
+  input: { fontFamily: 'Tajawal_400Regular', fontSize: 17, color: c.onSurface, backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.outline + '65', padding: 12, minHeight: 48 },
+  primary: { backgroundColor: c.primary, borderRadius: 12, alignItems: 'center', padding: 14, minHeight: 50 },
+  primaryText: { fontFamily: 'Tajawal_700Bold', fontSize: 17, color: c.onPrimary },
+  chip: { paddingHorizontal: 15, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: c.outline + '50' },
+});

@@ -158,6 +158,7 @@ sealed class TestR2Client() : AmazonS3Client(new AnonymousAWSCredentials(), new 
     public readonly Dictionary<string, byte[]> Objects = [];
     public int PutCount;
     public bool CorruptRead;
+    public bool FailDelete;
     public int GetCount;
     public DateTime LastExpiry;
     string IAmazonS3.GetPreSignedURL(GetPreSignedUrlRequest request)
@@ -183,7 +184,7 @@ sealed class TestR2Client() : AmazonS3Client(new AnonymousAWSCredentials(), new 
         return Task.FromResult(new GetObjectResponse { ResponseStream = new MemoryStream(CorruptRead ? [0, 1, 2] : bytes), ContentLength = bytes.Length });
     }
     public override Task<DeleteObjectResponse> DeleteObjectAsync(DeleteObjectRequest request, CancellationToken ct = default)
-    { Objects.Remove(request.Key); return Task.FromResult(new DeleteObjectResponse()); }
+    { if (FailDelete) throw new IOException("Temporary R2 deletion failure"); Objects.Remove(request.Key); return Task.FromResult(new DeleteObjectResponse()); }
 }
 sealed class TestHttpFactory(byte[] image) : IHttpClientFactory
 {

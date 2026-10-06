@@ -1,3 +1,4 @@
+import { saveCatalogueForm } from '../services/imageStorage';
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   AdminKPI,
@@ -125,10 +126,10 @@ interface AdminContextType {
   driverProfitSharePercent: number;
   updateDriverProfitSharePercent: (percent: number) => Promise<void>;
   flashDeals: AdminFlashDeal[];
-  addFlashDeal: (deal: Omit<AdminFlashDeal, 'id'>) => void;
+  addFlashDeal: (deal: Omit<AdminFlashDeal, 'id'>) => Promise<void>;
   updateFlashDeal: (dealId: string, deal: Omit<AdminFlashDeal, 'id'>) => Promise<void>;
-  toggleFlashDealStatus: (dealId: string) => void;
-  deleteFlashDeal: (dealId: string) => void;
+  toggleFlashDealStatus: (dealId: string) => Promise<void>;
+  deleteFlashDeal: (dealId: string) => Promise<void>;
   toggleProductTopPick: (productId: string) => void;
   orderWorkflowMode: OrderWorkflowMode;
   setOrderWorkflowMode: (mode: OrderWorkflowMode) => void;
@@ -773,7 +774,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ? prodData.images
         : (prodData.imageUrl ? [prodData.imageUrl] : []);
 
-      await adminApi.createProduct({
+      await saveCatalogueForm({
         name: prodData.name,
         description: fullDesc,
         categoryId: prodData.categoryId || categories[0]?.id,
@@ -782,7 +783,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         expectedPurchasePrice: Number(prodData.expectedPurchasePrice || 0),
         sellingPrice: Number(prodData.sellingPrice || 0),
         images: imageList,
-      });
+      }, 'products', prepared => adminApi.createProduct(prepared));
       await refreshData();
       navigateTo('inventory');
     } catch (e) {
@@ -797,11 +798,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ? `[النوع: ${data.subcategoryName}] ${data.description || ''}`.trim()
         : (data.description || '').trim();
 
-      const imageList = data.images && data.images.length > 0
+      const imageList = data.images !== undefined
         ? data.images
-        : (data.imageUrl ? [data.imageUrl] : undefined);
+        : (data.imageUrl !== undefined ? (data.imageUrl ? [data.imageUrl] : []) : undefined);
 
-      await adminApi.updateProduct(productId, {
+      await saveCatalogueForm({
         name: data.name,
         description: fullDesc,
         categoryId: data.categoryId,
@@ -811,7 +812,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sellingPrice: Number(data.sellingPrice ?? 0),
         isActive: data.isActive ?? true,
         images: imageList,
-      });
+      }, 'products', prepared => adminApi.updateProduct(productId, prepared));
       setEditingProduct(null);
       await refreshData();
       navigateTo('inventory');
@@ -929,7 +930,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           name: storeData.categoryName || '',
         };
       }
-      await adminApi.createStore({
+      await saveCatalogueForm({
         name: storeData.name,
         phone: storeData.phone,
         address: storeData.address,
@@ -940,7 +941,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         openingTime: storeData.openingTime,
         closingTime: storeData.closingTime,
         is24Hours: storeData.is24Hours,
-      });
+      }, 'stores', prepared => adminApi.createStore(prepared));
       await refreshData();
     } catch (e) {
       console.error('Failed to add store:', e);
@@ -968,7 +969,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
         }
       }
-      await adminApi.updateStore(storeId, {
+      await saveCatalogueForm({
         name: data.name,
         phone: data.phone,
         address: data.address,
@@ -980,7 +981,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         closingTime: data.closingTime,
         is24Hours: data.is24Hours,
         governorateId: data.governorateId ?? stores.find((store) => store.id === storeId)?.governorateId,
-      });
+      }, 'stores', prepared => adminApi.updateStore(storeId, prepared));
       await refreshData();
     } catch (e) {
       console.error('Failed to update store:', e);
@@ -1034,7 +1035,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteStore = async (storeId: string) => {
-    setStores((prev) => prev.filter((s) => s.id !== storeId));
+    await adminApi.deleteStore(storeId);
+    await refreshData();
   };
 
   const addFlashDeal = async (dealData: Omit<AdminFlashDeal, 'id'>) => {
@@ -1045,7 +1047,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updated = [newDeal, ...flashDeals];
     setFlashDeals(updated);
     try {
-      await adminApi.saveDeals(updated);
+      await saveCatalogueForm(updated, 'offers', prepared => adminApi.saveDeals(prepared));
+      await refreshData();
     } catch (e) {
       console.warn('Failed to save deals to backend:', e);
       setFlashDeals(flashDeals);
@@ -1058,7 +1061,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updated = flashDeals.map((deal) => deal.id === dealId ? { ...dealData, id: dealId } : deal);
     setFlashDeals(updated);
     try {
-      await adminApi.saveDeals(updated);
+      await saveCatalogueForm(updated, 'offers', prepared => adminApi.saveDeals(prepared));
+      await refreshData();
     } catch (e) {
       console.warn('Failed to update deal:', e);
       setFlashDeals(previous);
@@ -1070,9 +1074,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updated = flashDeals.map((d) => (d.id === dealId ? { ...d, isActive: !d.isActive } : d));
     setFlashDeals(updated);
     try {
-      await adminApi.saveDeals(updated);
+      await saveCatalogueForm(updated, 'offers', prepared => adminApi.saveDeals(prepared));
+      await refreshData();
     } catch (e) {
-      console.warn('Failed to save deals toggle to backend:', e);
+      setFlashDeals(flashDeals);
+      throw e;
     }
   };
 
@@ -1080,9 +1086,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updated = flashDeals.filter((d) => d.id !== dealId);
     setFlashDeals(updated);
     try {
-      await adminApi.saveDeals(updated);
+      await saveCatalogueForm(updated, 'offers', prepared => adminApi.saveDeals(prepared));
+      await refreshData();
     } catch (e) {
-      console.warn('Failed to save deals delete to backend:', e);
+      setFlashDeals(flashDeals);
+      throw e;
     }
   };
 

@@ -59,6 +59,12 @@ export const authApi = {
     return res;
   },
 
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const res = await api.post<{ accessToken: string; refreshToken: string }>('/auth/change-password', { currentPassword, newPassword });
+    await api.setToken(res.accessToken);
+    await api.setRefreshToken(res.refreshToken);
+  },
+
   me: () => api.get<{ id: string; name?: string; fullName?: string; phone: string; role: string }>('/auth/me'),
 
   logout: async () => {
@@ -233,6 +239,9 @@ export const addressApi = {
       isDefault: Boolean(a.isDefault),
     } as Address;
   },
+  updateAddress: (id: string, addr: Omit<Address, 'id'>) => api.put<{id: string; isDefault: boolean}>(`/customers/addresses/${id}`, {
+    ...addr, label: addr.label === 'العمل' ? 1 : addr.label === 'أخرى' ? 2 : 0,
+  }),
   deleteAddress: (id: string) => api.delete<any>(`/customers/addresses/${id}`),
   setDefaultAddress: (id: string) => api.put<any>(`/customers/addresses/${id}/default`),
 };

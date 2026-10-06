@@ -947,9 +947,9 @@ export const InventoryScreen: React.FC = () => {
                     <Text style={s.iconBtnTxt}>{store.isActive ? '👁️' : '🙈'}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[s.iconBtn, s.iconBtnRed]} onPress={() =>
-                    Alert.alert('حذف المتجر', `حذف "${store.name}"؟`, [
+                    Alert.alert('حذف المتجر', `حذف "${store.name}" ومنتجاته؟ تبقى سجلات الطلبات محفوظة.`, [
                       { text: 'إلغاء', style: 'cancel' },
-                      { text: 'حذف', style: 'destructive', onPress: () => deleteStore(store.id) },
+                      { text: 'حذف', style: 'destructive', onPress: () => { void deleteStore(store.id).catch((e: any) => Alert.alert('تعذر الحذف', e?.message || 'حاول مجدداً.')); } },
                     ])}>
                     <Text style={s.iconBtnTxt}>🗑</Text>
                   </TouchableOpacity>
@@ -1121,14 +1121,14 @@ export const InventoryScreen: React.FC = () => {
                 <View style={s.actionsRow}>
                   <Switch
                     value={deal.isActive}
-                    onValueChange={() => toggleFlashDealStatus(deal.id)}
+                    onValueChange={() => { void toggleFlashDealStatus(deal.id).catch((e: any) => Alert.alert('تعذر تعديل العرض', e?.message || 'حاول مجدداً.')); }}
                     trackColor={{ false: colors.surfaceContainerHigh, true: colors.primary }}
                     thumbColor={colors.surfaceContainerLowest}
                   />
                   <TouchableOpacity style={[s.iconBtn, s.iconBtnRed]} onPress={() =>
                     Alert.alert('حذف العرض', `حذف "${deal.title}"؟`, [
                       { text: 'إلغاء', style: 'cancel' },
-                      { text: 'حذف', style: 'destructive', onPress: () => deleteFlashDeal(deal.id) },
+                      { text: 'حذف', style: 'destructive', onPress: () => { void deleteFlashDeal(deal.id).catch((e: any) => Alert.alert('تعذر الحذف', e?.message || 'حاول مجدداً.')); } },
                     ])}>
                     <Text style={s.iconBtnTxt}>🗑</Text>
                   </TouchableOpacity>

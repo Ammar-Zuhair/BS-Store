@@ -39,6 +39,7 @@ builder.Services.AddSingleton<Amazon.S3.IAmazonS3>(objectClient);
 builder.Services.AddSingleton<R2ObjectStore>();
 builder.Services.AddSingleton<R2Settings>();
 builder.Services.AddScoped<CatalogueStorageService>();
+builder.Services.AddScoped<CatalogueImageCleanup>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("CatalogueStorage");
 builder.Services.AddScoped<PushNotificationService>();
@@ -49,6 +50,7 @@ builder.Services.AddOutputCache(options => options.AddPolicy("public-images", po
 builder.Services.AddRateLimiter(options => options.AddPolicy("public-assets", context =>
     System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("test")));
 var app = builder.Build();
+await AccountAndCatalogueChecks.RunAsync();
 await R2Checks.RunAsync(TestCatalogueStorage.Receipt, Path.Combine(root, "r2-checks"));
 // Validate conservative receipt compression and avoid repeated lossy encoding.
 await using (var source = new MemoryStream(TestCatalogueStorage.Source))

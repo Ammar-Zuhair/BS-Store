@@ -21,7 +21,7 @@ import { AppIcon, AppIconName } from '../components/AppIcon';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { CachedImage } from '../components/CachedImage';
 import { BoosthisScreenTracker } from '../monitoring/BoosthisRuntime';
-import { chooseTransferReceipt } from '../utils/transferReceipt';
+import { chooseTransferReceipt, TransferReceiptImage } from '../utils/transferReceipt';
 
 export const TrackingScreen: React.FC = () => {
   const { orders, stores, navigateTo, currentOrder, setCurrentOrder, refreshOrders, colors: themeColors } = useApp();
@@ -38,11 +38,14 @@ export const TrackingScreen: React.FC = () => {
   const [transferInfo, setTransferInfo] = useState<Awaited<ReturnType<typeof paymentsApi.getTransferInfo>> | null>(null);
   const [isLoadingTransferInfo, setIsLoadingTransferInfo] = useState(false);
   const [isUploadingTransferReceipt, setIsUploadingTransferReceipt] = useState(false);
+  const [receiptDraft, setReceiptDraft] = useState<TransferReceiptImage | null>(null);
   const [transferInfoRefreshKey, setTransferInfoRefreshKey] = useState(0);
 
   const selectedOrder =
     (currentOrder ? orders.find((o) => o.id === currentOrder.id) || currentOrder : null) ||
     null;
+
+  useEffect(() => { setReceiptDraft(null); }, [selectedOrder?.id]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -85,13 +88,15 @@ export const TrackingScreen: React.FC = () => {
     if (!selectedOrder || selectedOrder.paymentMethod !== 'MANUAL_TRANSFER') return;
     setIsUploadingTransferReceipt(true);
     try {
-      const receipt = await chooseTransferReceipt();
-      if (!receipt) return;
-      await paymentsApi.uploadReceipt(selectedOrder.id, receipt.uri, receipt.fileName, receipt.mimeType);
-      const nextInfo = await paymentsApi.getTransferInfo(selectedOrder.id);
-      await refreshOrders?.();
-      setTransferInfo(nextInfo);
-      Alert.alert('تم رفع الإيصال', 'أرسلنا صورة التحويل إلى الإدارة لمراجعتها.');
+      if (!receiptDraft) return;
+      await paymentsApi.uploadReceipt(selectedOrder.id, receiptDraft.uri, receiptDraft.fileName, receiptDraft.mimeType);
+      setReceiptDraft(null);
+      Alert.alert('تم إرسال الإيصال', 'أرسلنا صورة التحويل إلى الإدارة لمراجعتها.');
+      try {
+        const nextInfo = await paymentsApi.getTransferInfo(selectedOrder.id);
+        setTransferInfo(nextInfo);
+        await refreshOrders?.();
+      } catch { setTransferInfoRefreshKey(key => key + 1); }
     } catch (error: any) {
       Alert.alert('تعذر رفع الإيصال', error?.message || 'تحقق من الصورة والاتصال ثم حاول مجدداً.');
     } finally {
@@ -558,15 +563,23 @@ export const TrackingScreen: React.FC = () => {
               {transferInfo?.receiptUrl && ['2', 'verified'].includes(transferStatus) && <Text style={styles.transferInfoText}>تمت الموافقة على إيصال التحويل من الإدارة.</Text>}
               {canUploadTransferReceipt && <TouchableOpacity
                 style={styles.transferUploadButton}
-                onPress={() => void handleUploadTransferReceipt()}
+                onPress={async () => { try { const draft = await chooseTransferReceipt(); if (draft) setReceiptDraft(draft); } catch (e: any) { Alert.alert('تعذر اختيار الصورة', e?.message || 'حاول مجدداً'); } }}
                 disabled={isUploadingTransferReceipt}
                 activeOpacity={0.85}
                 accessibilityRole="button"
               >
                 {isUploadingTransferReceipt
                   ? <ActivityIndicator color={themeColors.onPrimary} />
-                  : <Text style={styles.transferUploadButtonText}>{transferStatus === '3' || transferStatus === 'rejected' ? 'إعادة رفع صورة الإيصال' : 'رفع صورة إيصال التحويل'}</Text>}
+                  : <Text style={styles.transferUploadButtonText}>{transferStatus === '3' || transferStatus === 'rejected' ? receiptDraft ? 'تعديل صورة الإيصال' : 'اختيار إيصال جديد' : receiptDraft ? 'تعديل صورة الإيصال' : 'اختيار صورة إيصال التحويل'}</Text>}
               </TouchableOpacity>}
+              {canUploadTransferReceipt && receiptDraft && <>
+                <CachedImage source={{ uri: receiptDraft.uri }} style={{ height: 240, width: '100%', marginTop: 12 }} resizeMode="contain" />
+                <Text style={styles.transferInfoText}>هذه معاينة فقط. اضغط إرسال الإيصال لحفظه وإرساله للإدارة.</Text>
+                <TouchableOpacity style={styles.transferUploadButton} onPress={() => void handleUploadTransferReceipt()} disabled={isUploadingTransferReceipt} accessibilityRole="button" accessibilityLabel="إرسال الإيصال">
+                  {isUploadingTransferReceipt ? <ActivityIndicator color={themeColors.onPrimary} /> : <Text style={styles.transferUploadButtonText}>إرسال الإيصال</Text>}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setReceiptDraft(null)} disabled={isUploadingTransferReceipt}><Text style={styles.transferInfoText}>إلغاء اختيار الصورة</Text></TouchableOpacity>
+              </>}
             </View>}
             <View style={styles.detailItem}>
               <Text style={styles.detailTotal}>

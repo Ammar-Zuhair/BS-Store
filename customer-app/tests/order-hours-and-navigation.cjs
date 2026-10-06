@@ -129,7 +129,26 @@ async function main() {
     await act(async () => { for (const callback of appStateListeners) callback('active'); });
     assert.match(text(), /استقبال الطلبات مغلق الآن/, 'admin schedule edits refresh on foreground');
     assert.equal(app.stores[0].openingTime, '20:00', 'store schedule edits also refresh');
-    console.log('PASS opening/closing boundaries, overnight hours, 24-hour and unknown schedules, Arabic times, order navigation, live hours banner, store details, foreground refresh');
+    const originalAddress = { id: 'address-original', label: 'المنزل', city: 'صنعاء', street: 'شارع', latitude: 15, longitude: 44, isDefault: true };
+    apiMock.addressApi.getAddresses = async () => [originalAddress];
+    await act(async () => { await app.refreshData(); });
+    assert.equal(app.selectedAddress.id, originalAddress.id);
+    let resolveStale;
+    apiMock.addressApi.getAddresses = () => new Promise(resolve => { resolveStale = resolve; });
+    let pendingRefresh;
+    await act(async () => { pendingRefresh = app.refreshData(); });
+    apiMock.addressApi.getAddresses = async () => { throw new Error('Temporary refresh failure'); };
+    apiMock.addressApi.updateAddress = async () => ({ id: 'address-replacement', isDefault: true });
+    await act(async () => { await app.updateSavedAddress(originalAddress.id, { ...originalAddress, city: 'عدن' }); });
+    assert.equal(app.addresses[0].id, 'address-replacement');
+    assert.equal(app.selectedAddress.city, 'عدن', 'confirmed edits remain visible if the following refresh fails');
+    await act(async () => { resolveStale([originalAddress]); await pendingRefresh; });
+    assert.equal(app.addresses[0].id, 'address-replacement', 'an earlier refresh cannot undo a confirmed address edit');
+    apiMock.addressApi.deleteAddress = async () => {};
+    await act(async () => { await app.deleteSavedAddress('address-replacement'); });
+    assert.equal(app.addresses.length, 0, 'confirmed deletion must immediately remove the address even if refresh fails');
+    assert.equal(app.selectedAddress, null);
+    console.log('PASS opening/closing boundaries, overnight hours, 24-hour and unknown schedules, Arabic times, order navigation, live hours banner, store details, foreground/manual refresh, confirmed address mutations and stale response protection');
   } finally {
     if (tree) await act(async () => { tree.unmount(); });
   }
