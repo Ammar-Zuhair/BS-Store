@@ -19,11 +19,22 @@ const configuredApiBaseUrl = [Constants.expoConfig?.extra?.apiBaseUrl, process.e
   .map((value) => value?.trim().replace(/\/+$/, ''))
   .find((value) => value && !isPrivateOrInsecureApiUrl(value) && (__DEV__ || !isDevelopmentTunnel(value) || isApprovedProductionApiUrl(value)));
 
+// Keep module initialization safe. An OTA bundle with a missing public API
+// variable must still be able to register and render the app; failing at this
+// module's top level prevents React from mounting and leaves Android on a blank
+// launch screen. Report configuration errors from requests instead.
 export const API_BASE_URL = configuredApiBaseUrl && !isPrivateOrInsecureApiUrl(configuredApiBaseUrl)
   ? configuredApiBaseUrl
   : __DEV__
     ? DEVELOPMENT_API_BASE_URL
-    : (() => { throw new Error('No valid HTTPS API URL is configured for this production build.'); })();
+    : '';
+
+function ensureApiConfigured(): void {
+  if (API_BASE_URL) return;
+  const error = new Error('إعداد الاتصال بالخدمة غير مكتمل. يرجى إعادة المحاولة لاحقاً أو التواصل مع الدعم.');
+  (error as any).code = 'API_CONFIGURATION_MISSING';
+  throw error;
+}
 
 function getSafeHttpErrorMessage(status: number): string {
   if (status === 401) return 'بيانات الدخول غير صحيحة أو انتهت الجلسة. يرجى المحاولة مجدداً.';
@@ -92,7 +103,7 @@ class ApiClient {
   }
 
   private async refreshSession(): Promise<boolean> {
-    if (!this.refreshToken) return false;
+    if (!this.refreshToken || !API_BASE_URL) return false;
     if (this.refreshInProgress) return this.refreshInProgress;
     this.refreshInProgress = (async () => {
       try {
@@ -118,6 +129,7 @@ class ApiClient {
 
   async request<T>(endpoint: string, options: RequestInit = {}, hasRetried = false): Promise<T> {
     await this.initSession();
+    ensureApiConfigured();
     const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
     const headers: Record<string, string> = {
