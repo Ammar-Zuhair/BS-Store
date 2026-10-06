@@ -83,7 +83,7 @@ export const PaymentsScreen: React.FC = () => {
                   />
                 </> : <Text style={styles.info}>المبلغ المستلم المؤكد: {item.amountReceived!.toLocaleString()} ر.ي{item.amountReceivedAt ? ` · ${new Date(item.amountReceivedAt).toLocaleString('ar')}` : ''}</Text>}
                 {item.receiptImageUrl ? <Image
-                  source={{ uri: item.receiptImageUrl, headers: api.getToken() ? { Authorization: `Bearer ${api.getToken()}` } : {} }}
+                  source={{ uri: item.receiptImageUrl, headers: { 'ngrok-skip-browser-warning': 'true', ...(api.getToken() ? { Authorization: `Bearer ${api.getToken()}` } : {}) } }}
                   style={styles.receipt}
                   resizeMode="contain"
                 /> : <Text style={styles.info}>لم يرفع العميل صورة إيصال بعد.</Text>}

@@ -1,4 +1,5 @@
 import { api } from './client';
+import { prepareReceiptUpload } from '../utils/receiptUpload';
 import { Address, Order, PaymentMethodType, Product, Store, Category } from '../types';
 
 export { api };
@@ -295,13 +296,13 @@ export const paymentsApi = {
     transferReference?: string | null;
     receiptUrl?: string | null;
   }>(`/payments/${orderId}/transfer-info`),
-  uploadReceipt: (orderId: string, fileUri: string, fileName = 'receipt.jpg', mimeType = 'image/jpeg') => {
-    const formData = new FormData();
-    formData.append('file', {
-      uri: fileUri,
-      type: mimeType,
-      name: fileName,
-    } as any);
-    return api.post<any>(`/payments/${orderId}/upload-receipt`, formData);
+  uploadReceipt: async (orderId: string, fileUri: string, fileName = 'receipt.jpg', mimeType = 'image/jpeg') => {
+    const upload = await prepareReceiptUpload(fileUri, fileName, mimeType);
+    await api.initToken();
+    return api.request<any>(`/payments/${orderId}/upload-receipt`, {
+      method: 'POST',
+      headers: { 'Content-Type': upload.contentType },
+      body: upload.body,
+    });
   },
 };

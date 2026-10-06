@@ -79,7 +79,7 @@ export const TrackingScreen: React.FC = () => {
       })
       .finally(() => { if (active) setIsLoadingTransferInfo(false); });
     return () => { active = false; };
-  }, [selectedOrder?.id, selectedOrder?.paymentMethod, transferInfoRefreshKey]);
+  }, [selectedOrder?.id, selectedOrder?.paymentMethod, selectedOrder?.paymentStatus, transferInfoRefreshKey]);
 
   const handleUploadTransferReceipt = async () => {
     if (!selectedOrder || selectedOrder.paymentMethod !== 'MANUAL_TRANSFER') return;
@@ -554,7 +554,8 @@ export const TrackingScreen: React.FC = () => {
                 {!!transferInfo.transferReference && <Text style={styles.transferInfoText}>رقم العملية: {transferInfo.transferReference}</Text>}
                 {!!transferInfo.rejectionReason && <Text style={styles.transferRejection}>سبب الرفض: {transferInfo.rejectionReason}</Text>}
               </> : !isLoadingTransferInfo && <Text style={styles.transferInfoText}>تعذر تحميل تفاصيل التحويل. حدّث الطلب للمحاولة مجدداً.</Text>}
-              {transferInfo?.receiptUrl && !canUploadTransferReceipt && <Text style={styles.transferInfoText}>تم استلام صورة الإيصال وهي بانتظار مراجعة الإدارة.</Text>}
+              {transferInfo?.receiptUrl && ['1', 'pendingverification', 'pending_verification'].includes(transferStatus) && <Text style={styles.transferInfoText}>تم استلام صورة الإيصال وهي بانتظار مراجعة الإدارة.</Text>}
+              {transferInfo?.receiptUrl && ['2', 'verified'].includes(transferStatus) && <Text style={styles.transferInfoText}>تمت الموافقة على إيصال التحويل من الإدارة.</Text>}
               {canUploadTransferReceipt && <TouchableOpacity
                 style={styles.transferUploadButton}
                 onPress={() => void handleUploadTransferReceipt()}

@@ -172,7 +172,7 @@ class ApiClient {
       ...(options.headers as Record<string, string> || {}),
     };
 
-    if (!(options.body instanceof FormData)) {
+    if (!(options.body instanceof FormData) && !Object.keys(headers).some(key => key.toLowerCase() === 'content-type')) {
       headers['Content-Type'] = 'application/json';
     }
 
