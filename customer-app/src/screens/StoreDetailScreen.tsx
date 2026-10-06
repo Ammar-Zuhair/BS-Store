@@ -19,6 +19,7 @@ import { AppIcon } from '../components/AppIcon';
 export const StoreDetailScreen: React.FC = () => {
   const {
     selectedStore,
+    selectedStoreDealId,
     navigateTo,
     addToCart,
     addBundlePieceToCart,
@@ -50,9 +51,9 @@ export const StoreDetailScreen: React.FC = () => {
     const sameStore = Boolean(store && (String(deal.storeId || '').toLowerCase() === String(store.id).toLowerCase() ||
       (store.name && deal.storeName?.trim().toLocaleLowerCase() === store.name.trim().toLocaleLowerCase())));
     const validExpiry = !deal.expiresAt || new Date(deal.expiresAt).getTime() > Date.now();
-    return sameStore && validExpiry && deal.isPublic !== false && (!deal.visibility || deal.visibility === 'store' || deal.visibility === 'all') && deal.products?.length > 0 &&
+    return sameStore && validExpiry && deal.isPublic !== false && (deal.id === selectedStoreDealId || !deal.visibility || deal.visibility === 'store' || deal.visibility === 'all') && deal.products?.length > 0 &&
       deal.dealType !== 'DELIVERY_DISCOUNT';
-  });
+  }).sort((left, right) => Number(right.id === selectedStoreDealId) - Number(left.id === selectedStoreDealId));
 
   // Include composite bundles and deals belonging to this store
   const storeDealsAsBundles: Product[] = storeDeals.map((d) => ({

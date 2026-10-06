@@ -24,7 +24,7 @@ const ICON_MAP: Record<string, string> = {
 
 interface AppContextType {
   currentScreen: ScreenName;
-  navigateTo: (screen: ScreenName) => void;
+  navigateTo: (screen: ScreenName, options?: { dealId?: string }) => void;
   categories: Category[];
   stores: Store[];
   orderHours: OrderHours | null;
@@ -34,6 +34,7 @@ interface AppContextType {
   selectedCategory: string;
   setSelectedCategory: (cat: string) => void;
   selectedStore: Store | null;
+  selectedStoreDealId: string | null;
   setSelectedStore: React.Dispatch<React.SetStateAction<Store | null>>;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -59,6 +60,7 @@ interface AppContextType {
   applyPromoCode: (code: string) => Promise<boolean>;
   clearPromoCode: () => void;
   activateDeliveryDeal: (dealId: string, percent: number) => void;
+  activeDeliveryDealId: string | null;
   activeOrderDiscountDeal: { id: string; title: string } | null;
   activateProductDiscountDeal: (dealId: string) => void;
   addresses: Address[];
@@ -154,6 +156,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [selectedCategory, setSelectedCategory] = useState<string>('cat-all');
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const [selectedStoreDealId, setSelectedStoreDealId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [promoCode, setPromoCode] = useState<string>('');
@@ -407,8 +410,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     restoreSession();
   }, []);
 
-  const navigateTo = (screen: ScreenName) => {
+  const navigateTo = (screen: ScreenName, options?: { dealId?: string }) => {
     if (screen === 'tracking') setCurrentOrder(null);
+    setSelectedStoreDealId(screen === 'store_detail' ? options?.dealId || null : null);
     setCurrentScreen(screen);
   };
 
@@ -715,6 +719,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const result = await ordersApi.validateCouponCode(code.trim(), cartSubtotal);
       const percent = Math.min(100, Math.max(0, Number(result.discountPercent) || 0));
+      if (percent <= 0) return false;
       setPromoCode(result.code);
       setProductDiscountDealId(null);
       setDeliveryPromoDealId(null);
@@ -1039,6 +1044,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selectedCategory,
         setSelectedCategory,
         selectedStore,
+        selectedStoreDealId,
         setSelectedStore,
         searchQuery,
         setSearchQuery,
@@ -1064,6 +1070,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         applyPromoCode,
         clearPromoCode,
         activateDeliveryDeal,
+        activeDeliveryDealId: deliveryPromoDealId,
         activeOrderDiscountDeal: selectedProductDiscountDeal
           ? { id: selectedProductDiscountDeal.id, title: selectedProductDiscountDeal.title }
           : null,

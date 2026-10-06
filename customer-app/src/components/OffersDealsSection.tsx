@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { CachedImage } from './CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
@@ -8,6 +8,11 @@ import { AppIcon } from './AppIcon';
 
 export const initialDeals: DealItem[] = [];
 
+const isBundleDeal = (deal: DealItem) => deal.dealType === 'BUNDLE' ||
+  (deal.products.length > 0 && deal.dealType !== 'DELIVERY_DISCOUNT' && deal.dealType !== 'PRODUCT_DISCOUNT' && !deal.isFreeDelivery);
+const isDiscountDeal = (deal: DealItem) => !isBundleDeal(deal) && Boolean(deal.couponCode ||
+  deal.dealType === 'DELIVERY_DISCOUNT' || deal.dealType === 'PRODUCT_DISCOUNT' || deal.isFreeDelivery);
+
 export const OffersDealsSection: React.FC = () => {
   const {
     addToCart,
@@ -15,6 +20,9 @@ export const OffersDealsSection: React.FC = () => {
     updateQuantity,
     removeFromCart,
     applyPromoCode,
+    promoCode,
+    activeDeliveryDealId,
+    activeOrderDiscountDeal,
     activateDeliveryDeal,
     activateProductDiscountDeal,
     deals,
@@ -24,6 +32,14 @@ export const OffersDealsSection: React.FC = () => {
   const [selectedDeal, setSelectedDeal] = useState<DealItem | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [busyDealId, setBusyDealId] = useState<string | null>(null);
+  const [activationError, setActivationError] = useState<{ dealId: string; message: string } | null>(null);
+  const activating = useRef(false);
+
+  const isDealActive = (deal: DealItem) => isDiscountDeal(deal) && (deal.couponCode
+    ? Boolean(promoCode && promoCode.trim().toUpperCase() === deal.couponCode.trim().toUpperCase())
+    : deal.dealType === 'PRODUCT_DISCOUNT' ? activeOrderDiscountDeal?.id === deal.id
+    : activeDeliveryDealId === deal.id);
 
   const activeDeals = deals;
   const homeDeals = activeDeals.filter((d) => d.isPublic !== false && (!d.visibility || d.visibility === 'home' || d.visibility === 'all') && (!d.expiresAt || new Date(d.expiresAt).getTime() > now));
@@ -49,40 +65,46 @@ export const OffersDealsSection: React.FC = () => {
     return `${pad(h)}:${pad(m)}:${pad(s)}`;
   };
 
+  const activateDiscount = async (deal: DealItem) => {
+    if (activating.current || isDealActive(deal)) return;
+    activating.current = true;
+    setBusyDealId(deal.id);
+    setActivationError(null);
+    try {
+      if (deal.expiresAt && new Date(deal.expiresAt).getTime() <= Date.now()) {
+        throw new Error('انتهت صلاحية هذا العرض.');
+      }
+      if (deal.couponCode) {
+        if (!await applyPromoCode(deal.couponCode)) {
+          throw new Error('تعذر تفعيل الكود. تحقق من صلاحيته والاتصال، ثم حاول مجدداً.');
+        }
+      } else if (deal.dealType === 'PRODUCT_DISCOUNT') {
+        if (deal.discountPercent <= 0 && !deal.discountTiers?.some(tier => tier.discountPercent > 0)) {
+          throw new Error('لا يتوفر خصم صالح لهذا العرض حالياً.');
+        }
+        activateProductDiscountDeal(deal.id);
+      } else {
+        const percent = deal.isFreeDelivery ? 100 : deal.deliveryDiscountPercent ?? deal.discountPercent;
+        if (percent <= 0) throw new Error('لا يتوفر خصم صالح لهذا العرض حالياً.');
+        activateDeliveryDeal(deal.id, percent);
+      }
+    } catch (error) {
+      setActivationError({ dealId: deal.id, message: error instanceof Error ? error.message : 'تعذر تفعيل العرض. حاول مجدداً.' });
+    } finally {
+      activating.current = false;
+      setBusyDealId(null);
+    }
+  };
+
   const handleOpenDeal = (deal: DealItem) => {
-    if (deal.couponCode) {
-      void applyPromoCode(deal.couponCode);
-      return;
-    }
-    if (deal.dealType === 'DELIVERY_DISCOUNT') {
-      activateDeliveryDeal(deal.id, deal.deliveryDiscountPercent ?? deal.discountPercent);
-      return;
-    }
-    if (deal.isFreeDelivery) {
-      activateDeliveryDeal(deal.id, 100);
-      return;
-    }
-    if (deal.dealType === 'PRODUCT_DISCOUNT') {
-      activateProductDiscountDeal(deal.id);
-      return;
-    }
+    if (isDiscountDeal(deal)) { void activateDiscount(deal); return; }
     setSelectedDeal(deal);
     setModalVisible(true);
   };
 
   const handleQuickAdd = (deal: DealItem) => {
-    if (deal.isFreeDelivery) {
-      activateDeliveryDeal(deal.id, 100);
-      return;
-    }
-    if (deal.couponCode) {
-      void applyPromoCode(deal.couponCode);
-      return;
-    }
-    if (deal.dealType === 'PRODUCT_DISCOUNT') {
-      activateProductDiscountDeal(deal.id);
-      return;
-    }
+    if (isDiscountDeal(deal)) { void activateDiscount(deal); return; }
+    if (isBundleDeal(deal)) { handleOpenDeal(deal); return; }
     if (!deal.storeId) return;
     addToCart(
       {
@@ -98,6 +120,7 @@ export const OffersDealsSection: React.FC = () => {
         sourceType: 'IN_STOCK',
         inStock: true,
         isBundle: deal.products.length > 0,
+        dealId: deal.id,
       },
       1
     );
@@ -130,6 +153,16 @@ export const OffersDealsSection: React.FC = () => {
           const cartItem = cart.find((c) => c.product.id === deal.id);
           const qty = cartItem ? cartItem.quantity : 0;
           const remSeconds = getRemainingSeconds(deal);
+          const active = isDealActive(deal);
+          const loading = busyDealId === deal.id;
+          const error = activationError?.dealId === deal.id ? activationError.message : null;
+          const discountLabel = deal.isFreeDelivery ? 'توصيل مجاني'
+            : deal.dealType === 'DELIVERY_DISCOUNT' ? `خصم ${deal.deliveryDiscountPercent ?? deal.discountPercent}% على التوصيل`
+            : deal.dealType === 'PRODUCT_DISCOUNT' ? deal.discountTiers?.length ? 'خصم حسب قيمة الطلب' : `خصم ${deal.discountPercent}% على الطلب`
+            : null;
+          const actionLabel = loading ? 'جارٍ التفعيل...' : active ? 'تم التفعيل'
+            : isDiscountDeal(deal) ? deal.couponCode ? 'تفعيل الكود' : 'تفعيل الخصم'
+            : isBundleDeal(deal) ? 'تفاصيل العرض' : '+ إضافة';
 
           return (
             <TouchableOpacity
@@ -137,6 +170,9 @@ export const OffersDealsSection: React.FC = () => {
               style={styles.card}
               activeOpacity={0.92}
               onPress={() => handleOpenDeal(deal)}
+              disabled={busyDealId !== null && isDiscountDeal(deal)}
+              accessibilityRole="button"
+              accessibilityLabel={`${isDiscountDeal(deal) ? 'تفعيل العرض' : 'تفاصيل العرض'} ${deal.title}`}
             >
               {/* Badge */}
               <View style={styles.cardBadge}>
@@ -147,21 +183,21 @@ export const OffersDealsSection: React.FC = () => {
               <View
                 style={[
                   styles.dealExpiryBadge,
-                  remSeconds <= 0 && { backgroundColor: themeColors.errorContainer },
+                  deal.expiresAt && remSeconds <= 0 && { backgroundColor: themeColors.errorContainer },
                 ]}
               >
                 <AppIcon
-                  name={remSeconds > 0 ? 'clock' : 'alert'}
+                  name={!deal.expiresAt || remSeconds > 0 ? 'clock' : 'alert'}
                   size={13}
-                  color={remSeconds > 0 ? themeColors.onSurfaceVariant : themeColors.error}
+                  color={!deal.expiresAt || remSeconds > 0 ? themeColors.onSurfaceVariant : themeColors.error}
                 />
                 <Text
                   style={[
                     styles.dealExpiryText,
-                    remSeconds <= 0 && { color: themeColors.error },
+                    deal.expiresAt && remSeconds <= 0 && { color: themeColors.error },
                   ]}
                 >
-                  {remSeconds > 0 ? formatCountdown(remSeconds) : 'منتهي'}
+                  {!deal.expiresAt ? 'عرض ساري' : remSeconds > 0 ? formatCountdown(remSeconds) : 'منتهي'}
                 </Text>
               </View>
 
@@ -187,24 +223,32 @@ export const OffersDealsSection: React.FC = () => {
                   {deal.dealType === 'DELIVERY_DISCOUNT' ? `خصم ${deal.deliveryDiscountPercent ?? deal.discountPercent}% من رسوم التوصيل` : deal.description}
                 </Text>
 
+                {(active || error) && <View style={[styles.activationNotice, error && styles.activationError]}
+                  accessibilityLiveRegion="polite">
+                  <AppIcon name={error ? 'alert' : 'check-circle'} size={18} color={error ? themeColors.error : themeColors.primary} />
+                  <Text style={[styles.activationText, error && { color: themeColors.error }]}>
+                    {error || `${deal.couponCode ? 'تم تفعيل الكود' : 'تم تفعيل الخصم'} بنجاح. يمكنك مراجعة الخصم في السلة.`}
+                  </Text>
+                </View>}
+
                 {/* Price and Action Button / Stepper */}
                 <View style={styles.bottomRow}>
                   <View style={styles.priceColumn}>
-                    {deal.dealType === 'DELIVERY_DISCOUNT' ? <Text style={styles.currentPrice}>خصم {deal.deliveryDiscountPercent ?? deal.discountPercent}% على التوصيل</Text> : <Text style={styles.currentPrice}>
+                    {discountLabel ? <Text style={styles.currentPrice}>{discountLabel}</Text> : <Text style={styles.currentPrice}>
                       {deal.offerPrice.toLocaleString()} ر.ي
                     </Text>}
-                    {deal.dealType !== 'DELIVERY_DISCOUNT' && deal.originalPrice > deal.offerPrice && (
+                    {!isDiscountDeal(deal) && deal.originalPrice > deal.offerPrice && (
                       <Text style={styles.oldPrice}>
                         {deal.originalPrice.toLocaleString()} ر.ي
                       </Text>
                     )}
                   </View>
 
-                  {qty > 0 ? (
+                  {qty > 0 && !isDiscountDeal(deal) ? (
                     <View style={styles.stepperWrap}>
                       <TouchableOpacity
                        style={styles.stepBtn}
-                       onPress={() => updateQuantity(deal.id, qty + 1)}
+                       onPress={(event) => { event.stopPropagation(); void updateQuantity(deal.id, qty + 1); }}
                         accessibilityRole='button'
                         accessibilityLabel={'زيادة كمية ' + deal.title}
                      >
@@ -213,7 +257,8 @@ export const OffersDealsSection: React.FC = () => {
                       <Text style={styles.stepQtyText}>{qty}</Text>
                       <TouchableOpacity
                         style={styles.stepBtn}
-                       onPress={() => {
+                       onPress={(event) => {
+                         event.stopPropagation();
                          if (qty === 1) {
                            removeFromCart(deal.id);
                          } else {
@@ -228,20 +273,21 @@ export const OffersDealsSection: React.FC = () => {
                     </View>
                   ) : (
                     <TouchableOpacity
-                      style={styles.actionBtn}
-                      onPress={() => {
-                        if (deal.products.length > 0) {
-                          handleOpenDeal(deal);
-                        } else {
-                          handleQuickAdd(deal);
-                        }
-                     }}
+                      style={[styles.actionBtn, active && styles.activeActionBtn]}
+                      disabled={busyDealId !== null || active}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        handleQuickAdd(deal);
+                      }}
                      activeOpacity={0.85}
                       accessibilityRole='button'
-                      accessibilityLabel={'فتح العرض ' + deal.title}
+                      accessibilityLabel={`${isDiscountDeal(deal) ? 'تفعيل الخصم' : 'فتح العرض'} ${deal.title}`}
+                      accessibilityState={{ busy: loading, disabled: busyDealId !== null || active, selected: active }}
                     >
-                      <Text style={styles.actionBtnText}>
-                        {deal.dealType === 'DELIVERY_DISCOUNT' || deal.dealType === 'PRODUCT_DISCOUNT' ? 'تفعيل الخصم' : (deal.products.length > 0 ? 'عرض الباقة ➔' : (deal.couponCode ? 'تفعيل الكود' : '+ إضافة'))}
+                      {loading && <ActivityIndicator size="small" color={themeColors.onPrimary} />}
+                      {active && <AppIcon name="check" size={16} color={themeColors.onPrimaryContainer} />}
+                      <Text style={[styles.actionBtnText, active && { color: themeColors.onPrimaryContainer }]}>
+                        {actionLabel}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -428,12 +474,15 @@ const createStyles = (colors: ThemeColors) =>
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
     marginTop: spacing.baseSm,
     paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: colors.outlineVariant + '25',
   },
   priceColumn: {
+    flex: 1,
+    minWidth: 0,
     alignItems: 'flex-end',
   },
   currentPrice: {
@@ -447,7 +496,15 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.outline,
     textDecorationLine: 'line-through',
   },
+  activationNotice: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6, padding: 10, marginTop: 8, borderRadius: borderRadius.md, backgroundColor: colors.primaryContainer },
+  activationError: { backgroundColor: colors.errorContainer },
+  activationText: { flex: 1, fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.onPrimaryContainer, textAlign: 'right' },
+  activeActionBtn: { backgroundColor: colors.primaryContainer },
  actionBtn: {
+   flexShrink: 1,
+   maxWidth: '60%',
+   flexDirection: 'row-reverse',
+   gap: 6,
    backgroundColor: colors.primary,
    paddingHorizontal: 12,
     minHeight: 42,
@@ -456,6 +513,8 @@ const createStyles = (colors: ThemeColors) =>
     justifyContent: 'center',
   },
   actionBtnText: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontFamily: typography.fontFamily.bold,
     fontSize: typography.fontSize.xs,
     color: colors.onPrimary,

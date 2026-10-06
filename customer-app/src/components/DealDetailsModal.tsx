@@ -6,11 +6,12 @@ import {
   Modal,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { CachedImage } from './CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
-import { Product, BundlePiece } from '../types';
+import { Product } from '../types';
 import { AppIcon } from './AppIcon';
 
 export interface DealItem {
@@ -59,7 +60,6 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
 }) => {
   const {
     addToCart,
-    addBundlePieceToCart,
     cart,
     updateQuantity,
     removeFromCart,
@@ -71,6 +71,17 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   if (!deal) return null;
+
+  const openStore = () => {
+    const store = stores.find(item => item.id === deal.storeId);
+    if (!store) {
+      Alert.alert('المتجر غير متاح', 'تعذر العثور على متجر العرض. حدّث الصفحة وحاول مجدداً.');
+      return;
+    }
+    setSelectedStore(store);
+    navigateTo('store_detail', { dealId: deal.id });
+    onClose();
+  };
 
   // Convert deal products to BundlePiece
   const handleAddPiece = (piece: { id: string; name: string; price: number; description?: string; imageUrl?: string }) => {
@@ -140,7 +151,7 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
             {deal.expiresAt ? (
               <View style={{ marginTop: 12, marginBottom: 8, padding: 12, borderRadius: 12, backgroundColor: themeColors.surfaceContainerHigh }}>
-                <Text style={{ color: themeColors.onSurface, textAlign: 'right', fontWeight: '700' }}>
+                <Text style={{ color: themeColors.onSurface, textAlign: 'right', fontFamily: typography.fontFamily.bold }}>
                   ينتهي العرض في {new Date(deal.expiresAt).toLocaleString('ar', { dateStyle: 'medium', timeStyle: 'short' })}
                 </Text>
               </View>
@@ -159,14 +170,6 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
             </View>
 
             <Text style={styles.descText}>{deal.description}</Text>
-            {!!deal.storeId && (
-              <TouchableOpacity style={{ padding: 12, alignItems: 'center' }} onPress={() => {
-                const store = stores.find((item) => item.id === deal.storeId);
-                if (store) { setSelectedStore(store); navigateTo('store_detail'); onClose(); }
-              }}>
-                <Text style={{ color: themeColors.primary, fontWeight: '700' }}>الانتقال إلى متجر {deal.storeName} ←</Text>
-              </TouchableOpacity>
-            )}
 
             {/* Individual Included Products List */}
             {deal.products.length > 0 && (
@@ -282,6 +285,12 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
               <AppIcon name="shopping-bag" size={18} color={themeColors.onPrimary} />
               <Text style={styles.addDealBtnText}>إضافة العرض بالكامل إلى السلة</Text>
             </TouchableOpacity>
+            {!!deal.storeId && <TouchableOpacity style={styles.storeButton} onPress={openStore}
+              accessibilityRole="button" accessibilityLabel={`استعراض متجر ${deal.storeName}`} activeOpacity={0.85}>
+              <AppIcon name="shopping-bag" size={18} color={themeColors.primary} />
+              <Text style={styles.storeButtonText}>استعراض متجر {deal.storeName} ومنتجاته</Text>
+              <AppIcon name="chevron-left" size={18} color={themeColors.primary} />
+            </TouchableOpacity>}
           </View>
         </View>
       </View>
@@ -395,6 +404,10 @@ const createStyles = (colors: ThemeColors) =>
     lineHeight: 22,
     marginBottom: spacing.baseLg,
   },
+  storeButton: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8,
+    minHeight: 48, padding: 12, marginTop: 10, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.primary },
+  storeButtonText: { flexShrink: 1, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm,
+    color: colors.primary, textAlign: 'center' },
   productsSection: {
     marginBottom: spacing.baseMd,
   },
