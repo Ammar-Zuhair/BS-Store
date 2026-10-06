@@ -84,7 +84,9 @@ export const PaymentsScreen: React.FC = () => {
                     accessibilityLabel="المبلغ المستلم فعلياً"
                     style={styles.amountInput}
                   />
-                </> : <Text style={styles.info}>المبلغ المستلم المؤكد: {item.amountReceived!.toLocaleString()} ر.ي{item.amountReceivedAt ? ` · ${new Date(item.amountReceivedAt).toLocaleString('ar')}` : ''}</Text>}
+                </> : item.status === 'VERIFIED' && item.amountReceived != null
+                  ? <Text style={styles.info}>المبلغ المستلم المؤكد: {item.amountReceived.toLocaleString()} ر.ي{item.amountReceivedAt ? ` · ${new Date(item.amountReceivedAt).toLocaleString('ar')}` : ''}</Text>
+                  : <Text style={styles.info}>لم يُعتمد مبلغ مستلم لهذه الحوالة.</Text>}
                 {item.receiptImageUrl ? <ReceiptImage url={item.receiptImageUrl} /> : <Text style={styles.info}>لم يرفع العميل صورة إيصال بعد.</Text>}
                 {item.rejectionReason ? <Text style={[styles.info, { color: colors.error }]}>سبب الرفض السابق: {item.rejectionReason}</Text> : null}
                 {(pending || needsAmountConfirmation) && <View style={styles.actions}>

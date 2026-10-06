@@ -134,6 +134,29 @@ async function main() {
     await act(async () => { control('فتح صورة الإيصال وتكبيرها').props.onPress(); });
     assert.equal(tree.root.findAllByType('Image')[1].parent.props.style[1].transform[2].scale, 1, 'reopening starts fitted to the screen');
     await act(async () => { control('إغلاق استعراض الإيصال').props.onPress(); });
+    const paymentButton = label => tree.root.findAllByType('TouchableOpacity').find(node => node.findAllByType('Text').some(text => text.props.children === label));
+    const screenText = () => tree.root.findAllByType('Text').map(node => node.props.children).flat(Infinity).join(' ');
+    blockRefresh = true; calls.length = 0;
+    await act(async () => { paymentButton('رفض').props.onPress(); });
+    const rejectConfirmation = alerts.at(-1)[2].find(action => action.text === 'رفض');
+    await act(async () => { await rejectConfirmation.onPress(); });
+    assert.equal(calls.filter(name => name === 'rejectPayment').length, 1);
+    assert.equal(context.bankTransfers[0].status, 'REJECTED');
+    assert.equal(context.bankTransfers[0].amountReceived, null);
+    assert.match(screenText(), /مرفوضة/);
+    assert.match(screenText(), /إشعار غير مطابق/);
+    assert.doesNotMatch(screenText(), /المبلغ المستلم المؤكد/);
+    assert.equal(tree.root.findAllByType('TextInput').length, 0, 'rejected transfers must not show approval amount inputs');
+    assert.equal(paymentButton('اعتماد وتسجيل المبلغ'), undefined);
+    await act(async () => { tree.update(React.createElement(AdminProvider, null, React.createElement(Harness, { key: 'return-to-payments' }))); });
+    assert.match(screenText(), /مرفوضة/, 'reopening payments with a rejected transfer must render safely');
+    blockRefresh = false;
+    Object.assign(pending, { status: 'REJECTED', rawStatus: 3, rejectionReason: 'رفض محفوظ في الخادم' });
+    await act(async () => { await context.refreshData(); });
+    assert.equal(context.bankTransfers[0].amountReceived, null);
+    assert.match(screenText(), /رفض محفوظ في الخادم/, 'freshly fetched rejected transfers with no received amount must render safely');
+    Object.assign(pending, { status: 'PENDING', rawStatus: 1, rejectionReason: undefined });
+    await act(async () => { await context.refreshData(); });
     await act(async () => { tree.root.findByType('TextInput').props.onChangeText('2400'); });
     const button = tree.root.findAllByType('TouchableOpacity').find(node => node.findAllByType('Text').some(text => text.props.children === 'اعتماد وتسجيل المبلغ'));
     calls.length = 0; blockRefresh = true;
@@ -186,7 +209,7 @@ async function main() {
     assert.equal(scan.mimeType, 'image/png'); assert.equal(scan.fileName, 'transfer-receipt.png');
     assert.deepEqual(manipulations[0], ['save', { format: 'png' }], 'PNG text/amounts use a lossless encoding path');
     cancelled = true; assert.equal(await chooseTransferReceipt(), null);
-    console.log('PASS authenticated image display/retry, full-screen viewer/pinch/pan/zoom limits/close, single approval per tap sequence, immediate confirmed payment despite blocked refreshes, no false success on failure, receipt compression/cleanup/cancellation');
+    console.log('PASS rejected transfer rendering after confirmation/reopening/server refresh, authenticated image display/retry, full-screen viewer/pinch/pan/zoom limits/close, single approval per tap sequence, immediate confirmed payment despite blocked refreshes, no false success on failure, receipt compression/cleanup/cancellation');
   } finally {
     if (tree) await act(async () => tree.unmount());
     if (standalone) await act(async () => standalone.unmount());
