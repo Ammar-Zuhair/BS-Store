@@ -4,12 +4,9 @@ set -euo pipefail
 : "${NGROK_AUTHTOKEN:?Add NGROK_AUTHTOKEN in project Containers → Secrets}"
 
 curl -fsS --max-time 10 http://127.0.0.1:5295/health >/dev/null
-ENDPOINT_ARGS=()
-# Pass a reserved URL as the first argument only when the supplied token owns it.
-# Without an argument, ngrok assigns an available URL for the current account.
-if [ -n "${1:-}" ]; then
-  ENDPOINT_ARGS=(--url="$1")
-fi
+# Keep the API URL used by the installed apps stable on subsequent launches.
+# An alternative reserved URL can be supplied as the first argument.
+ENDPOINT_ARGS=(--url="${1:-https://implosive-exchange-compacter.ngrok-free.dev}")
 if systemctl is-active --quiet bsstore-tunnel.service || systemctl is-failed --quiet bsstore-tunnel.service; then
   systemctl stop bsstore-tunnel.service
 fi
