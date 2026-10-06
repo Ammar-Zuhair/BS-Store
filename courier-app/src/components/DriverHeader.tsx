@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  logoutText: { color: colors.error, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm },
+  logoutText: { color: colors.error, fontFamily: 'Tajawal_700Bold', fontSize: typography.fontSize.sm },
   statusPill: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
