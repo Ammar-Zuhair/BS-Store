@@ -63,6 +63,9 @@ export const authApi = {
 
 // ─── Admin API ───────────────────────────────────────────────────────────────
 export const adminApi = {
+  getOrderHours: () => api.get<{ isEnabled: boolean; openingTime: string; closingTime: string }>('/admin/settings/order-hours'),
+  updateOrderHours: (data: { isEnabled: boolean; openingTime: string; closingTime: string }) =>
+    api.put<{ isEnabled: boolean; openingTime: string; closingTime: string }>('/admin/settings/order-hours', data),
   getDashboard: () =>
     api.get<{
       totalOrdersToday: number;

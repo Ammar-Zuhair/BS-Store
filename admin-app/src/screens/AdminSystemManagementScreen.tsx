@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { OrderHoursSettings } from '../components/OrderHoursSettings';
 import { AdminHeader } from '../components/AdminHeader';
 import { adminApi } from '../api';
 import { AdminAppVersionConfiguration, AdminMaintenanceState, ManagedAppType, ManagedPlatform } from '../types';
@@ -175,6 +176,8 @@ export const AdminSystemManagementScreen: React.FC = () => {
               <Text style={styles.introText}>تحكم بالتوافق والصيانة من الخادم، مع تسجيل الإجراءات الإدارية.</Text>
             </View>
           </View>
+
+          <OrderHoursSettings />
 
           <Section title="إدارة إصدارات التطبيقات" subtitle="كل تطبيق ومنصة لهما سياسة إصدار مستقلة.">
             <Text style={styles.label}>التطبيق</Text>

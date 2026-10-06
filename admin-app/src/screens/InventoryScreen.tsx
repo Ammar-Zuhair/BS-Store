@@ -9,6 +9,7 @@
  * - تحسين نموذج إضافة المنتج
  * - أنواع متعددة من العروض
  */
+import { OpeningHoursFields, validOpeningHours } from '../components/OpeningHoursFields';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
@@ -255,6 +256,9 @@ export const InventoryScreen: React.FC = () => {
   const [editingStore, setEditingStore] = useState<AdminStore | null>(null);
   const [storeName, setStoreName] = useState('');
   const [storePhone, setStorePhone] = useState('');
+  const [storeOpeningTime, setStoreOpeningTime] = useState('');
+  const [storeClosingTime, setStoreClosingTime] = useState('');
+  const [store24Hours, setStore24Hours] = useState(false);
   const [storeAddress, setStoreAddress] = useState('');
   const [governorates, setGovernorates] = useState<{id:string;name:string}[]>([]);
   const [storeGovernorateId, setStoreGovernorateId] = useState('');
@@ -434,6 +438,9 @@ export const InventoryScreen: React.FC = () => {
     setEditingStore(store);
     setStoreName(store.name);
     setStorePhone(store.phone || '');
+    setStoreOpeningTime(store.openingTime || '');
+    setStoreClosingTime(store.closingTime || '');
+    setStore24Hours(store.is24Hours ?? false);
     setStoreAddress(store.address || '');
     setStoreGovernorateId(store.governorateId || '');
     setStoreLatitude(Number.isFinite(Number(store.latitude)) ? Number(store.latitude) : null);
@@ -449,6 +456,7 @@ export const InventoryScreen: React.FC = () => {
     if (!storeName.trim()) { Alert.alert('تنبيه', 'يرجى إدخال اسم المتجر'); return; }
     if (storeLatitude === null || storeLongitude === null) { Alert.alert('تنبيه', 'يرجى تحديد موقع المتجر من الخريطة قبل الحفظ'); return; }
     if (!storeGovernorateId) { Alert.alert('تنبيه', 'اختر محافظة المتجر'); return; }
+    if (!store24Hours && !validOpeningHours(storeOpeningTime, storeClosingTime)) { Alert.alert('تنبيه', 'حدد وقتي فتح وإقفال مختلفين أو اختر العمل 24 ساعة'); return; }
     setIsSavingStore(true);
     try {
       const catObj = categories.find((c) => c.id === storeCatId) || categories[0];
@@ -464,6 +472,9 @@ export const InventoryScreen: React.FC = () => {
           latitude: storeLatitude,
           longitude: storeLongitude,
           governorateId: storeGovernorateId,
+          openingTime: store24Hours ? null : storeOpeningTime,
+          closingTime: store24Hours ? null : storeClosingTime,
+          is24Hours: store24Hours,
         });
         Alert.alert('نجاح ✓', `تم تحديث بيانات متجر ${storeName.trim()}`);
       } else {
@@ -478,6 +489,9 @@ export const InventoryScreen: React.FC = () => {
           latitude: storeLatitude,
           longitude: storeLongitude,
           governorateId: storeGovernorateId,
+          openingTime: store24Hours ? null : storeOpeningTime,
+          closingTime: store24Hours ? null : storeClosingTime,
+          is24Hours: store24Hours,
           rating: 4.8,
           deliveryTime: '30-45 دقيقة',
           deliveryFee: 400,
@@ -872,7 +886,10 @@ export const InventoryScreen: React.FC = () => {
         <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={s.rowBetween}>
             <TouchableOpacity style={s.addBtn} onPress={() => {
+              setEditingStore(null);
               setStoreName(''); setStorePhone(''); setStoreAddress('');
+              setStoreOpeningTime(''); setStoreClosingTime(''); setStore24Hours(false);
+              setStoreGovernorateId(''); setStoreLatitude(null); setStoreLongitude(null); setStoreImageUrl('');
               setStoreCatId(categories[0]?.id || ''); setStoreProductTypes([]);
               setShowStoreForm(true);
             }}>
@@ -949,6 +966,7 @@ export const InventoryScreen: React.FC = () => {
               {/* Details */}
               <View style={s.storeDetails}>
                 {store.address ? <Text style={s.storeDetailTxt} numberOfLines={1}>📍 {store.address}</Text> : null}
+                <Text style={s.storeDetailTxt}>{store.is24Hours ? '🕒 مفتوح 24 ساعة' : store.openingTime && store.closingTime ? `🕒 ${store.openingTime} — ${store.closingTime} (بتوقيت اليمن)` : '🕒 المواعيد غير محددة'}</Text>
                 {store.phone ? <Text style={s.storeDetailTxt} numberOfLines={1}>📞 {store.phone}</Text> : null}
               </View>
 
@@ -1192,6 +1210,10 @@ export const InventoryScreen: React.FC = () => {
               <Text style={s.formLabel}>العنوان</Text>
               <TextInput style={s.formInput} placeholder="العنوان التفصيلي (شارع، مبنى...)" placeholderTextColor={colors.outline}
                 value={storeAddress} onChangeText={setStoreAddress} textAlign="right" />
+
+              <Text style={s.formLabel}>مواعيد المتجر *</Text>
+              <OpeningHoursFields openingTime={storeOpeningTime} closingTime={storeClosingTime} is24Hours={store24Hours}
+                onOpeningTimeChange={setStoreOpeningTime} onClosingTimeChange={setStoreClosingTime} on24HoursChange={setStore24Hours} disabled={isSavingStore} />
 
               <Text style={s.formLabel}>محافظة المتجر *</Text>
               <TouchableOpacity style={s.pickerTrigger} onPress={() => setStoreGovernoratePickerVisible(true)}>

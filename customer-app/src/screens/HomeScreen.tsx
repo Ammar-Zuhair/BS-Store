@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { typography, spacing, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
+import { OrderHoursBanner } from '../components/OrderHoursBanner';
 import { OffersDealsSection } from '../components/OffersDealsSection';
 import { CategoryGrid } from '../components/CategoryGrid';
 import { HomeSkeleton } from '../components/Shimmer';
@@ -26,6 +27,7 @@ export const HomeScreen: React.FC = () => {
           contentContainerStyle={styles.scrollContent}
         >
           {/* 1. Offers & Deals Section (بداية بالعروض مثل عروض المتاجر أو التوصيل المجاني) */}
+          <OrderHoursBanner />
           <OffersDealsSection />
 
           {/* 2. Categories 2-Column GridView (الفئات مرتبة 2 في كل سطر) */}

@@ -13,6 +13,7 @@ import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { Product, BundlePiece } from '../types';
 import { ProductDetailsModal } from '../components/ProductDetailsModal';
+import { hoursDescription, isOpenNow } from '../utils/openingHours';
 import { AppIcon } from '../components/AppIcon';
 
 export const StoreDetailScreen: React.FC = () => {
@@ -26,6 +27,7 @@ export const StoreDetailScreen: React.FC = () => {
     cart,
     products,
     stores,
+    businessNow,
     deals,
     colors: themeColors,
   } = useApp();
@@ -36,7 +38,8 @@ export const StoreDetailScreen: React.FC = () => {
   const allProducts = products;
 
   // Fallback to first store if none selected
-  const store = selectedStore || allStores[0] || null;
+  const store = stores.find(item => item.id === selectedStore?.id) || selectedStore || allStores[0] || null;
+  const isOpen = store ? store.isActive === false ? false : isOpenNow(store, businessNow) : null;
 
   // Filter products STRICTLY for this store (by id or matching store name)
   const storeProducts = allProducts.filter(
@@ -134,14 +137,17 @@ export const StoreDetailScreen: React.FC = () => {
           <CachedImage source={{ uri: store.imageUrl }} style={styles.storeCover} resizeMode="contain" />
           <View style={styles.storeCardContent}>
             <View style={styles.storeTitleRow}>
-              <View style={[styles.statusBadge, !store.isOpen && styles.statusBadgeClosed]}>
-                <Text style={[styles.statusText, !store.isOpen && styles.statusTextClosed]}>
-                  {store.isOpen ? 'مفتوح للطلبات' : 'مغلق'}
+              <View style={[styles.statusBadge, isOpen !== true && styles.statusBadgeClosed]}>
+                <Text style={[styles.statusText, isOpen !== true && styles.statusTextClosed]}>
+                  {isOpen === null ? 'المواعيد غير محددة' : isOpen ? 'مفتوح' : 'مغلق'}
                 </Text>
               </View>
               <Text style={styles.storeName}>{store.name}</Text>
             </View>
 
+            <Text style={{ fontFamily: typography.fontFamily.regular, color: themeColors.onSurfaceVariant, textAlign: 'right', marginVertical: 6 }}>
+              {hoursDescription(store)} • بتوقيت اليمن
+            </Text>
             <View style={styles.storeAddressRow}>
               <Text style={styles.storeAddress}>{store.address}</Text>
               <AppIcon name="map-pin" size={15} color={themeColors.outline} />

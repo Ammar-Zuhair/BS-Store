@@ -69,15 +69,16 @@ export const DealDatePickerModal: React.FC<{
 
 export const DealTimePickerModal: React.FC<{
   visible: boolean;
+  title?: string;
   value: string;
   onSelect: (value: string) => void;
   onClose: () => void;
-}> = ({ visible, value, onSelect, onClose }) => {
-  const [hour, setHour] = useState(() => Number(value.split(':')[0]) || 21);
+}> = ({ visible, value, onSelect, onClose, title = 'اختر وقت انتهاء العرض' }) => {
+  const [hour, setHour] = useState(() => Number(value.split(':')[0]) || 0);
   const [minute, setMinute] = useState(() => Math.floor((Number(value.split(':')[1]) || 0) / 5) * 5);
   useEffect(() => {
     if (visible) {
-      setHour(Number(value.split(':')[0]) || 21);
+      setHour(Number(value.split(':')[0]) || 0);
       setMinute(Math.floor((Number(value.split(':')[1]) || 0) / 5) * 5);
     }
   }, [visible, value]);
@@ -85,7 +86,7 @@ export const DealTimePickerModal: React.FC<{
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
-          <Text style={styles.title}>اختر وقت انتهاء العرض</Text>
+          <Text style={styles.title}>{title}</Text>
           <Text style={styles.clockDisplay}>{pad(hour)}:{pad(minute)}</Text>
           <Text style={styles.sectionLabel}>الساعة</Text>
           <View style={styles.clockGrid}>

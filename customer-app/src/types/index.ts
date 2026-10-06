@@ -51,7 +51,11 @@ export interface Store {
   phone: string;
   address: string;
   imageUrl: string;
-  isOpen: boolean;
+  isOpen: boolean | null;
+  isActive?: boolean;
+  openingTime?: string | null;
+  closingTime?: string | null;
+  is24Hours?: boolean;
   latitude?: number;
   longitude?: number;
 }

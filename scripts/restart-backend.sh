@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+if ! command -v dotnet >/dev/null 2>&1 && [ -x /workspace/.tools/dotnet/dotnet ]; then
+  export PATH="/workspace/.tools/dotnet:$PATH"
+  export DOTNET_ROOT=/workspace/.tools/dotnet
+fi
 export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-${TMPDIR:-/tmp}/bsstore-dotnet-cli}"
 export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 
@@ -28,7 +32,16 @@ elif command -v sudo >/dev/null 2>&1 && sudo systemctl restart bsstore-backend.s
 fi
 
 if [ "$RESTARTED" = false ]; then
-  echo "systemctl unavailable or D-Bus access restricted. Waiting for the host-level path watcher."
+  # Fresh containers may have systemd available but no backend unit yet.
+  # Start a durable service there; restricted environments still use the watcher.
+  if systemctl show-environment >/dev/null 2>&1 && ! systemctl cat bsstore-backend.service >/dev/null 2>&1; then
+    systemd-run --unit=bsstore-backend --description="BS Store API" --collect \
+      --service-type=exec --working-directory=/workspace/backend/publish \
+      --property=Restart=on-failure --property=RestartSec=2s \
+      "$(command -v dotnet)" /workspace/backend/publish/BSStore.API.dll
+  else
+    echo "systemctl unavailable or D-Bus access restricted. Waiting for the host-level path watcher."
+  fi
 fi
 
 echo "Verifying backend health..."
@@ -48,4 +61,5 @@ if [ "$READY" = true ]; then
   echo "Health status: $HEALTH_JSON"
 else
   echo "⚠️ Backend is not healthy yet. Check the host-level path watcher and systemd service."
+  exit 1
 fi

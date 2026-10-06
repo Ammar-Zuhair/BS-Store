@@ -9,6 +9,7 @@ import { LocationPickerModal, LocationResult } from '../components/LocationPicke
 import { AppIcon } from '../components/AppIcon';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { chooseTransferReceipt, TransferReceiptImage } from '../utils/transferReceipt';
+import { isOpenNow } from '../utils/openingHours';
 
 type CheckoutTextProps = React.ComponentProps<typeof Text>;
 
@@ -48,10 +49,18 @@ export const CheckoutScreen: React.FC = () => {
     placeOrder,
     navigateTo,
     isAuthenticated,
+    orderHours,
+    businessNow,
+    stores,
     colors: themeColors,
   } = useApp();
 
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const ordersClosed = orderHours?.isEnabled && isOpenNow(orderHours, businessNow) === false;
+  const closedStore = stores.find(store => cartSubOrders.some(group => group.storeId === store.id) &&
+    (store.isActive === false || isOpenNow(store, businessNow) === false));
+  const closureMessage = ordersClosed ? 'استقبال الطلبات مغلق الآن. راجع المواعيد أعلى الصفحة الرئيسية.'
+    : closedStore ? `المتجر ${closedStore.name} مغلق الآن. راجع مواعيده في تفاصيل المتجر.` : null;
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('CASH_ON_DELIVERY');
   const [transferProvider, setTransferProvider] = useState<TransferProviderType | null>(null);
@@ -514,14 +523,15 @@ export const CheckoutScreen: React.FC = () => {
         )}
 
         {/* Submit Order Button */}
+        {closureMessage && <CheckoutText style={{ fontFamily: typography.fontFamily.bold, color: themeColors.error, textAlign: 'right', marginBottom: 12 }}>{closureMessage}</CheckoutText>}
         <TouchableOpacity
-          style={[styles.confirmBtn, isSubmitting && { opacity: 0.7 }]}
+          style={[styles.confirmBtn, (isSubmitting || Boolean(closureMessage)) && { opacity: 0.7 }]}
           onPress={handleConfirmOrder}
-          disabled={isSubmitting || isDeliveryQuoteLoading || !hasDeliveryQuote}
+          disabled={isSubmitting || isDeliveryQuoteLoading || !hasDeliveryQuote || Boolean(closureMessage)}
           activeOpacity={0.88}
           accessibilityRole="button"
           accessibilityLabel="تأكيد الطلب وإرساله للكابتن"
-          accessibilityState={{ disabled: isSubmitting || isDeliveryQuoteLoading || !hasDeliveryQuote, busy: isSubmitting }}
+          accessibilityState={{ disabled: isSubmitting || isDeliveryQuoteLoading || !hasDeliveryQuote || Boolean(closureMessage), busy: isSubmitting }}
         >
           {isSubmitting ? (
             <ActivityIndicator color={themeColors.onPrimary} size="small" />

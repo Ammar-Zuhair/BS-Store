@@ -1,11 +1,12 @@
 import * as React from 'react';
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Alert, AppState } from 'react-native';
 import { Product, CartItem, Address, Order, SubOrderGroup, PaymentMethodType, PaymentStatusType, OrderStatusType, Store, BundlePiece, Category, TransferProviderType } from '../types';
 import { DealItem } from '../components/DealDetailsModal';
 import { api, authApi, catalogApi, cartApi, ordersApi, addressApi, paymentsApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, lightColors, darkColors, ThemeColors, setGlobalThemeMode } from '../theme';
+import { OrderHours } from '../utils/openingHours';
 import { unregisterPushDevice } from '../notifications';
 
 export type ScreenName = 'home' | 'category' | 'category_stores' | 'store_detail' | 'cart' | 'checkout' | 'tracking' | 'profile' | 'auth';
@@ -25,6 +26,8 @@ interface AppContextType {
   navigateTo: (screen: ScreenName) => void;
   categories: Category[];
   stores: Store[];
+  orderHours: OrderHours | null;
+  businessNow: number;
   products: Product[];
   isLoadingCatalog: boolean;
   selectedCategory: string;
@@ -96,6 +99,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('home');
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [orderHours, setOrderHours] = useState<OrderHours | null>(null);
+  const [businessNow, setBusinessNow] = useState(Date.now());
+  const clockOffset = useRef(0);
+  useEffect(() => {
+    let active = true;
+    const refreshHours = async () => {
+      try {
+        const [hoursResult, storesResult] = await Promise.allSettled([
+          api.get<OrderHours>('/system/order-hours').then(hours => ({ hours, receivedAt: Date.now() })), catalogApi.getStores(),
+        ]);
+        if (active && storesResult.status === 'fulfilled') {
+          setStores(previous => previous.map(store => {
+            const updated = storesResult.value.find(item => item.id === store.id);
+            return updated ? { ...store, openingTime: updated.openingTime, closingTime: updated.closingTime,
+              is24Hours: updated.is24Hours ?? false, isOpen: updated.isOpen ?? null, isActive: updated.isActive } : store;
+          }));
+        }
+        if (hoursResult.status === 'rejected') throw hoursResult.reason;
+        const { hours, receivedAt } = hoursResult.value;
+        if (!active) return;
+        const serverTime = Date.parse(hours.serverTime);
+        if (Number.isFinite(serverTime)) clockOffset.current = serverTime - receivedAt;
+        setOrderHours(hours);
+        setBusinessNow(Date.now() + clockOffset.current);
+      } catch (error) { console.warn('Failed to load order hours:', error); }
+    };
+    void refreshHours();
+    const clock = setInterval(() => setBusinessNow(Date.now() + clockOffset.current), 15000);
+    const poll = setInterval(() => { if (AppState.currentState === 'active') void refreshHours(); }, 60000);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        setBusinessNow(Date.now() + clockOffset.current);
+        void refreshHours();
+      }
+    });
+    return () => { active = false; clearInterval(clock); clearInterval(poll); subscription.remove(); };
+  }, []);
   const [products, setProducts] = useState<Product[]>([]);
   const [deals, setDeals] = useState<DealItem[]>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState<boolean>(true);
@@ -230,7 +270,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           imageUrl: s.imageUrl || '',
           latitude: Number(s.latitude ?? 0),
           longitude: Number(s.longitude ?? 0),
-          isOpen: s.isActive,
+          isOpen: s.isOpen ?? null,
+          isActive: s.isActive,
+          openingTime: s.openingTime,
+          closingTime: s.closingTime,
+          is24Hours: s.is24Hours ?? false,
         };
       });
 
@@ -359,6 +403,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const navigateTo = (screen: ScreenName) => {
+    if (screen === 'tracking') setCurrentOrder(null);
     setCurrentScreen(screen);
   };
 
@@ -469,7 +514,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setOrders(mappedOrders);
       await AsyncStorage.removeItem('@bs_customer_orders');
       setCurrentOrder((prev) => {
-        return mappedOrders.find((m) => m.id === prev?.id) || mappedOrders[0] || null;
+        return prev ? mappedOrders.find((m) => m.id === prev.id) || null : null;
       });
     } catch (err) {
       console.warn('Failed to load orders from backend:', err);
@@ -855,7 +900,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       setCurrentOrder(newOrder);
       await clearCart();
-      navigateTo('tracking');
+      setCurrentScreen('tracking');
       if (receiptUploadFailed) {
         Alert.alert('تم إنشاء الطلب', 'تعذر رفع صورة الإيصال حالياً. افتح تفاصيل الطلب وأعد رفع الصورة قبل مراجعة الإدارة.');
       }
@@ -928,6 +973,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         navigateTo,
         categories,
         stores,
+        orderHours,
+        businessNow,
         products,
         isLoadingCatalog,
         selectedCategory,

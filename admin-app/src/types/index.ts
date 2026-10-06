@@ -127,6 +127,9 @@ export interface AdminCategory {
 }
 
 export interface AdminStore {
+  openingTime?: string | null;
+  closingTime?: string | null;
+  is24Hours?: boolean;
   id: string;
   name: string;
   categoryId: string;

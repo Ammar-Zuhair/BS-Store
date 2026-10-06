@@ -440,7 +440,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             rating: 4.8,
             deliveryTime: '30-45 دقيقة',
             deliveryFee: 400,
-            isOpen: isActive,
+            isOpen: s.isOpen === true,
+            openingTime: s.openingTime,
+            closingTime: s.closingTime,
+            is24Hours: s.is24Hours ?? false,
             isActive: isActive,
             latitude: Number(s.latitude ?? 0),
             longitude: Number(s.longitude ?? 0),
@@ -898,6 +901,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         longitude: storeData.longitude!,
         imageUrl: storeData.imageUrl,
         governorateId: storeData.governorateId,
+        openingTime: storeData.openingTime,
+        closingTime: storeData.closingTime,
+        is24Hours: storeData.is24Hours,
       });
       await refreshData();
     } catch (e) {
@@ -932,8 +938,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         address: data.address,
         latitude: data.latitude ?? stores.find((store) => store.id === storeId)?.latitude ?? 0,
         longitude: data.longitude ?? stores.find((store) => store.id === storeId)?.longitude ?? 0,
-        isActive: data.isActive ?? true,
+        isActive: data.isActive ?? stores.find((store) => store.id === storeId)?.isActive ?? true,
         imageUrl: data.imageUrl,
+        openingTime: data.openingTime,
+        closingTime: data.closingTime,
+        is24Hours: data.is24Hours,
         governorateId: data.governorateId ?? stores.find((store) => store.id === storeId)?.governorateId,
       });
       await refreshData();

@@ -94,6 +94,10 @@ export interface ApiStore {
   longitude: number;
   imageUrl?: string;
   isActive: boolean;
+  isOpen?: boolean | null;
+  openingTime?: string | null;
+  closingTime?: string | null;
+  is24Hours?: boolean;
   categoryIds?: string[];
 }
 

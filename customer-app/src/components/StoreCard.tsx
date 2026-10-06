@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { CachedImage } from './CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Store } from '../types';
 import { useApp } from '../context/AppContext';
+import { hoursDescription, isOpenNow } from '../utils/openingHours';
 import { AppIcon } from './AppIcon';
 
 interface StoreCardProps {
@@ -12,7 +13,9 @@ interface StoreCardProps {
 }
 
 export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
-  const { colors: themeColors } = useApp();
+  const { colors: themeColors, businessNow } = useApp();
+  const isOpen = store.isActive === false ? false : isOpenNow(store, businessNow);
+  const status = isOpen === null ? 'المواعيد غير محددة' : isOpen ? 'مفتوح' : 'مغلق';
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   return (
     <TouchableOpacity
@@ -20,30 +23,36 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress }) => {
       onPress={onPress}
       activeOpacity={0.88}
       accessibilityRole="button"
-      accessibilityLabel={'فتح متجر ' + store.name + (store.isOpen ? '، مفتوح' : '، مغلق')}
+      accessibilityLabel={'فتح متجر ' + store.name + ('، ' + status)}
     >
       <View style={styles.imageContainer}>
         <CachedImage source={{ uri: store.imageUrl }} style={styles.image} />
         <View
           style={[
             styles.statusBadge,
-            { backgroundColor: store.isOpen ? themeColors.success : themeColors.surfaceContainerHigh },
+            { backgroundColor: isOpen === true ? themeColors.success : themeColors.surfaceContainerHigh },
           ]}
         >
           <Text
             style={[
               styles.statusText,
-              { color: store.isOpen ? '#FFFFFF' : themeColors.onSurfaceVariant },
+              { color: isOpen === true ? '#FFFFFF' : themeColors.onSurfaceVariant },
             ]}
           >
-            {store.isOpen ? 'مفتوح' : 'مغلق'}
+            {status}
           </Text>
         </View>
       </View>
 
       <View style={styles.content}>
         <View style={styles.headerRow}>
-          <Text style={styles.name} numberOfLines={1}>{store.name}</Text>
+          <Text style={[styles.name, { flex: 1 }]} numberOfLines={1}>{store.name}</Text>
+          <TouchableOpacity
+            onPress={(event) => { event.stopPropagation(); Alert.alert(store.name, `${hoursDescription(store)}\nمواعيد يومية بتوقيت اليمن`); }}
+            accessibilityRole="button" accessibilityLabel={`مواعيد متجر ${store.name}`} style={{ padding: 8 }}
+          >
+            <Text style={{ fontFamily: typography.fontFamily.bold, color: themeColors.primary, fontSize: typography.fontSize.sm }}>تفاصيل</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.addressRow}>

@@ -26,7 +26,6 @@ import { chooseTransferReceipt } from '../utils/transferReceipt';
 export const TrackingScreen: React.FC = () => {
   const { orders, stores, navigateTo, currentOrder, setCurrentOrder, refreshOrders, colors: themeColors } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
@@ -42,8 +41,7 @@ export const TrackingScreen: React.FC = () => {
   const [transferInfoRefreshKey, setTransferInfoRefreshKey] = useState(0);
 
   const selectedOrder =
-    (selectedOrderId ? orders.find((o) => o.id === selectedOrderId) : null) ||
-    currentOrder ||
+    (currentOrder ? orders.find((o) => o.id === currentOrder.id) || currentOrder : null) ||
     null;
 
   const handleRefresh = async () => {
@@ -276,7 +274,6 @@ export const TrackingScreen: React.FC = () => {
           title={`تفاصيل طلب #${selectedOrder.orderNumber}`}
           showBack
           onBack={() => {
-            setSelectedOrderId(null);
             setCurrentOrder(null);
           }}
           rightAction={
@@ -608,7 +605,6 @@ export const TrackingScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.backToListBtn}
             onPress={() => {
-              setSelectedOrderId(null);
               setCurrentOrder(null);
             }}
           >
@@ -729,7 +725,7 @@ export const TrackingScreen: React.FC = () => {
                 key={order.id}
                 style={styles.orderCard}
                 activeOpacity={0.88}
-                onPress={() => setSelectedOrderId(order.id)}
+                onPress={() => setCurrentOrder(order)}
                 accessibilityRole="button"
                 accessibilityLabel={`طلب رقم ${order.orderNumber} من ${storeNames.join('، ') || 'المتجر'}، ${statusInfo.label}، اضغط لعرض التفاصيل والتتبع`}
               >

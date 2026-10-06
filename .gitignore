@@ -45,3 +45,7 @@ Thumbs.db
 .claude/
 .codex/
 .minimax/
+
+# Persistent local SDKs and tooling
+/.tools/
+/.browser/
