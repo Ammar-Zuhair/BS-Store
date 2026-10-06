@@ -44,8 +44,8 @@ export const ProfileScreen: React.FC = () => {
   const openWhatsApp = async (phone: string) => {
     try { await Linking.openURL(`https://wa.me/967${phone}`); } catch { Alert.alert('تعذر فتح واتساب', 'تأكد من توفر واتساب أو متصفح على جهازك.'); }
   };
-  const button = (label: string, onPress: () => void, icon: AppIconName = 'chevron-left', danger = false) => (
-    <TouchableOpacity onPress={onPress} disabled={busy} style={styles.menu} accessibilityRole="button" accessibilityLabel={label}>
+  const button = (label: string, onPress: () => void, icon: AppIconName = 'chevron-left', danger = false, compact = false) => (
+    <TouchableOpacity onPress={onPress} disabled={busy} style={[styles.menu, compact && styles.addressAction]} accessibilityRole="button" accessibilityLabel={label}>
       <AppIcon name={icon} size={20} color={danger ? colors.error : colors.primary} />
       <Text style={[styles.menuText, danger && { color: colors.error }]}>{label}</Text>
     </TouchableOpacity>
@@ -118,9 +118,9 @@ export const ProfileScreen: React.FC = () => {
             <Text style={styles.subheading}>{address.label || 'المنزل'}{address.isDefault ? ' · الافتراضي' : ''}</Text>
             <Text style={styles.text}>{[address.city, address.district, address.street, address.building].filter(Boolean).join('، ')}</Text>
             {!!address.description && <Text style={styles.text}>{address.description}</Text>}
-            <View style={styles.row}>
-              {button('تعديل', () => openAddress(address), 'edit')}
-              {button('حذف', () => removeAddress(address), 'trash', true)}
+            <View style={styles.addressActions}>
+              {button('تعديل', () => openAddress(address), 'edit', false, true)}
+              {button('حذف', () => removeAddress(address), 'trash', true, true)}
             </View>
           </View>)}
           {button('إضافة عنوان جديد', () => openAddress(), 'plus')}
@@ -211,6 +211,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   menuText: { fontFamily: 'Tajawal_500Medium', fontSize: 17, textAlign: 'right', color: c.onSurface, flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
   address: { borderBottomWidth: 1, borderBottomColor: c.outline + '30', paddingBottom: 10, gap: 4 },
+  addressActions: { width: '100%', flexDirection: 'row', alignItems: 'stretch', gap: 8 },
+  addressAction: { flex: 1, minWidth: 0, justifyContent: 'center', paddingHorizontal: 8 },
   modalHeader: { padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: c.outline + '30' },
   label: { fontFamily: 'Tajawal_500Medium', fontSize: 16, textAlign: 'right', color: c.onSurface, marginBottom: 8, marginTop: 8 },
   input: { fontFamily: 'Tajawal_400Regular', fontSize: 17, color: c.onSurface, backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.outline + '65', padding: 12, minHeight: 48 },
