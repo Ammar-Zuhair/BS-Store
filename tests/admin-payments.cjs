@@ -47,8 +47,11 @@ const native = {
 let asset = { uri: 'file:///receipt.jpg', width: 4400, height: 2200 };
 let cancelled = false;
 const manipulations = [];
-const picker = { requestMediaLibraryPermissionsAsync: async () => ({ granted: true }), launchImageLibraryAsync: async () => ({ canceled: cancelled, assets: [asset] }) };
-const manipulator = { SaveFormat: { JPEG: 'jpeg' }, ImageManipulator: { manipulate: () => ({
+let pickerOptions;
+const picker = { requestMediaLibraryPermissionsAsync: async () => ({ granted: true }), launchImageLibraryAsync: async options => {
+  pickerOptions = options; return { canceled: cancelled, assets: [asset] };
+} };
+const manipulator = { SaveFormat: { JPEG: 'jpeg', PNG: 'png' }, ImageManipulator: { manipulate: () => ({
   resize: options => manipulations.push(['resize', options]),
   renderAsync: async () => ({ saveAsync: async options => { manipulations.push(['save', options]); return { uri: 'file:///optimized.jpg' }; }, release: () => manipulations.push(['releaseImage']) }),
   release: () => manipulations.push(['releaseContext']),
@@ -170,11 +173,17 @@ async function main() {
     const { chooseTransferReceipt } = load(path.join(root, 'customer-app/src/utils/transferReceipt.ts'));
     const receipt = await chooseTransferReceipt();
     assert.equal(receipt.mimeType, 'image/jpeg');
+    assert.equal(pickerOptions.allowsEditing, false, 'the picker must not force a square crop that removes receipt text');
+    assert.equal(pickerOptions.quality, 1, 'only the controlled normalization step should compress the receipt');
     assert.deepEqual(manipulations[0], ['resize', { width: 2200 }]);
     assert.deepEqual(manipulations[1], ['save', { format: 'jpeg', compress: 0.85 }]);
     assert.deepEqual(manipulations.slice(-2), [['releaseImage'], ['releaseContext']]);
     manipulations.length = 0; asset = { ...asset, width: 600, height: 800 }; await chooseTransferReceipt();
     assert.equal(manipulations.some(call => call[0] === 'resize'), false, 'small receipts must not be upscaled');
+    manipulations.length = 0; asset = { ...asset, uri: 'file:///receipt.png', mimeType: 'image/png' };
+    const scan = await chooseTransferReceipt();
+    assert.equal(scan.mimeType, 'image/png'); assert.equal(scan.fileName, 'transfer-receipt.png');
+    assert.deepEqual(manipulations[0], ['save', { format: 'png' }], 'PNG text/amounts use a lossless encoding path');
     cancelled = true; assert.equal(await chooseTransferReceipt(), null);
     console.log('PASS authenticated image display/retry, full-screen viewer/pinch/pan/zoom limits/close, single approval per tap sequence, immediate confirmed payment despite blocked refreshes, no false success on failure, receipt compression/cleanup/cancellation');
   } finally {

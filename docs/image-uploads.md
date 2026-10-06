@@ -6,18 +6,30 @@ to `POST /api/admin/images?folder=stores|products|offers`. The authenticated API
 decodes actual content, applies orientation, limits the longest side to 1600 px,
 encodes opaque images as JPEG at quality 85, and preserves transparency as PNG.
 Smaller images are never upscaled. Only optimized bytes reach the existing
-storage provider selected by the backend (R2 after credentials are added). Unreadable files and inputs over 15 MiB fail explicitly;
+R2 storage. There is no Supabase/local fallback for new uploads; missing R2
+configuration fails visibly. Unreadable files and inputs over 15 MiB fail explicitly;
 local device URIs are never saved as remotely accessible image URLs.
 
 R2 configuration, protected storage, backend image routes, migration commands and
 the mobile credential audit are documented in [r2-storage.md](r2-storage.md).
-The legacy Supabase provider is retained during preparation. No storage keys
+Legacy Supabase configuration is retained only for migration reads. No storage keys
 are present in mobile dotenv files or source integrations.
 
-Customer transfer receipts are converted to JPEG at quality 0.85 with a longest
-side of 2200 px before uploading. This path is shared by checkout and re-upload
-from order details. The 5 MiB server limit, private storage (R2 when enabled, local otherwise) and payment
-metadata remain in effect. PDFs accepted through the API are documents and are
+Customer transfer photos are converted to JPEG at quality 0.85 with a longest
+side of 2200 px before uploading; PNG scans/screenshots retain lossless PNG.
+The picker does not force a crop, so the full receipt remains available.
+This path is shared by checkout and re-upload
+from order details. The server also decodes and applies the same 2200 px/JPEG 85
+policy before storing images, covering older or alternative clients. A fully
+decoded JPEG already within the size/estimated-quality limits and without
+EXIF/XMP/IPTC is retained byte-for-byte to avoid repeated lossy compression.
+JPEG quality inferred from quantization tables is an estimate, not a readability
+score. PNG receipts keep lossless encoding (with maximum PNG compression) to
+preserve digital text; only oversized images are resized, never cropped/upscaled.
+Orientation is applied before removing unneeded metadata. The stored MIME type,
+extension and byte size describe the processed file. Corrupt image content is
+rejected before recording a receipt. The 5 MiB limit and private R2 storage remain
+in effect. PDFs accepted through the API are documents and are
 not subjected to lossy image encoding.
 
 The admin downloads protected receipts through its API client, including session

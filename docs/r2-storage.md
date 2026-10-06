@@ -39,12 +39,11 @@ All credentials are loaded from process environment or the workspace/project
 Existing process values take precedence over dotenv. Backend `.env` is ignored
 by Git. No storage configuration needs to be added to mobile apps/EAS.
 
-Without `R2_BUCKET_NAME`, existing backend-only Supabase uploads remain active
-and receipts remain local. Adding R2 credentials and `R2_BUCKET_NAME`, then
-restarting the service, enables R2 automatically. `STORAGE_PROVIDER=supabase`
-is an explicit temporary rollback; `STORAGE_PROVIDER=r2` enables explicitly.
-An invalid/partial R2 configuration fails uploads visibly rather than silently
-writing to another provider. Legacy receipts stay readable from local storage.
+New catalogue/receipt uploads are R2-only. Missing `R2_BUCKET_NAME`, an invalid
+configuration, or `STORAGE_PROVIDER=supabase` rejects uploads rather than storing
+files elsewhere. R2 enables automatically when the bucket is configured;
+`STORAGE_PROVIDER=r2` enables explicitly. Legacy local receipts remain readable
+only for compatibility/migration; Supabase settings serve migration reads only.
 
 ## Existing file migration
 
@@ -59,7 +58,9 @@ Use a quiet maintenance period for applying the migration so catalogue image
 references are not edited concurrently. The CLI reads referenced store/product
 images and recursively finds image fields in `FlashDeals` (including bundles).
 It accepts public storage sources only from the configured legacy Supabase
-origins. Copies are verified by SHA-256 after an R2 read before each record is
+origins and the fixed `images.unsplash.com` allowlist for existing public catalogue
+photos. Local-device `file:`/`content:` store references are reported for manual
+re-upload; their bytes cannot be recovered by the server. Copies are verified by SHA-256 after an R2 read before each record is
 updated. Shared source URLs are deduplicated, deterministic names allow retries,
 and already migrated references are skipped. Private local receipts are also
 copied and verified; their protected API URLs remain unchanged. No originals
@@ -82,6 +83,24 @@ successful image download directly from R2. Receipt authorization and credential
 isolation were verified in isolated controller/client tests; no device or EAS
 publish was performed. Browser CORS was absent during the live check; configure
 the rule below before using direct receipt downloads in a browser build.
+
+A subsequent read-only audit confirmed R2 is enabled, all three existing payment
+receipts have R2 keys, and store/product/offer references contain no legacy
+Supabase storage URLs. The currently unused customer-profile/purchase-receipt
+image fields were empty. New uploads are now explicitly R2-only, including
+server-side conservative receipt normalization; original migrated objects remain
+unchanged. Synthetic image tests verified JPEG size reduction, lossless PNG text
+pixels, orientation, processed database metadata and protection from repeated
+lossy encoding. They do not establish readability for every customer's photo.
+The broader audit also found public Unsplash references and one inaccessible
+local-device store image for `ملابس رجالي وولادي`. The migration supports the
+existing Unsplash photos; the local-only reference needs the original image
+re-uploaded from the admin app and is left unchanged rather than replaced with
+an unrelated picture.
+Five additional Unsplash field references were copied with hash verification and
+switched to R2. A final read-only audit found no remaining external product/offer
+references; the only remaining non-R2 catalogue reference is that inaccessible
+local store file. The API was republished and passed local/public health checks.
 
 ## Completed environment audit
 
@@ -116,8 +135,8 @@ environments as well. Values already shipped in older APK/OTA bundles cannot be
 erased by changing this checkout. Publish OTA for all three apps for the new
 service gateways. Review/revoke old service credentials after cutover as needed.
 
-Validation: `node scripts/audit-mobile-env.cjs`, `node tests/receipts/run.cjs`
-and `node tests/receipts/run.cjs --r2`. R2 tests use a mocked S3 boundary, isolated
+Validation: `node scripts/audit-mobile-env.cjs`, `node tests/receipts/run.cjs`.
+`--r2` is a compatible alias; all new uploads use R2 in both runs. Tests use a mocked S3 boundary, isolated
 in-memory metadata, and temporary local files, covering compression, public
 catalogue redirects without backend body reads, private receipt authorization, direct authenticated link issuance without forwarding app credentials, dry-run/migration/retry,
 corruption protection and SDK settings. Live R2 connectivity requires the keys.

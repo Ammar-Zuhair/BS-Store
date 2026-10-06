@@ -44,6 +44,17 @@ static class R2Checks
         Check(await hybrid.OpenFileReadAsync("r2:../secret") == null, "Storage key traversal rejected");
         Check(!R2ObjectStore.ValidKey("catalogue/receipts/" + Guid.NewGuid().ToString("N") + ".jpg"), "Public catalogue cannot access receipts");
         Check(await hybrid.DeleteFileAsync(newKey) && await hybrid.OpenFileReadAsync(newKey) == null, "R2 deletion and missing file");
+        cfg["STORAGE_PROVIDER"] = "supabase";
+        var blockedPuts = client.PutCount;
+        var localFiles = Directory.GetFiles(root, "*", SearchOption.AllDirectories).Length;
+        bytes.Position = 0;
+        try { await hybrid.UploadFileAsync(bytes, "receipt.jpg", "image/jpeg", "receipts"); throw new Exception("Local upload fallback accepted"); }
+        catch (InvalidOperationException error) { Check(error.Message.Contains("R2"), "Receipt upload requires R2"); }
+        var catalogue = new CatalogueStorageService(settings, services);
+        try { await catalogue.UploadAsync(jpeg, "image/jpeg", "products", Guid.NewGuid().ToString("N") + ".jpg", CancellationToken.None); throw new Exception("Supabase upload fallback accepted"); }
+        catch (InvalidOperationException error) { Check(error.Message.Contains("R2"), "Catalogue upload requires R2"); }
+        Check(client.PutCount == blockedPuts && Directory.GetFiles(root, "*", SearchOption.AllDirectories).Length == localFiles, "Disabled R2 does not store images elsewhere");
+        cfg["STORAGE_PROVIDER"] = "r2";
         try { _ = settings.CreateClient(); throw new Exception("Missing credentials were accepted"); }
         catch (InvalidOperationException error) { Check(error.Message.Contains("R2_ACCOUNT_ID"), "Missing setting identified without value"); }
         cfg["R2_ACCOUNT_ID"] = new string('a', 32); cfg["AWS_ACCESS_KEY_ID"] = "test-key"; cfg["AWS_SECRET_ACCESS_KEY"] = "test-secret";
@@ -58,9 +69,10 @@ static class R2Checks
         const string source = "https://storage.test/storage/v1/object/public/images/products/old.jpg";
         var store = new Store { ImageKey = source };
         var image = new ProductImage { ImageKey = source, Url = source };
+        var external = new ProductImage { ImageKey = "https://images.unsplash.com/photo-test", Url = "https://images.unsplash.com/photo-test" };
         var deals = new AppSetting { Key = "FlashDeals", Value = "[{\"imageUrl\":\"" + source + "\",\"bundleItems\":[{\"imageUrl\":\"" + source + "\"}]}]" };
         var receipt = new PaymentReceipt { StorageKey = oldKey, MimeType = "image/jpeg", Url = "/api/payments/receipts/protected" };
-        db.AddRange(store, image, deals, receipt); await db.SaveChangesAsync();
+        db.AddRange(store, image, external, deals, receipt); await db.SaveChangesAsync();
         var migration = new ImageStorageMigration(db, settings, remote, local, new TestHttpFactory(jpeg), cfg);
         var puts = client.PutCount;
         await migration.RunAsync(false, CancellationToken.None);
@@ -69,6 +81,7 @@ static class R2Checks
         Check(store.ImageKey!.StartsWith("https://api.test/api/images/") && image.ImageKey == store.ImageKey && image.Url == store.ImageKey,
             "Migration replaces store and product references, deduplicates shared sources");
         Check(!deals.Value.Contains("storage.test") && deals.Value.Contains("api.test"), "Nested offer images migrated");
+        Check(external.ImageKey!.StartsWith("https://api.test/api/images/") && external.Url == external.ImageKey, "Existing public CDN images migrated into R2");
         Check(receipt.StorageKey.StartsWith("r2:private/receipts/") && receipt.Url == "/api/payments/receipts/protected", "Protected receipt URL preserved");
         Check(File.Exists(Path.Combine(root, oldKey)) && Directory.GetFiles(Path.Combine(root, "backups")).Length == 1, "Originals and reference backup retained");
         puts = client.PutCount;
@@ -180,7 +193,7 @@ sealed class TestHttpHandler(byte[] image) : HttpMessageHandler
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
     {
-        if (request.Method != HttpMethod.Get || request.RequestUri!.Host != "storage.test") throw new Exception("Unexpected migration upstream");
+        if (request.Method != HttpMethod.Get || request.RequestUri!.Host is not ("storage.test" or "images.unsplash.com")) throw new Exception("Unexpected migration upstream");
         return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent(image) });
     }
 }
