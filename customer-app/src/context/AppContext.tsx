@@ -858,6 +858,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // If manual transfer receipt exists, upload it to the backend
       let receiptUploaded = false;
       let receiptUploadFailed = false;
+      let receiptUploadError = '';
       let receiptUrl: string | undefined;
       if (isManual && receiptUri) {
         try {
@@ -872,6 +873,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } catch (uploadErr) {
           console.warn('Receipt upload deferred:', uploadErr);
           receiptUploadFailed = true;
+          receiptUploadError = uploadErr instanceof Error && uploadErr.message.trim()
+            ? uploadErr.message.trim()
+            : 'تعذر الاتصال بالخدمة أثناء رفع الإيصال.';
         }
       }
 
@@ -902,7 +906,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await clearCart();
       setCurrentScreen('tracking');
       if (receiptUploadFailed) {
-        Alert.alert('تم إنشاء الطلب', 'تعذر رفع صورة الإيصال حالياً. افتح تفاصيل الطلب وأعد رفع الصورة قبل مراجعة الإدارة.');
+        Alert.alert(
+          'تم إنشاء الطلب',
+          `تعذر رفع الإيصال: ${receiptUploadError}\nطلبك محفوظ. أعد رفع الإيصال حتى تتمكن الإدارة من مراجعة التحويل.`,
+          [
+            { text: 'لاحقاً', style: 'cancel' },
+            {
+              text: 'إعادة رفع الإيصال',
+              onPress: () => {
+                void (async () => {
+                  try {
+                    await paymentsApi.uploadReceipt(
+                      newOrder.id,
+                      receiptUri!,
+                      options?.receiptFileName || 'transfer-receipt.jpg',
+                      options?.receiptMimeType || 'image/jpeg'
+                    );
+                    await refreshOrders();
+                    Alert.alert('تم رفع الإيصال', 'أصبح إيصال التحويل متاحاً للإدارة للمراجعة.');
+                  } catch (retryError) {
+                    const reason = retryError instanceof Error ? retryError.message : 'تعذر الاتصال بالخدمة.';
+                    Alert.alert('تعذر رفع الإيصال', `${reason}\nيمكنك إعادة المحاولة لاحقاً من تفاصيل الطلب.`);
+                  }
+                })();
+              },
+            },
+          ]
+        );
       }
       return newOrder;
     } catch (err: any) {
