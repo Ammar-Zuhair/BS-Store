@@ -1,0 +1,124 @@
+name: Build Android production AABs
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: App to build
+        type: choice
+        options:
+          - all
+          - customer-app
+          - admin-app
+          - courier-app
+        default: all
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-production-aabs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build production AABs on GitHub
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            admin-app/package-lock.json
+            customer-app/package-lock.json
+            courier-app/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android build packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.1.12297006" \
+            "cmake;3.22.1"
+
+      - name: Check Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [[ -z "$EXPO_TOKEN" ]]; then
+            echo "Add the EXPO_TOKEN repository secret before running this workflow."
+            exit 1
+          fi
+
+      - name: Set up Expo and EAS CLI
+        uses: expo/expo-github-action@v9
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+
+      - name: Build production AABs on this runner
+        env:
+          CI: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+          gradle_user_home="$RUNNER_TEMP/gradle-user-home"
+          mkdir -p "$gradle_user_home"
+          cat > "$gradle_user_home/gradle.properties" <<'EOF'
+          org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1536m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+          org.gradle.workers.max=2
+          org.gradle.parallel=false
+          EOF
+          export GRADLE_USER_HOME="$gradle_user_home"
+
+          selected_app="${{ inputs.app }}"
+          for app in admin-app customer-app courier-app; do
+            if [[ "$selected_app" != "all" && "$selected_app" != "$app" ]]; then
+              continue
+            fi
+            echo "Building $app as an Android App Bundle"
+            (
+              cd "$GITHUB_WORKSPACE/$app"
+              trap 'rm -rf node_modules' EXIT
+              npm ci --prefer-offline
+              timeout --signal=INT --kill-after=2m 45m eas build \
+                --platform android \
+                --profile production-aab \
+                --local \
+                --non-interactive \
+                --output "$GITHUB_WORKSPACE/artifacts/$app.aab"
+            )
+            test -s "$GITHUB_WORKSPACE/artifacts/$app.aab"
+          done
+
+      - name: Upload AABs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-aabs-${{ github.run_number }}
+          path: artifacts/*.aab
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
