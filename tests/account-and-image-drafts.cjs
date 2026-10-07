@@ -20,11 +20,12 @@ const app = {
   user: { name:'عميل الاختبار', phone:'123456789' }, addresses:[{ id:'address', label:'المنزل', city:'صنعاء', street:'شارع', latitude:15, longitude:44, isDefault:true }],
   isAuthenticated:true, isDarkMode:false, refreshData:async()=>{}, refreshCatalog:async()=>{}, navigateTo:()=>{},
   updateSavedAddress:async(...args)=>changes.push(['update',...args]), deleteSavedAddress:async id=>changes.push(['delete',id]), addNewAddress:async addr=>changes.push(['add',addr]),
+  logout:async()=>changes.push(['logout']),
   orders:[], stores:[], currentOrder:null, setCurrentOrder:()=>{}, refreshOrders:async()=>{},
 };
 const apiMock = {
   governorateApi: { list:async()=>[{id:'gov',name:'صنعاء'}], mine:async()=>({governorateId:'gov'}) },
-  authApi: { changePassword:async(...args)=>changes.push(['password',...args]) },
+  authApi: { changePassword:async(...args)=>changes.push(['password',...args]), deleteAccount:async password=>{changes.push(['account-delete',password]);} },
   api: { request:async(endpoint,options)=>{
     calls.push({endpoint,options});
     if(options.method==='DELETE')return {};
@@ -103,6 +104,19 @@ async function main(){
   await act(async()=>pressByText(tree,'حفظ العنوان'));assert.equal(changes.at(-1)[0],'update');assert.equal(changes.at(-1)[2].city,'عدن');
   await act(async()=>pressByText(tree,'حذف'));
   await act(async()=>alerts.at(-1)[2].find(b=>b.text==='حذف').onPress());assert.deepEqual(changes.at(-1),['delete','address']);
+  await act(async()=>pressByText(tree,'سياسة الخصوصية'));
+  assert.equal(opened.at(-1),'https://ammar-zuhair.github.io/BS-Store/privacy-policy/');
+  await act(async()=>pressByText(tree,'حذف الحساب'));
+  await act(async()=>pressByText(tree,'حذف حسابي نهائياً'));
+  assert.equal(alerts.at(-1)[0],'كلمة المرور مطلوبة');
+  await act(async()=>tree.root.findAllByType('TextInput')[0].props.onChangeText('DeletePass123'));
+  const beforeDelete=changes.length;
+  await act(async()=>pressByText(tree,'حذف حسابي نهائياً'));
+  assert.equal(changes.length,beforeDelete,'Deletion requires explicit final confirmation');
+  await act(async()=>alerts.at(-1)[2].find(b=>b.text==='حذف نهائي').onPress());
+  assert.deepEqual(changes.slice(-2),[['account-delete','DeletePass123'],['logout']]);
+  assert.equal(alerts.at(-1)[0],'تم حذف الحساب');
+
   await act(async()=>tree.unmount());
   for (const [directory, component] of [['customer-app','Header'],['admin-app','AdminHeader'],['courier-app','DriverHeader']]) {
     let finish, refreshed = 0;
@@ -128,6 +142,6 @@ async function main(){
   assert.equal(receiptUploads.length,0,'Receipt replacements remain local until send');
   await act(async()=>pressByText(tree,'إرسال الإيصال'));assert.equal(receiptUploads.length,1);
   await act(async()=>tree.unmount());
-  console.log('PASS image selection/replacement without uploads, upload only on save, retry cleanup, account name/history/support/About/WhatsApp, password confirmation, address editing/deletion explicit receipt submission, all three refresh buttons and native-exit compatibility');
+  console.log('PASS image selection/replacement without uploads, upload only on save, retry cleanup, account name/history/support/About/WhatsApp, password confirmation, confirmed account deletion/logout/privacy link, address editing/deletion explicit receipt submission, all three refresh buttons and native-exit compatibility');
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

@@ -65,6 +65,8 @@ export const authApi = {
     await api.setRefreshToken(res.refreshToken);
   },
 
+  deleteAccount: (password: string) => api.post('/account/delete', { password }),
+
   me: () => api.get<{ id: string; name?: string; fullName?: string; phone: string; role: string }>('/auth/me'),
 
   logout: async () => {

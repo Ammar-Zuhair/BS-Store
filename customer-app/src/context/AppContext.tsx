@@ -1021,6 +1021,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await AsyncStorage.removeItem('@bs_customer_orders');
     await AsyncStorage.removeItem('@bs_customer_addresses');
     await api.setToken(null);
+    setCart([]);
+    clearPromoCode();
     setUser(null);
     setIsAuthenticated(false);
     setOrders([]);

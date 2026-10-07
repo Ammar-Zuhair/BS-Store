@@ -70,6 +70,7 @@ async function main() {
   try {
     server = await ready;
     console.log(output.split("\n").find(line => line.startsWith("PASS address edit/delete")));
+    console.log(output.split("\n").find(line => line.startsWith("PASS account deletion")));
     console.log(output.split("\n").find(line => line.startsWith("PASS R2 upload")));
     console.log(output.split("\n").find(line => line.startsWith("PASS receipt size/quality")));
     const jpeg = Buffer.from(server.receiptBase64, 'base64');

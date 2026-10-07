@@ -18,7 +18,7 @@ const DEVELOPER_PHONE = '775479340';
 export const ProfileScreen: React.FC = () => {
   const { user, addresses, logout, addNewAddress, updateSavedAddress, deleteSavedAddress, navigateTo, isAuthenticated, isDarkMode, toggleTheme, colors, refreshCatalog, refreshData } = useApp();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [page, setPage] = useState<'support' | 'about' | 'password' | 'address' | 'governorates' | null>(null);
+  const [page, setPage] = useState<'support' | 'about' | 'password' | 'address' | 'governorates' | 'delete-account' | null>(null);
   const [busy, setBusy] = useState(false);
   const [addressId, setAddressId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Omit<Address, 'id'>>(emptyAddress);
@@ -26,6 +26,7 @@ export const ProfileScreen: React.FC = () => {
   const [governorates, setGovernorates] = useState<{ id: string; name: string }[]>([]);
   const [governorateId, setGovernorateId] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
+  const [deletionPassword, setDeletionPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -77,6 +78,21 @@ export const ProfileScreen: React.FC = () => {
       Alert.alert('تم التغيير', 'تم تغيير كلمة المرور.');
     } catch (e) { showError(e); } finally { setBusy(false); }
   };
+  const confirmAccountDeletion = () => {
+    if (!deletionPassword) { Alert.alert('كلمة المرور مطلوبة', 'أدخل كلمة مرور حسابك لتأكيد ملكيته.'); return; }
+    Alert.alert('حذف الحساب نهائياً', 'سيُحذف حسابك وبياناتك الشخصية، ولن تتمكن من استعادته. هل تريد المتابعة؟', [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'حذف نهائي', style: 'destructive', onPress: async () => {
+        setBusy(true);
+        try {
+          await authApi.deleteAccount(deletionPassword);
+          setDeletionPassword(''); setPage(null);
+          await logout();
+          Alert.alert('تم حذف الحساب', 'حُذفت بياناتك الشخصية وجلسات الدخول. تُستكمل إزالة ملفات الإيصالات تلقائياً.');
+        } catch (e) { showError(e); } finally { setBusy(false); }
+      } },
+    ]);
+  };
   const saveGovernorate = async (id: string) => {
     setBusy(true);
     try { await governorateApi.update(id); setGovernorateId(id); await refreshCatalog(); setPage(null); } catch (e) { showError(e); } finally { setBusy(false); }
@@ -84,6 +100,7 @@ export const ProfileScreen: React.FC = () => {
   const closePage = () => {
     if (busy) return;
     if (page === 'password') { setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setPasswordVisible(false); }
+    setDeletionPassword('');
     setPage(null);
   };
   const phoneCard = (phone: string) => <View style={styles.card}>
@@ -91,7 +108,7 @@ export const ProfileScreen: React.FC = () => {
     {button('التواصل عبر واتساب', () => void openWhatsApp(phone), 'message')}
     {button('اتصال هاتفي', () => { void Linking.openURL(`tel:+967${phone}`).catch(showError); }, 'phone')}
   </View>;
-  const title = page === 'support' ? 'تواصل مع الدعم الفني' : page === 'about' ? 'حول التطبيق' : page === 'password' ? 'تغيير كلمة المرور' : page === 'governorates' ? 'محافظة التسوق' : addressId ? 'تعديل العنوان' : 'إضافة عنوان';
+  const title = page === 'delete-account' ? 'حذف الحساب' : page === 'support' ? 'تواصل مع الدعم الفني' : page === 'about' ? 'حول التطبيق' : page === 'password' ? 'تغيير كلمة المرور' : page === 'governorates' ? 'محافظة التسوق' : addressId ? 'تعديل العنوان' : 'إضافة عنوان';
 
   return <View style={styles.container}>
     <Header title="حسابي" showBack onBack={() => navigateTo('home')} />
@@ -134,9 +151,12 @@ export const ProfileScreen: React.FC = () => {
       </View>
       <View style={styles.card}>
         {button('تواصل مع الدعم الفني', () => setPage('support'), 'phone')}
+        {button('سياسة الخصوصية', () => { void Linking.openURL('https://ammar-zuhair.github.io/BS-Store/privacy-policy/').catch(showError); }, 'info')}
         {button('حول التطبيق', () => setPage('about'), 'info')}
       </View>
-      {isAuthenticated && <View style={styles.card}>{button('تسجيل الخروج', () => Alert.alert('تسجيل الخروج', 'هل تريد تسجيل الخروج من حسابك؟', [
+      {isAuthenticated && <View style={styles.card}>
+        {button('حذف الحساب', () => { setDeletionPassword(''); setPage('delete-account'); }, 'trash', true)}
+        {button('تسجيل الخروج', () => Alert.alert('تسجيل الخروج', 'هل تريد تسجيل الخروج من حسابك؟', [
         { text: 'إلغاء', style: 'cancel' }, { text: 'تسجيل الخروج', style: 'destructive', onPress: () => void logout() },
       ]), 'logout', true)}</View>}
     </KeyboardAwareScrollView>
@@ -164,6 +184,17 @@ export const ProfileScreen: React.FC = () => {
             <Text style={styles.heading}>تم التطوير بواسطة: عمار المقطري</Text>
             {phoneCard(DEVELOPER_PHONE)}
           </>}
+          {page === 'delete-account' && <View style={styles.card}>
+            <Text style={styles.heading}>حذف الحساب وبياناتك الشخصية</Text>
+            <Text style={styles.text}>الحذف نهائي. تُزال بيانات الاسم والهاتف والعناوين والموقع والسلة والإشعارات والجلسات وإيصالات التحويل. تبقى سجلات مبالغ الطلبات والمعاملات دون اسمك أو رقمك أو عنوانك.</Text>
+            <Text style={styles.text}>إذا كان لديك طلب قيد التنفيذ، أكمله أو ألغِه أولاً. يمكنك التواصل مع الدعم لطلب المساعدة في الحذف.</Text>
+            <Text style={styles.label}>كلمة مرور الحساب</Text>
+            <TextInput style={styles.input} value={deletionPassword} onChangeText={setDeletionPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} maxLength={128} accessibilityLabel="كلمة مرور الحساب لتأكيد الحذف" />
+            <TouchableOpacity style={[styles.primary, { backgroundColor: colors.error }]} onPress={confirmAccountDeletion} disabled={busy} accessibilityRole="button">
+              {busy ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.primaryText}>حذف حسابي نهائياً</Text>}
+            </TouchableOpacity>
+            {button('طلب مساعدة من الدعم', () => void openWhatsApp(SUPPORT_PHONE), 'message')}
+          </View>}
           {page === 'password' && <View style={styles.card}>
             {[
               ['كلمة المرور الحالية', currentPassword, setCurrentPassword],

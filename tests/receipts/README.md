@@ -36,3 +36,6 @@ SDK flags, endpoint restrictions, service gateways and dotenv precedence.
 Run `node tests/service-gateways.cjs` for the actual mobile registration adapters
 and generated Leaflet scripts. Run `node scripts/audit-mobile-env.cjs` to print
 only dotenv names/paths and reject app service credentials.
+
+
+The suite also runs `AccountDeletionChecks.cs` against isolated metadata and fake file storage: mobile/web deletion, password/ownership/customer role, active orders, erased identity/address/transfer fields, retained accounting totals, cleared sessions and durable storage cleanup retry. It never deletes production accounts.

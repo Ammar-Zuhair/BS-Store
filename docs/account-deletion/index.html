@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="حذف حساب متجر بي اس وبياناته الشخصية من خلال الموقع دون الحاجة إلى تثبيت التطبيق.">
+  <meta name="referrer" content="no-referrer">
+  <title>حذف الحساب | متجر بي اس</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23134766'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='white' font-size='18'%3EBS%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css"><script src="config.js" defer></script><script src="app.js" defer></script>
+</head>
+<body>
+<main>
+  <a class="brand" href="../privacy-policy/">متجر بي اس · BS Store</a>
+  <h1>حذف حسابك</h1>
+  <p>يمكنك حذف حساب العميل وبياناته الشخصية من هنا، حتى إذا لم يعد التطبيق مثبتاً على هاتفك.</p>
+  <section class="notice" aria-labelledby="deletion-details">
+    <h2 id="deletion-details">قبل المتابعة</h2>
+    <ul>
+      <li>الحذف نهائي ولا يمكن استعادة الحساب.</li>
+      <li>تُزال بيانات الاسم والهاتف والبريد إن وُجد والعناوين والموقع والسلة والإشعارات والجلسات وإيصالات التحويل المرتبطة بالحساب. تُستكمل إزالة ملفات الإيصالات تلقائياً بعد حذف الحساب؛ وقد تتأخر إذا تعطلت خدمة التخزين.</li>
+      <li>تبقى مبالغ الطلبات وسجلات المعاملات لأغراض المحاسبة دون اسمك أو هاتفك أو عنوانك. لا تُحذف تلقائياً بعد مدة محددة.</li>
+      <li>إذا كان لديك طلب قيد التنفيذ، أكمله أو ألغِه أولاً. <a href="https://wa.me/967783053937" rel="noopener noreferrer">تواصل مع الدعم</a> للمساعدة في طلب الحذف، أو إذا نسيت كلمة المرور.</li>
+    </ul>
+  </section>
+  <form id="delete-form">
+    <h2>تأكيد ملكية الحساب</h2>
+    <p>أدخل رقم الهاتف كما سجلته في التطبيق وكلمة مرور الحساب. تُرسل بيانات التأكيد إلى خادم متجر بي اس عبر اتصال مشفّر، ولا نخزنها في هذا الموقع.</p>
+    <label for="phone">رقم هاتف الحساب</label>
+    <input id="phone" name="phone" type="tel" dir="ltr" autocomplete="username" maxlength="20" required>
+    <label for="password">كلمة مرور الحساب</label>
+    <input id="password" name="password" type="password" dir="ltr" autocomplete="current-password" maxlength="128" required>
+    <label class="check"><input id="confirm" type="checkbox" required>أفهم أن الحذف نهائي، وأطلب حذف حسابي وبياناتي الشخصية.</label>
+    <button id="submit" type="submit">حذف حسابي نهائياً</button>
+  </form>
+  <p id="result" role="status" aria-live="polite" hidden></p>
+  <noscript><p class="notice">فعّل JavaScript لإرسال طلب الحذف، أو <a href="https://wa.me/967783053937">اطلب الحذف من الدعم</a>.</p></noscript>
+  <footer><a href="../privacy-policy/">سياسة الخصوصية</a> · <a href="tel:+967783053937">الدعم: 783053937</a></footer>
+</main>
+</body></html>

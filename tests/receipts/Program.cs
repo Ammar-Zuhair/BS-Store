@@ -51,6 +51,7 @@ builder.Services.AddRateLimiter(options => options.AddPolicy("public-assets", co
     System.Threading.RateLimiting.RateLimitPartition.GetNoLimiter("test")));
 var app = builder.Build();
 await AccountAndCatalogueChecks.RunAsync();
+await AccountDeletionChecks.RunAsync();
 await R2Checks.RunAsync(TestCatalogueStorage.Receipt, Path.Combine(root, "r2-checks"));
 // Validate conservative receipt compression and avoid repeated lossy encoding.
 await using (var source = new MemoryStream(TestCatalogueStorage.Source))

@@ -21,3 +21,7 @@ if [ ! -x /workspace/.tools/ngrok/ngrok ]; then
   tar -xzf /workspace/.tools/ngrok.tgz -C /workspace/.tools/ngrok
   rm /workspace/.tools/ngrok.tgz
 fi
+
+# Browser QA tooling and Chromium system packages, reproducible after reprovisioning.
+npm install --prefix /workspace/.browser --no-audit --no-fund playwright
+/workspace/.browser/node_modules/.bin/playwright install --with-deps chromium
