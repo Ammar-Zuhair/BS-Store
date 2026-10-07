@@ -64,5 +64,6 @@
 - [بيانات الأمان والخصوصية](https://support.google.com/googleplay/android-developer/answer/10787469)
 - [حذف الحساب والبيانات](https://support.google.com/googleplay/android-developer/answer/13327111)
 - [الأيقونة والصور والوصف القصير وصورة العرض](https://support.google.com/googleplay/android-developer/answer/9866151)
+- [بريد دعم التطبيق وبيانات التواصل](https://support.google.com/googleplay/android-developer/answer/113477)
 - [اختبار الحسابات الشخصية الجديدة](https://support.google.com/googleplay/android-developer/answer/14151465)
 - [توفير بيانات تسجيل الدخول للمراجعة](https://support.google.com/googleplay/android-developer/answer/15191715)
