@@ -22,6 +22,12 @@ if [ ! -x /workspace/.tools/ngrok/ngrok ]; then
   rm /workspace/.tools/ngrok.tgz
 fi
 
+# Systemd's /etc configuration does not survive container replacement. Restore
+# the enabled backend/tunnel units from their persistent workspace templates.
+if [ -f /workspace/backend/publish/BSStore.API.dll ] && systemctl show-environment >/dev/null 2>&1; then
+  bash /workspace/scripts/install-backend-services.sh
+fi
+
 # Browser QA tooling and Chromium system packages, reproducible after reprovisioning.
 npm install --prefix /workspace/.browser --no-audit --no-fund playwright
 /workspace/.browser/node_modules/.bin/playwright install --with-deps chromium

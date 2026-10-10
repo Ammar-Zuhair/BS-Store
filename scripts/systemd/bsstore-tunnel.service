@@ -1,0 +1,16 @@
+[Unit]
+Description=BS Store ngrok API tunnel
+Wants=network-online.target bsstore-backend.service
+After=network-online.target bsstore-backend.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=exec
+WorkingDirectory=/workspace
+ExecStart=/usr/bin/python3 /workspace/scripts/run-ngrok-tunnel.py
+Restart=always
+RestartSec=5s
+TimeoutStopSec=30s
+
+[Install]
+WantedBy=multi-user.target
