@@ -49,3 +49,7 @@ Thumbs.db
 # Persistent local SDKs and tooling
 /.tools/
 /.browser/
+
+# Generated Python caches and local Android release artifacts
+__pycache__/
+/build-artifacts/

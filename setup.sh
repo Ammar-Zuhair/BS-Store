@@ -31,3 +31,9 @@ fi
 # Browser QA tooling and Chromium system packages, reproducible after reprovisioning.
 npm install --prefix /workspace/.browser --no-audit --no-fund playwright
 /workspace/.browser/node_modules/.bin/playwright install --with-deps chromium
+
+# Local Android release validation also needs Java after container replacement.
+if [ -d /workspace/.tools/android-sdk ] && ! command -v javac >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y openjdk-17-jdk-headless
+fi

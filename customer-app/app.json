@@ -3,7 +3,7 @@
     "name": "متجر بي اس",
     "owner": "ultra-horizon",
     "slug": "bs-store-customer",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "extra": {
       "eas": {
         "projectId": "4bddebb7-5c80-4360-b310-dbc00824cd29"
@@ -31,11 +31,6 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#F4F5F7"
-      },
-      "config": {
-        "googleMaps": {
-          "apiKey": "YOUR_ANDROID_MAPS_API_KEY"
-        }
       }
     },
     "web": {

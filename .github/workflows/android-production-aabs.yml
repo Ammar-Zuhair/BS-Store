@@ -122,6 +122,10 @@ jobs:
             java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$RUNNER_TEMP/$app.aab" \
               > "$RUNNER_TEMP/$app-manifest.xml"
             python3 "$GITHUB_WORKSPACE/scripts/verify-android-manifest.py" "$RUNNER_TEMP/$app-manifest.xml"
+            if [[ "$app" == "customer-app" ]]; then
+              python3 "$GITHUB_WORKSPACE/scripts/extract-android-mapping.py" \
+                "$RUNNER_TEMP/$app.aab" "$RUNNER_TEMP/$app-manifest.xml" "$GITHUB_WORKSPACE/artifacts"
+            fi
             mv "$RUNNER_TEMP/$app.aab" "$GITHUB_WORKSPACE/artifacts/$app.aab"
           done
 
@@ -130,7 +134,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: production-aabs-${{ github.run_number }}
-          path: artifacts/*.aab
+          path: |
+            artifacts/*.aab
+            artifacts/*-mapping.txt
+            artifacts/*-r8-report.json
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
