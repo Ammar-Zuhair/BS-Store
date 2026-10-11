@@ -140,4 +140,5 @@ jobs:
             artifacts/*-r8-report.json
           if-no-files-found: warn
           retention-days: 14
-          compression-level: 0
+          # R8 maps are large plain-text files; compress them in the download.
+          compression-level: 6

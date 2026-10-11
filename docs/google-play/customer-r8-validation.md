@@ -24,6 +24,7 @@
 - `customer-app.aab`
 - `customer-app-v14-mapping.txt`
 - `customer-app-v14-r8-report.json`: يتضمن بصمات SHA-256 للحزمة وملف التشويش.
+- `customer-app-v14-release.zip`: حزمة تنزيل مضغوطة تجمع الملفات الثلاثة.
 
 بصمة AAB:
 `a0e0ed0994a3c9a9b1dc84d540f616a0a2d7321b6a8cc611da22f0007ffdd77d`
