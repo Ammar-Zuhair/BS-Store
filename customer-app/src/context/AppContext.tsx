@@ -205,7 +205,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [isAuthenticated]);
 
   // ─── Fetch live catalog from Backend ───────────────────────────────────────
-  const refreshCatalog = async () => {
+  const catalogInFlight = useRef<Promise<void> | null>(null);
+  const loadCatalog = async () => {
     try {
       setIsLoadingCatalog(true);
       const [catsRes, storesRes, prodsRes, dealsRes] = await Promise.all([
@@ -340,6 +341,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const refreshCatalog = (): Promise<void> => {
+    if (catalogInFlight.current) return catalogInFlight.current;
+    const pending = loadCatalog().finally(() => { if (catalogInFlight.current === pending) catalogInFlight.current = null; });
+    catalogInFlight.current = pending;
+    return pending;
+  };
+  useEffect(() => { void refreshCatalog(); }, []);
+
   const addressMutationRevision = useRef(0);
   const refreshAddresses = async () => {
     const revision = addressMutationRevision.current;
@@ -373,12 +382,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           try {
             // Refresh on app launch so the seven-day idle window starts from
             // the customer's most recent app use, even if access is still valid.
-            await api.refreshSession();
+            const renewed = await api.refreshSession();
+            if (!renewed && api.getToken()) throw new Error('تعذر تجديد الجلسة مؤقتاً');
             const serverUser = await authApi.me();
             setUser({ name: serverUser.fullName || serverUser.name || '', phone: serverUser.phone });
             setIsAuthenticated(true);
             setCurrentScreen('home');
-          } catch {
+          } catch (error: any) {
+            // A delayed/offline server must not destroy a valid persisted session.
+            if (error?.status !== 401 && error?.status !== 403) {
+              const cached = await AsyncStorage.getItem('@bs_customer_user');
+              if (cached && api.getToken()) {
+                setUser(JSON.parse(cached));
+                setIsAuthenticated(true);
+                setCurrentScreen('home');
+              }
+              console.warn('تعذر التحقق من الجلسة مؤقتاً:', error);
+              return;
+            }
             await api.setToken(null);
             setUser(null);
             setIsAuthenticated(false);
@@ -537,7 +558,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (isAuthenticated) {
       void refreshOrders();
       void refreshAddresses();
-      void refreshCatalog();
     } else {
       setOrders([]);
       setAddresses([]);

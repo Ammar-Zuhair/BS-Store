@@ -104,7 +104,7 @@ export const adminApi = {
   },
 
   getPendingPayments: () =>
-    api.get<any[]>('/admin/payments/pending').catch(() => api.get<any[]>('/admin/payments')),
+    api.get<any[]>('/admin/payments/pending').catch((error: any) => { if (error?.status !== 404) throw error; return api.get<any[]>('/admin/payments'); }),
 
   approvePayment: (paymentId: string, amountReceived: number) =>
     api.post<any>(`/admin/payments/${paymentId}/approve`, { amountReceived }),
@@ -172,7 +172,7 @@ export const adminApi = {
 
   // Categories
   getCategories: () =>
-    api.get<any[]>('/admin/categories').catch(() => api.get<any[]>('/categories?includeInactive=true')),
+    api.get<any[]>('/admin/categories').catch((error: any) => { if (error?.status !== 404) throw error; return api.get<any[]>('/categories?includeInactive=true'); }),
 
   createCategory: (data: any) =>
     api.post<any>('/admin/categories', data),
@@ -181,11 +181,11 @@ export const adminApi = {
     api.put<any>(`/admin/categories/${id}`, data),
 
   toggleCategory: (id: string) =>
-    api.patch<boolean>(`/admin/categories/${id}/toggle`).catch(() => api.patch<boolean>(`/categories/${id}/toggle`)),
+    api.patch<boolean>(`/admin/categories/${id}/toggle`).catch((error: any) => { if (error?.status !== 404) throw error; return api.patch<boolean>(`/categories/${id}/toggle`); }),
 
   // Stores
   getStores: () =>
-    api.get<any[]>('/admin/stores').catch(() => api.get<any[]>('/stores?includeInactive=true')),
+    api.get<any[]>('/admin/stores').catch((error: any) => { if (error?.status !== 404) throw error; return api.get<any[]>('/stores?includeInactive=true'); }),
   getGovernorates: () => api.get<{id:string;name:string}[]>('/governorates'),
   addGovernorate: (name:string) => api.post<{id:string;name:string}>('/admin/governorates',{name}),
   updateGovernorate: (id:string, name:string) => api.put<{id:string;name:string}>(`/admin/governorates/${id}`,{name}),
@@ -200,7 +200,7 @@ export const adminApi = {
   deleteStore: (id: string) => api.delete(`/admin/stores/${id}`),
 
   toggleStore: (id: string) =>
-    api.patch<boolean>(`/admin/stores/${id}/toggle`).catch(() => api.patch<boolean>(`/stores/${id}/toggle`)),
+    api.patch<boolean>(`/admin/stores/${id}/toggle`).catch((error: any) => { if (error?.status !== 404) throw error; return api.patch<boolean>(`/stores/${id}/toggle`); }),
 
   // Audit Logs
   getAuditLogs: () =>

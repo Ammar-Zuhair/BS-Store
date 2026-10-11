@@ -27,6 +27,8 @@ static class AccountDeletionChecks
         var refresh = new RefreshToken { User = user, TokenHash = "private-session", ExpiresAt = DateTime.UtcNow.AddDays(1) };
         var other = new User { Phone = "770000002", Role = UserRole.Customer, PasswordHash = BCrypt.Net.BCrypt.HashPassword("OtherPass123") };
         db.AddRange(user, customer, address, order, payment, receipt, cart, refresh, other);
+        db.PushDeliveryJobs.Add(new PushDeliveryJob { UserIdsJson = System.Text.Json.JsonSerializer.Serialize(new[] { user.Id }),
+            Title = "Private", Body = "Private customer payload", Type = "account-deletion-test" });
         db.PushDevices.Add(new PushDevice { User = user, ExpoPushToken = "private-push", Platform = "android", AppType = "customer" });
         db.Notifications.Add(new Notification { User = user, Body = "private-notification" });
         db.AuditLogs.Add(new AuditLog { ActorId = user.Id, OldValuesJson = "private-pii" });
@@ -58,7 +60,7 @@ static class AccountDeletionChecks
         Check(erasedCustomer.FullName == "حساب محذوف" && erasedCustomer.GovernorateId == null && erasedCustomer.ProfileImageKey == null, "Customer profile must be cleared");
         Check(erasedAddress.IsDeleted && erasedAddress.City == "" && erasedAddress.Street == "" && erasedAddress.Latitude == 0 && erasedAddress.Longitude == 0, "Historical address must be scrubbed");
         Check(keptOrder.TotalAmount == 5000 && keptOrder.Notes == null && keptOrder.CustomerReview == null && keptPayment.Amount == 5000 && keptPayment.TransferReference == null && keptPayment.RejectionReason == null, "Keep accounting amounts without customer notes/transfer data");
-        Check(!await db.RefreshTokens.AnyAsync() && !await db.Carts.AnyAsync() && !await db.PushDevices.AnyAsync() && !await db.Notifications.AnyAsync() && !await db.PaymentReceipts.AnyAsync() && !await db.FlaggedUsers.AnyAsync() && !await db.AuditLogs.AnyAsync(), "Sessions, cart, push, notifications, receipts and copies of PII must be erased");
+        Check(!await db.RefreshTokens.AnyAsync() && !await db.Carts.AnyAsync() && !await db.PushDevices.AnyAsync() && !await db.Notifications.AnyAsync() && !await db.PushDeliveryJobs.AnyAsync() && !await db.PaymentReceipts.AnyAsync() && !await db.FlaggedUsers.AnyAsync() && !await db.AuditLogs.AnyAsync(), "Sessions, cart, push, notifications, receipts and copies of PII must be erased");
         Check((await db.Users.FindAsync(other.Id))!.IsActive, "Another customer's account must remain available");
         var auth = new AuthService(db, new NoJwt());
         Check(!await auth.PhoneExistsAsync("770000001"), "Original phone must be available for a new account");

@@ -1,0 +1,34 @@
+{
+  "measuredAt": "2026-10-11T18:22:58.9620052Z",
+  "mode": "Read-only EXPLAIN ANALYZE; no user rows or credentials exported",
+  "results": [
+    {
+      "query": "category-product-counts",
+      "roundTripMs": 106.73,
+      "planningMs": 1.482,
+      "executionMs": 1.611,
+      "returnedRows": 10
+    },
+    {
+      "query": "driver-ledger-aggregate",
+      "roundTripMs": 22.7,
+      "planningMs": 8.047,
+      "executionMs": 1.334,
+      "returnedRows": 3
+    },
+    {
+      "query": "recent-order-aggregate",
+      "roundTripMs": 9.7,
+      "planningMs": 0.848,
+      "executionMs": 0.091,
+      "returnedRows": 1
+    },
+    {
+      "query": "pending-dispatch",
+      "roundTripMs": 7.91,
+      "planningMs": 0.105,
+      "executionMs": 0.041,
+      "returnedRows": 0
+    }
+  ]
+}

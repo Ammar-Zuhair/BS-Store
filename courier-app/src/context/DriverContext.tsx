@@ -8,6 +8,7 @@ import {
   TaskStop,
   TaskPurchasedItem,
 } from '../types';
+import { runLimited } from '../utils/requests';
 import { api, authApi, driverApi } from '../api';
 import { unregisterPushDevice } from '../notifications';
 import { AppState, Alert } from 'react-native';
@@ -195,9 +196,15 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   };
 
-  const refreshData = async () => {
+  const refreshInFlight = useRef<Promise<void> | null>(null);
+  const refreshData = (fresh = false): Promise<void> => {
+    if (refreshInFlight.current) {
+      const previous = refreshInFlight.current;
+      return fresh ? previous.then(() => refreshData(true)) : previous;
+    }
     setIsRefreshing(true);
-    try {
+    const pending = runLimited([
+        async () => {
       // 1. Status
       try {
         const status = await driverApi.getStatus();
@@ -219,6 +226,9 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.warn('Driver status warning:', e);
       }
 
+
+        },
+        async () => {
       // 2. Current active order
       try {
         const curOrder = await driverApi.getCurrentOrder();
@@ -227,6 +237,9 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.warn('Driver current order warning:', e);
       }
 
+
+        },
+        async () => {
       // 3. Financial Summary
       try {
         const fin = await driverApi.getFinancialSummary();
@@ -238,6 +251,9 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.warn('Driver financial summary warning:', e);
       }
 
+
+        },
+        async () => {
       // 4. Financial Transactions
       try {
         const txs = await driverApi.getFinancialTransactions();
@@ -257,11 +273,13 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.warn('Driver transactions warning:', e);
       }
 
-    } catch (e) {
-      console.warn('Driver refreshData error:', e);
-    } finally {
+        },
+    ], 3).finally(() => {
+      if (refreshInFlight.current === pending) refreshInFlight.current = null;
       setIsRefreshing(false);
-    }
+    });
+    refreshInFlight.current = pending;
+    return pending;
   };
 
   useEffect(() => {
@@ -317,11 +335,13 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const acceptCurrentOrder = async () => {
     if (!activeTask) return;
     try {
-      await driverApi.acceptOrder(activeTask.id);
-      await refreshData();
+      const accepted = await driverApi.acceptOrder(activeTask.id);
+      setActiveTask(mapOrderToTask(accepted));
+      setDriver(prev => ({ ...prev, shiftStatus: 'BUSY' }));
+      void refreshData(true);
     } catch (e) {
       console.error('Failed to accept order:', e);
-      if ((e as any)?.status === 409) await refreshData();
+      if ((e as any)?.status === 409) await refreshData(true);
       throw e;
     }
   };
@@ -354,15 +374,15 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         await driverApi.confirmStorePurchase(activeTask.id, subOrderId);
       } catch (error) {
         if ((error as any)?.status !== 409) throw error;
-        await refreshData();
+        await refreshData(true);
         await driverApi.confirmStorePurchase(activeTask.id, subOrderId);
       }
 
-      await refreshData();
+      await refreshData(true);
       navigateBack();
     } catch (e) {
       console.error('Failed to record purchase:', e);
-      if ((e as any)?.status === 409) await refreshData();
+      if ((e as any)?.status === 409) await refreshData(true);
       throw e;
     }
   };
@@ -372,18 +392,18 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     try {
       await driverApi.confirmDelivered(activeTask.id, cashAdjustmentSettled);
-      await refreshData();
+      await refreshData(true);
       navigateBack();
     } catch (e) {
       console.error('Failed to complete delivery:', e);
-      if ((e as any)?.status === 409) await refreshData();
+      if ((e as any)?.status === 409) await refreshData(true);
       throw e;
     }
   };
 
   const requestSettlement = async (amount: number) => {
     await driverApi.requestSettlement(amount, 'طلب توريد وتصفية العهدة النقدية');
-    await refreshData();
+    await refreshData(true);
   };
 
   return (

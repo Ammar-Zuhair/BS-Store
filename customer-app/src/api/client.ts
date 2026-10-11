@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from '../utils/requests';
 import Constants from 'expo-constants';
 import { tokenStorage } from './tokenStorage';
 
@@ -46,6 +47,7 @@ function getHttpErrorMessage(status: number, responseBody: any): string {
 
 class ApiClient {
   private token: string | null = null;
+  private pendingGets = new Map<string, Promise<unknown>>();
   private isInitialized = false;
   private refreshInFlight: Promise<boolean> | null = null;
   private sessionExpiredHandler: (() => void) | null = null;
@@ -122,7 +124,7 @@ class ApiClient {
 
       let response: Response;
       try {
-        response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        response = await fetchWithTimeout(`${API_BASE_URL}/auth/refresh`, {
           method: 'POST',
           headers: {
             Accept: 'application/json',
@@ -140,7 +142,7 @@ class ApiClient {
       const payload = await response.json().catch(() => null);
       const auth = payload?.data !== undefined ? payload.data : payload;
       if (!response.ok || !auth?.accessToken || !auth?.refreshToken) {
-        await this.expireSession();
+        if (response.status === 400 || response.status === 401 || response.status === 403) await this.expireSession();
         return false;
       }
 
@@ -187,10 +189,11 @@ class ApiClient {
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
+    const sentToken = this.token;
     let response: Response;
     let retriedAfterRefresh = false;
     try {
-      response = await fetch(url, {
+      response = await fetchWithTimeout(url, {
         ...options,
         headers: this.buildHeaders(options, this.token),
       });
@@ -200,10 +203,10 @@ class ApiClient {
 
     const isAuthEndpoint = /^\/auth\/(?:login|register|check-phone|refresh)(?:\/|$)/.test(endpoint);
     if (response.status === 401 && !isAuthEndpoint) {
-      const refreshed = await this.refreshAccessToken();
+      const refreshed = (this.token !== sentToken && !!this.token) || await this.refreshAccessToken();
       if (refreshed) {
         try {
-          response = await fetch(url, {
+          response = await fetchWithTimeout(url, {
             ...options,
             headers: this.buildHeaders(options, this.token),
           });
@@ -211,6 +214,10 @@ class ApiClient {
         } catch {
           throw new Error('تعذر الاتصال بالخدمة. تحقق من اتصال الإنترنت وحاول مجدداً.');
         }
+      } else if (this.token) {
+        const error = new Error('تعذر تجديد الجلسة مؤقتاً. تحقق من اتصال الإنترنت وحاول مجدداً.');
+        (error as any).status = 503;
+        throw error;
       }
     }
 
@@ -237,7 +244,14 @@ class ApiClient {
   }
 
   get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
+    const key = `${this.token || ''}:${endpoint}`;
+    const existing = this.pendingGets.get(key);
+    if (existing) return existing as Promise<T>;
+    const pending = this.request<T>(endpoint, { method: 'GET' }).finally(() => {
+      if (this.pendingGets.get(key) === pending) this.pendingGets.delete(key);
+    });
+    this.pendingGets.set(key, pending);
+    return pending;
   }
 
   post<T>(endpoint: string, body?: any): Promise<T> {

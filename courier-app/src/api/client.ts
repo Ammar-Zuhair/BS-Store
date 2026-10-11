@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from '../utils/requests';
 import Constants from 'expo-constants';
 import { tokenStorage } from './tokenStorage';
 
@@ -61,6 +62,7 @@ const REFRESH_TOKEN_KEY = '@bs_courier_refresh_token';
 
 class ApiClient {
   private token: string | null = null;
+  private pendingGets = new Map<string, Promise<unknown>>();
   private refreshToken: string | null = null;
   private sessionReady: Promise<void> | null = null;
   private refreshInProgress: Promise<boolean> | null = null;
@@ -107,13 +109,16 @@ class ApiClient {
     if (this.refreshInProgress) return this.refreshInProgress;
     this.refreshInProgress = (async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        const response = await fetchWithTimeout(`${API_BASE_URL}/auth/refresh`, {
           method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken: this.refreshToken }),
         });
         const payload = await response.json().catch(() => null);
         const session = payload?.data ?? payload;
-        if (!response.ok || !session?.accessToken || !session?.refreshToken) return false;
+        if (!response.ok || !session?.accessToken || !session?.refreshToken) {
+          if (response.status === 400 || response.status === 401 || response.status === 403) await this.clearSession();
+          return false;
+        }
         await this.setToken(session.accessToken);
         await this.setRefreshToken(session.refreshToken);
         return true;
@@ -146,9 +151,10 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
+    const sentToken = this.token;
     let response: Response;
     try {
-      response = await fetch(url, {
+      response = await fetchWithTimeout(url, {
         ...options,
         headers,
       });
@@ -159,9 +165,14 @@ class ApiClient {
     const data = await response.json().catch(() => null);
 
     if (response.status === 401 && !endpoint.includes('/auth/refresh')) {
-      if (!hasRetried && this.refreshToken && await this.refreshSession())
+      if (!hasRetried && ((this.token !== sentToken && !!this.token) || (this.refreshToken && await this.refreshSession())))
         return this.request<T>(endpoint, options, true);
-      await this.clearSession();
+      if (!hasRetried && this.refreshToken) {
+        const error = new Error('تعذر تجديد الجلسة مؤقتاً. حاول مجدداً.');
+        (error as any).status = 503;
+        throw error;
+      }
+      if (hasRetried || !this.refreshToken) await this.clearSession();
     }
 
     if (!response.ok) {
@@ -175,7 +186,14 @@ class ApiClient {
   }
 
   get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
+    const key = `${this.token || ''}:${endpoint}`;
+    const existing = this.pendingGets.get(key);
+    if (existing) return existing as Promise<T>;
+    const pending = this.request<T>(endpoint, { method: 'GET' }).finally(() => {
+      if (this.pendingGets.get(key) === pending) this.pendingGets.delete(key);
+    });
+    this.pendingGets.set(key, pending);
+    return pending;
   }
 
   post<T>(endpoint: string, body?: any): Promise<T> {

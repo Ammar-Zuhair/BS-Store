@@ -14,15 +14,22 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
+if (args.Contains("--query-diagnostics")) { await ProductionQueryChecks.RunAsync(); return; }
 if (args.Contains("--probe-production-db")) { await ProductionLatency.RunAsync(); return; }
 
 // Fixed loopback database created by run.sh. No production configuration or credentials are loaded.
 const string connection = "Host=127.0.0.1;Port=55432;Database=bsstore_dispatch_test;Username=postgres;Maximum Pool Size=25";
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
+builder.Logging.AddConsole().SetMinimumLevel(LogLevel.Error);
 builder.WebHost.UseUrls("http://127.0.0.1:0");
 builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(connection, n => n.EnableRetryOnFailure()));
-builder.Services.AddHttpClient("ExpoPush");
+builder.Services.AddSingleton<FakeExpoHandler>();
+builder.Services.AddHttpClient("ExpoPush").ConfigurePrimaryHttpMessageHandler(sp => sp.GetRequiredService<FakeExpoHandler>());
+builder.Services.AddScoped<CatalogueImageCleanup>();
+builder.Services.AddSingleton(sp => new BSStore.Infrastructure.Services.R2Settings(sp.GetRequiredService<IConfiguration>()));
+builder.Services.AddSingleton<Amazon.S3.IAmazonS3>(new Amazon.S3.AmazonS3Client(new Amazon.Runtime.AnonymousAWSCredentials(), new Amazon.S3.AmazonS3Config { ServiceURL = "http://127.0.0.1:1", ForcePathStyle = true }));
+builder.Services.AddSingleton<BSStore.Infrastructure.Services.R2ObjectStore>();
 builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddScoped<DriverAssignmentService>();
 builder.Services.AddControllers().AddApplicationPart(typeof(CheckoutController).Assembly);
@@ -151,6 +158,33 @@ using (var response = await http.SendAsync(request)) Check(response.IsSuccessSta
 Check(await Assign(waiting.Id) && (await Read(waiting.Id)).DriverId == closestNear.Id,
     "cancellation releases courier reservation and waiting orders can be retried");
 
+// Exercise busy rules through the real admin/driver endpoints, not only the service.
+using (var scope = app.Services.CreateScope()) {
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    Check(await db.Drivers.AnyAsync(d => d.Id == closestFar.Id && d.Status == DriverStatus.Busy), "assignment reserves the courier as Busy before acceptance");
+}
+using (var request = Request(HttpMethod.Put, $"/api/driver/orders/{multi.Id}/accept", closestFar.User.Id, "Driver"))
+using (var response = await http.SendAsync(request)) Check(response.IsSuccessStatusCode, "accepting an assigned order starts its task");
+Check((await Read(multi.Id)).Status == OrderStatus.Purchasing, "accepted task moves to Purchasing");
+foreach (var status in new[] { 0, 1 }) {
+    using var request = Request(HttpMethod.Put, "/api/driver/status", closestFar.User.Id, "Driver", new { status });
+    using var response = await http.SendAsync(request);
+    Check(response.StatusCode == HttpStatusCode.Conflict, "active courier cannot reset status to Online/Offline");
+}
+var extra = await AddOrder(OrderStatus.PendingAdminApproval, near);
+using (var request = Request(HttpMethod.Post, $"/api/admin/orders/{extra.Id}/assign-driver", customer.User.Id, "Admin", new { driverId = closestFar.Id }))
+using (var response = await http.SendAsync(request)) Check(response.StatusCode == HttpStatusCode.Conflict, "manager endpoint rejects assignment to a Busy courier");
+Check(!await Assign(extra.Id, closestFar.Id), "manual service also refuses a Busy courier");
+await PerformanceChecks.RunAsync(app, http, customer, closestFar, Check);
+using (var scope = app.Services.CreateScope())
+    await scope.ServiceProvider.GetRequiredService<AppDbContext>().Orders.Where(o => o.Id == multi.Id)
+        .ExecuteUpdateAsync(set => set.SetProperty(o => o.Status, OrderStatus.OutForDelivery));
+using (var request = Request(HttpMethod.Put, $"/api/driver/orders/{multi.Id}/delivered", closestFar.User.Id, "Driver", new { cashAdjustmentSettled = true }))
+using (var response = await http.SendAsync(request)) Check(response.IsSuccessStatusCode, "courier can complete the final delivery");
+using (var scope = app.Services.CreateScope()) Check(await scope.ServiceProvider.GetRequiredService<AppDbContext>().Drivers.AnyAsync(d => d.Id == closestFar.Id && d.Status == DriverStatus.Online), "completing the final task makes courier available again");
+Check(await Assign(extra.Id, closestFar.Id), "available courier can receive a new order after completion");
+
+
 if (args.Contains("--benchmark"))
 {
     // Real checkout controller and PostgreSQL writes; test auth and local DB are explicit measurement limitations.
@@ -207,7 +241,7 @@ if (args.Contains("--benchmark"))
         await reset.ServiceProvider.GetRequiredService<AppDbContext>().Drivers.Where(d => d.Phone.StartsWith("load-"))
             .ExecuteUpdateAsync(s => s.SetProperty(d => d.LocationUpdatedAt, DateTime.UtcNow));
     }
-    var output = "/workspace/docs/courier-capacity-results.json";
+    var output = "/workspace/docs/courier-capacity-after-performance.json";
     await File.WriteAllTextAsync(output, JsonSerializer.Serialize(new { measuredAt = DateTime.UtcNow,
         environment = "4 vCPU / 4 GiB; local isolated PostgreSQL; 25 pooled connections; real two-store checkout + GPS dispatch; test auth; no external push", results },
         new JsonSerializerOptions { WriteIndented = true }));
@@ -225,5 +259,20 @@ sealed class TestAuthentication(IOptionsMonitor<AuthenticationSchemeOptions> opt
             return AuthenticateResult.NoResult();
         return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(new ClaimsIdentity([
             new Claim("userId", id.ToString()), new Claim(ClaimTypes.Role, Request.Headers["X-Test-Role"].ToString())], "Test")), "Test"));
+    }
+}
+
+sealed class FakeExpoHandler : HttpMessageHandler
+{
+    public int Calls;
+    public bool Fail;
+    public TaskCompletionSource? Gate;
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    {
+        Interlocked.Increment(ref Calls);
+        if (Gate != null) await Gate.Task.WaitAsync(ct);
+        return new HttpResponseMessage(Fail ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK) {
+            Content = JsonContent.Create(new { data = new[] { new { status = "ok" } } })
+        };
     }
 }

@@ -5,8 +5,7 @@ using Npgsql;
 
 static class ProductionLatency
 {
-    // Read-only probe of the configured production DB, never creates orders or loads user rows.
-    public static async Task RunAsync()
+    public static NpgsqlConnectionStringBuilder Settings()
     {
         EnvLoader.Load("/workspace/backend/publish");
         var configuration = new ConfigurationBuilder().SetBasePath("/workspace/backend/publish")
@@ -24,6 +23,13 @@ static class ProductionLatency
             Database = configuration["DB_NAME"] ?? "BS_Store", Username = configuration["DB_USER"] ?? "postgres", Password = configuration["DB_PASSWORD"] ?? "" };
         settings.MaxPoolSize = 25; settings.MinPoolSize = 1; settings.Timeout = 15; settings.CommandTimeout = 30;
         if (settings.Host is not ("localhost" or "127.0.0.1")) settings.SslMode = SslMode.Require;
+        return settings;
+    }
+
+    // Read-only probe of the configured production DB, never creates orders or loads user rows.
+    public static async Task RunAsync()
+    {
+        var settings = Settings();
         await using var source = NpgsqlDataSource.Create(settings.ConnectionString);
         var values = new List<double>();
         await using (var warm = source.CreateCommand("SELECT 1")) await warm.ExecuteScalarAsync();

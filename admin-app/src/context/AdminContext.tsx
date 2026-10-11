@@ -17,6 +17,7 @@ import {
   FlaggedUser,
 } from '../types';
 import { adminApi, authApi, api } from '../api';
+import { createReadScheduler } from '../utils/requests';
 import { API_BASE_URL } from '../api/client';
 import { unregisterPushDevice } from '../notifications';
 
@@ -338,34 +339,25 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const refreshData = async () => {
-    if (!api.getToken()) {
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      // 1. Dashboard KPI
-      await refreshDashboard();
-
-      // 2. Orders
-      await refreshOrders();
-
-      // 3. Payments (All Bank Transfers)
-      await refreshPayments();
-
+  const categoryRevision = useRef(0);
+  const resourceRefreshes = {
+    dashboard: refreshDashboard,
+    orders: refreshOrders,
+    payments: refreshPayments,
+    approvals: async () => {
       // 3.1 Driver cash custody settlement requests
       try {
-        const [settlements, driversPending] = await Promise.all([
-          adminApi.getDriverSettlementRequests(),
-          adminApi.getPendingDrivers(),
-        ]);
+        const settlements = await adminApi.getDriverSettlementRequests();
+        const driversPending = await adminApi.getPendingDrivers();
         setDriverSettlementRequests(settlements || []);
         setPendingDrivers(driversPending || []);
       } catch (e) {
         console.warn('Driver approvals fetch error:', e);
       }
 
+
+    },
+    products: async () => {
       // 4. Products
       try {
         const prodsRes = await adminApi.getProducts({ pageSize: 100 });
@@ -402,7 +394,11 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Products fetch error:', e);
       }
 
+
+    },
+    categories: async () => {
       // 5. Categories
+      const revision = categoryRevision.current;
       try {
         const cats = await adminApi.getCategories();
         const mappedCats: AdminCategory[] = (cats || []).map((c: any) => ({
@@ -414,6 +410,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           productCount: c.productsCount || 0,
           subcategories: [],
         }));
+        if (revision !== categoryRevision.current) return;
         setCategories((prev) => {
           if (prev.length === 0) return mappedCats;
           const merged = [...mappedCats];
@@ -428,6 +425,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Categories fetch error:', e);
       }
 
+
+    },
+    stores: async () => {
       // 6. Stores
       try {
         const strs = await adminApi.getStores();
@@ -484,6 +484,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Stores fetch error:', e);
       }
 
+
+    },
+    delivery: async () => {
       // 6.5. Delivery Settings
       try {
         const ds = await adminApi.getDeliverySettings();
@@ -500,6 +503,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Delivery settings fetch error:', e);
       }
 
+
+    },
+    share: async () => {
       try {
         const share = await adminApi.getDriverProfitShare();
         setDriverProfitSharePercent(Number(share?.percent ?? 10));
@@ -507,6 +513,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Driver profit share fetch error:', e);
       }
 
+
+    },
+    drivers: async () => {
       // 7. Drivers
       try {
         const drvs = await adminApi.getDrivers();
@@ -532,6 +541,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Drivers fetch error:', e);
       }
 
+
+    },
+    audit: async () => {
       // 8. Audit Logs
       try {
         const logs = await adminApi.getAuditLogs();
@@ -549,6 +561,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Audit logs fetch error:', e);
       }
 
+
+    },
+    deals: async () => {
       // 9. Deals & Bundles
       try {
         const dls = await adminApi.getDeals();
@@ -585,9 +600,26 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch (e) {
         console.warn('Deals fetch error:', e);
       }
-    } finally {
+    },
+  };
+  type Resource = keyof typeof resourceRefreshes;
+  // Mutations refresh only affected resources. Fetches are bounded so one manager
+  // never consumes the API/database pool by opening the dashboard.
+  const readScheduler = useRef(createReadScheduler(3));
+  const refreshResources = async (keys: Resource[], fresh = true): Promise<void> => {
+    await Promise.allSettled(keys.map(key => readScheduler.current.run(key, resourceRefreshes[key], fresh)));
+  };
+  const fullRefresh = useRef<Promise<void> | null>(null);
+  const refreshData = (): Promise<void> => {
+    if (!api.getToken()) { setIsLoading(false); return Promise.resolve(); }
+    if (fullRefresh.current) return fullRefresh.current;
+    setIsLoading(true);
+    const pending = refreshResources(Object.keys(resourceRefreshes) as Resource[], false).finally(() => {
+      if (fullRefresh.current === pending) fullRefresh.current = null;
       setIsLoading(false);
-    }
+    });
+    fullRefresh.current = pending;
+    return pending;
   };
 
   const login = async (phone: string, password: string): Promise<boolean> => {
@@ -669,12 +701,15 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addCategory = async (catData: { name: string; icon: string; displayOrder?: number; isActive?: boolean }) => {
     try {
-      await adminApi.createCategory({
+      const created = await adminApi.createCategory({
         name: catData.name,
         iconName: catData.icon || 'folder-outline',
         sortOrder: catData.displayOrder || categories.length + 1,
       });
-      await refreshData();
+      categoryRevision.current++;
+      setCategories(prev => [...prev, { id: created.id, name: created.name, icon: created.iconName,
+        displayOrder: created.sortOrder, isActive: created.isActive, productCount: 0, subcategories: [] }]);
+      void refreshResources(["categories"]);
     } catch (e) {
       console.error('Failed to create category:', e);
       throw e;
@@ -682,25 +717,27 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const toggleCategoryStatus = async (categoryId: string) => {
-    setCategories((prev) =>
-      prev.map((c) => (c.id === categoryId ? { ...c, isActive: !c.isActive } : c))
-    );
-    try {
-      await adminApi.toggleCategory(categoryId);
-    } catch (e) {
-      console.warn('Failed to toggle category on backend:', e);
-    }
+    const isActive = await adminApi.toggleCategory(categoryId);
+    categoryRevision.current++;
+    setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, isActive } : c));
   };
 
   const updateCategory = async (categoryId: string, data: Partial<AdminCategory>) => {
     try {
+      const current = categories.find(category => category.id === categoryId);
       await adminApi.updateCategory(categoryId, {
-        name: data.name,
-        iconName: data.icon,
-        sortOrder: data.displayOrder,
-        isActive: data.isActive,
+        name: data.name ?? current?.name,
+        iconName: data.icon ?? current?.icon,
+        sortOrder: data.displayOrder ?? current?.displayOrder,
+        isActive: data.isActive ?? current?.isActive,
       });
-      await refreshData();
+      categoryRevision.current++;
+      setCategories(prev => prev.map(category => category.id === categoryId ? { ...category, ...data } : category));
+      void refreshResources(["categories"]);
+      if (data.name !== undefined) {
+        setProducts(prev => prev.map(p => p.categoryId === categoryId ? { ...p, categoryName: data.name! } : p));
+        setStores(prev => prev.map(store => store.categoryId === categoryId ? { ...store, categoryName: data.name! } : store));
+      }
     } catch (e) {
       console.error('Failed to update category:', e);
       throw e;
@@ -784,7 +821,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sellingPrice: Number(prodData.sellingPrice || 0),
         images: imageList,
       }, 'products', prepared => adminApi.createProduct(prepared));
-      await refreshData();
+      void refreshResources(["products", "categories", "stores"]);
       navigateTo('inventory');
     } catch (e) {
       console.error('Failed to create product:', e);
@@ -814,7 +851,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         images: imageList,
       }, 'products', prepared => adminApi.updateProduct(productId, prepared));
       setEditingProduct(null);
-      await refreshData();
+      void refreshResources(["products", "categories", "stores"]);
       navigateTo('inventory');
     } catch (e) {
       console.error('Failed to update product:', e);
@@ -825,7 +862,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteProduct = async (productId: string) => {
     try {
       await adminApi.deleteProduct(productId);
-      await refreshData();
+      setProducts(prev => prev.filter(product => product.id !== productId));
+      void refreshResources(["products", "categories", "stores"]);
     } catch (e) {
       console.error('Failed to delete product:', e);
       throw e;
@@ -836,10 +874,15 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       // Find driver if driver assigned
       if (status === 'DRIVER_ASSIGNED' && driverCustodies.length > 0) {
-        const driver = driverCustodies.find(d => d.driverId === driverId) || driverCustodies.find(d => d.driverName === driverName) || driverCustodies[0];
+        const driver = driverCustodies.find(d => driverId ? d.driverId === driverId : d.driverName === driverName);
+        if (!driver || driver.status !== 'ONLINE' || driver.isApproved === false) throw new Error('الموصل غير متاح؛ اختر موصلاً متصلاً وغير مشغول.');
         await adminApi.assignDriver(orderId, driver.driverId);
+        verificationRevision.current++;
+        setDriverCustodies(prev => prev.map(d => d.driverId === driver.driverId ? { ...d, status: 'BUSY' } : d));
+        setOrders(prev => prev.map(order => order.id === orderId ? { ...order, status: 'DRIVER_ASSIGNED',
+          assignedDriverId: driver.driverId, assignedDriverName: driver.driverName } : order));
       }
-      await refreshData();
+      void refreshResources(["orders", "drivers", "dashboard"]);
     } catch (e) {
       console.error('Failed to update order status:', e);
       throw e;
@@ -872,7 +915,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       // Acknowledge the saved payment immediately. Only relevant data refreshes
       // in parallel; product/store/custody queries must not hold this action open.
-      void Promise.all([refreshPayments(), refreshOrders(), refreshDashboard()]);
+      void refreshResources(['payments', 'orders', 'dashboard', 'drivers']);
     } catch (e) {
       console.error('Failed to verify bank transfer:', e);
       throw e;
@@ -882,7 +925,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const approveDriverSettlement = async (id: string) => {
     try {
       await adminApi.approveDriverSettlement(id);
-      await refreshData();
+      void refreshResources(["approvals", "drivers", "dashboard"]);
     } catch (e) {
       console.error('Failed to approve driver settlement:', e);
       throw e;
@@ -892,24 +935,24 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const rejectDriverSettlement = async (id: string, reason?: string) => {
     try {
       await adminApi.rejectDriverSettlement(id, reason);
-      await refreshData();
+      void refreshResources(["approvals"]);
     } catch (e) {
       console.error('Failed to reject driver settlement:', e);
       throw e;
     }
   };
 
-  const approveDriver = async (id: string) => { await adminApi.approveDriver(id); await refreshData(); };
-  const rejectDriver = async (id: string) => { await adminApi.rejectDriver(id); await refreshData(); };
+  const approveDriver = async (id: string) => { await adminApi.approveDriver(id); void refreshResources(["approvals", "drivers"]); };
+  const rejectDriver = async (id: string) => { await adminApi.rejectDriver(id); void refreshResources(["approvals", "drivers"]); };
   const createAdmin = async (fullName: string, phone: string, password: string) => {
     await adminApi.createAdmin(fullName, phone, password);
-    await refreshData();
+
   };
 
   const settleDriverCash = async (driverId: string, receivedAmount: number, notes?: string) => {
     try {
       await adminApi.createSettlement(driverId, receivedAmount, notes);
-      await refreshData();
+      void refreshResources(["drivers", "dashboard", "approvals"]);
     } catch (e) {
       console.error('Failed to settle driver cash:', e);
       throw e;
@@ -942,7 +985,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         closingTime: storeData.closingTime,
         is24Hours: storeData.is24Hours,
       }, 'stores', prepared => adminApi.createStore(prepared));
-      await refreshData();
+      void refreshResources(["stores"]);
     } catch (e) {
       console.error('Failed to add store:', e);
       throw e;
@@ -982,7 +1025,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         is24Hours: data.is24Hours,
         governorateId: data.governorateId ?? stores.find((store) => store.id === storeId)?.governorateId,
       }, 'stores', prepared => adminApi.updateStore(storeId, prepared));
-      await refreshData();
+      void refreshResources(["stores", "products"]);
     } catch (e) {
       console.error('Failed to update store:', e);
       throw e;
@@ -1022,21 +1065,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const toggleStoreStatus = async (storeId: string) => {
-    // 1. Optimistic update so it immediately changes state in UI without disappearing
-    setStores((prev) =>
-      prev.map((s) => (s.id === storeId ? { ...s, isActive: !s.isActive, isOpen: !s.isActive } : s))
-    );
-    try {
-      await adminApi.toggleStore(storeId);
-    } catch (e) {
-      console.error('Failed to toggle store:', e);
-      throw e;
-    }
+    await adminApi.toggleStore(storeId);
+    void refreshResources(['stores']);
   };
 
   const deleteStore = async (storeId: string) => {
     await adminApi.deleteStore(storeId);
-    await refreshData();
+    setStores(prev => prev.filter(store => store.id !== storeId));
+    void refreshResources(["stores", "products", "categories"]);
   };
 
   const addFlashDeal = async (dealData: Omit<AdminFlashDeal, 'id'>) => {
@@ -1048,7 +1084,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setFlashDeals(updated);
     try {
       await saveCatalogueForm(updated, 'offers', prepared => adminApi.saveDeals(prepared));
-      await refreshData();
+      void refreshResources(["deals"]);
     } catch (e) {
       console.warn('Failed to save deals to backend:', e);
       setFlashDeals(flashDeals);
@@ -1062,7 +1098,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setFlashDeals(updated);
     try {
       await saveCatalogueForm(updated, 'offers', prepared => adminApi.saveDeals(prepared));
-      await refreshData();
+      void refreshResources(["deals"]);
     } catch (e) {
       console.warn('Failed to update deal:', e);
       setFlashDeals(previous);
@@ -1075,7 +1111,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setFlashDeals(updated);
     try {
       await saveCatalogueForm(updated, 'offers', prepared => adminApi.saveDeals(prepared));
-      await refreshData();
+      void refreshResources(["deals"]);
     } catch (e) {
       setFlashDeals(flashDeals);
       throw e;
@@ -1087,7 +1123,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setFlashDeals(updated);
     try {
       await saveCatalogueForm(updated, 'offers', prepared => adminApi.saveDeals(prepared));
-      await refreshData();
+      void refreshResources(["deals"]);
     } catch (e) {
       setFlashDeals(flashDeals);
       throw e;
@@ -1133,7 +1169,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const approveOrder = async (orderId: string) => {
     try {
       await adminApi.approveOrder(orderId);
-      await refreshData();
+      void refreshResources(["orders", "drivers", "dashboard"]);
     } catch (e) {
       console.warn('approveOrder error:', e);
       throw e;
@@ -1143,7 +1179,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const rejectOrder = async (orderId: string, _reason: string) => {
     try {
       await adminApi.rejectOrder(orderId, _reason);
-      await refreshData();
+      void refreshResources(["orders", "drivers", "dashboard"]);
     } catch (e) {
       console.warn('rejectOrder error:', e);
     }
@@ -1152,7 +1188,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const cancelOrder = async (orderId: string, reasonCode: string, description?: string) => {
     try {
       await adminApi.cancelOrder(orderId, reasonCode, description);
-      await refreshData();
+      void refreshResources(["orders", "drivers", "dashboard", "payments"]);
     } catch (e) {
       console.warn('cancelOrder error:', e);
       throw e;

@@ -1,0 +1,102 @@
+[
+  {
+    "transport": "local",
+    "endpoint": "/api/system/status",
+    "milliseconds": [
+      95.3,
+      38.7,
+      21.9
+    ],
+    "bytes": 121
+  },
+  {
+    "transport": "local",
+    "endpoint": "/api/app-version?appType=customer&platform=android&currentVersion=1.0.1",
+    "milliseconds": [
+      23.9,
+      24.5,
+      28.6
+    ],
+    "bytes": 426
+  },
+  {
+    "transport": "local",
+    "endpoint": "/api/categories",
+    "milliseconds": [
+      119.2,
+      65.9,
+      15.5
+    ],
+    "bytes": 623
+  },
+  {
+    "transport": "local",
+    "endpoint": "/api/products?pageSize=100",
+    "milliseconds": [
+      31.5,
+      33.6,
+      25.5
+    ],
+    "bytes": 1565
+  },
+  {
+    "transport": "local",
+    "endpoint": "/api/stores",
+    "milliseconds": [
+      17.0,
+      18.3,
+      18.8
+    ],
+    "bytes": 1136
+  },
+  {
+    "transport": "public",
+    "endpoint": "/api/system/status",
+    "milliseconds": [
+      80.7,
+      57.8,
+      80.8
+    ],
+    "bytes": 121
+  },
+  {
+    "transport": "public",
+    "endpoint": "/api/app-version?appType=customer&platform=android&currentVersion=1.0.1",
+    "milliseconds": [
+      66.1,
+      92.6,
+      111.0
+    ],
+    "bytes": 426
+  },
+  {
+    "transport": "public",
+    "endpoint": "/api/categories",
+    "milliseconds": [
+      75.6,
+      62.8,
+      90.1
+    ],
+    "bytes": 623
+  },
+  {
+    "transport": "public",
+    "endpoint": "/api/products?pageSize=100",
+    "milliseconds": [
+      56.2,
+      70.9,
+      90.1
+    ],
+    "bytes": 1565
+  },
+  {
+    "transport": "public",
+    "endpoint": "/api/stores",
+    "milliseconds": [
+      55.1,
+      47.7,
+      58.8
+    ],
+    "bytes": 1136
+  }
+]

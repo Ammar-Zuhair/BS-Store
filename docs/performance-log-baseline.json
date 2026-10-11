@@ -1,0 +1,555 @@
+[
+  {
+    "endpoint": "POST /api/admin/images",
+    "samples": 22,
+    "medianMs": 3687.2,
+    "p95Ms": 6636.6,
+    "maxMs": 13915.3
+  },
+  {
+    "endpoint": "POST /api/checkout/place-order",
+    "samples": 6,
+    "medianMs": 1374.6,
+    "p95Ms": 2328.7,
+    "maxMs": 2328.7
+  },
+  {
+    "endpoint": "POST /api/telemetry/admin/consent",
+    "samples": 40,
+    "medianMs": 1472.3,
+    "p95Ms": 2063.4,
+    "maxMs": 3568.4
+  },
+  {
+    "endpoint": "POST /api/orders/:id/cancel",
+    "samples": 8,
+    "medianMs": 265.8,
+    "p95Ms": 1995.3,
+    "maxMs": 1995.3
+  },
+  {
+    "endpoint": "POST /api/payments/:id/upload-receipt",
+    "samples": 5,
+    "medianMs": 1011.4,
+    "p95Ms": 1848.3,
+    "maxMs": 1848.3
+  },
+  {
+    "endpoint": "POST /api/telemetry/customer/consent",
+    "samples": 63,
+    "medianMs": 1221.7,
+    "p95Ms": 1818.6,
+    "maxMs": 2278.7
+  },
+  {
+    "endpoint": "POST /api/driver-applications",
+    "samples": 1,
+    "medianMs": 1615.6,
+    "p95Ms": 1615.6,
+    "maxMs": 1615.6
+  },
+  {
+    "endpoint": "GET /api/payments/:id/transfer-info",
+    "samples": 25,
+    "medianMs": 52.2,
+    "p95Ms": 1567.3,
+    "maxMs": 2513.0
+  },
+  {
+    "endpoint": "POST /api/auth/login",
+    "samples": 36,
+    "medianMs": 255.8,
+    "p95Ms": 1326.5,
+    "maxMs": 1349.5
+  },
+  {
+    "endpoint": "GET /api/admin/orders",
+    "samples": 109,
+    "medianMs": 34.7,
+    "p95Ms": 1024.9,
+    "maxMs": 4651.8
+  },
+  {
+    "endpoint": "POST /api/auth/register",
+    "samples": 5,
+    "medianMs": 212.1,
+    "p95Ms": 960.6,
+    "maxMs": 960.6
+  },
+  {
+    "endpoint": "GET /api/payments/receipts/:id/download-link",
+    "samples": 107,
+    "medianMs": 16.7,
+    "p95Ms": 797.8,
+    "maxMs": 1140.1
+  },
+  {
+    "endpoint": "GET /api/driver/financial/summary",
+    "samples": 5,
+    "medianMs": 66.9,
+    "p95Ms": 730.9,
+    "maxMs": 730.9
+  },
+  {
+    "endpoint": "POST /api/admin/deals",
+    "samples": 12,
+    "medianMs": 27.4,
+    "p95Ms": 725.3,
+    "maxMs": 725.3
+  },
+  {
+    "endpoint": "POST /api/cart/items",
+    "samples": 13,
+    "medianMs": 275.9,
+    "p95Ms": 708.3,
+    "maxMs": 708.3
+  },
+  {
+    "endpoint": "GET /api/driver/status",
+    "samples": 5,
+    "medianMs": 122.3,
+    "p95Ms": 647.8,
+    "maxMs": 647.8
+  },
+  {
+    "endpoint": "POST /api/account/delete-with-password",
+    "samples": 1,
+    "medianMs": 643.7,
+    "p95Ms": 643.7,
+    "maxMs": 643.7
+  },
+  {
+    "endpoint": "GET /api/orders",
+    "samples": 130,
+    "medianMs": 104.4,
+    "p95Ms": 631.0,
+    "maxMs": 1143.7
+  },
+  {
+    "endpoint": "GET /api/driver/current-order",
+    "samples": 5,
+    "medianMs": 215.5,
+    "p95Ms": 574.3,
+    "maxMs": 574.3
+  },
+  {
+    "endpoint": "POST /api/auth/refresh",
+    "samples": 83,
+    "medianMs": 50.5,
+    "p95Ms": 566.9,
+    "maxMs": 1374.0
+  },
+  {
+    "endpoint": "POST /api/checkout/delivery-quote",
+    "samples": 9,
+    "medianMs": 257.8,
+    "p95Ms": 509.1,
+    "maxMs": 509.1
+  },
+  {
+    "endpoint": "POST /api/auth/check-phone",
+    "samples": 23,
+    "medianMs": 35.9,
+    "p95Ms": 507.4,
+    "maxMs": 540.7
+  },
+  {
+    "endpoint": "GET /api/admin/dashboard",
+    "samples": 109,
+    "medianMs": 78.6,
+    "p95Ms": 504.6,
+    "maxMs": 3147.9
+  },
+  {
+    "endpoint": "GET /api/admin/accounts",
+    "samples": 5,
+    "medianMs": 12.7,
+    "p95Ms": 504.6,
+    "maxMs": 504.6
+  },
+  {
+    "endpoint": "GET /api/admin/price-changes",
+    "samples": 9,
+    "medianMs": 133.6,
+    "p95Ms": 502.3,
+    "maxMs": 502.3
+  },
+  {
+    "endpoint": "GET /api/app-version",
+    "samples": 99,
+    "medianMs": 25.5,
+    "p95Ms": 482.8,
+    "maxMs": 2400.0
+  },
+  {
+    "endpoint": "GET /api/stores",
+    "samples": 398,
+    "medianMs": 30.0,
+    "p95Ms": 474.6,
+    "maxMs": 3223.6
+  },
+  {
+    "endpoint": "GET /api/admin/price-changes/complaints",
+    "samples": 9,
+    "medianMs": 109.2,
+    "p95Ms": 366.6,
+    "maxMs": 366.6
+  },
+  {
+    "endpoint": "POST /api/notifications/devices",
+    "samples": 84,
+    "medianMs": 37.7,
+    "p95Ms": 334.3,
+    "maxMs": 660.1
+  },
+  {
+    "endpoint": "GET /api/system/status",
+    "samples": 540,
+    "medianMs": 16.3,
+    "p95Ms": 321.2,
+    "maxMs": 2153.4
+  },
+  {
+    "endpoint": "GET /api/health",
+    "samples": 6,
+    "medianMs": 5.4,
+    "p95Ms": 317.9,
+    "maxMs": 317.9
+  },
+  {
+    "endpoint": "GET /api/system/order-hours",
+    "samples": 311,
+    "medianMs": 15.3,
+    "p95Ms": 302.5,
+    "maxMs": 2257.4
+  },
+  {
+    "endpoint": "PUT /api/driver/location",
+    "samples": 1,
+    "medianMs": 294.2,
+    "p95Ms": 294.2,
+    "maxMs": 294.2
+  },
+  {
+    "endpoint": "PUT /api/admin/accounts/:id",
+    "samples": 2,
+    "medianMs": 233.7,
+    "p95Ms": 289.7,
+    "maxMs": 289.7
+  },
+  {
+    "endpoint": "GET /api/admin/notifications/broadcasts",
+    "samples": 4,
+    "medianMs": 190.5,
+    "p95Ms": 277.3,
+    "maxMs": 277.3
+  },
+  {
+    "endpoint": "GET /api/driver/financial/transactions",
+    "samples": 5,
+    "medianMs": 98.2,
+    "p95Ms": 266.1,
+    "maxMs": 266.1
+  },
+  {
+    "endpoint": "POST /api/admin/stores",
+    "samples": 4,
+    "medianMs": 169.9,
+    "p95Ms": 261.0,
+    "maxMs": 261.0
+  },
+  {
+    "endpoint": "PUT /api/admin/stores/:id",
+    "samples": 3,
+    "medianMs": 92.5,
+    "p95Ms": 246.1,
+    "maxMs": 246.1
+  },
+  {
+    "endpoint": "GET /api/products",
+    "samples": 83,
+    "medianMs": 47.4,
+    "p95Ms": 239.9,
+    "maxMs": 582.8
+  },
+  {
+    "endpoint": "GET /api/categories",
+    "samples": 84,
+    "medianMs": 24.9,
+    "p95Ms": 234.1,
+    "maxMs": 763.9
+  },
+  {
+    "endpoint": "DELETE /api/cart",
+    "samples": 6,
+    "medianMs": 42.4,
+    "p95Ms": 223.4,
+    "maxMs": 223.4
+  },
+  {
+    "endpoint": "PUT /api/admin/categories/:id",
+    "samples": 3,
+    "medianMs": 39.7,
+    "p95Ms": 216.3,
+    "maxMs": 216.3
+  },
+  {
+    "endpoint": "POST /api/admin/payments/:id/approve",
+    "samples": 3,
+    "medianMs": 137.8,
+    "p95Ms": 213.9,
+    "maxMs": 213.9
+  },
+  {
+    "endpoint": "GET /api/admin/system/maintenance",
+    "samples": 11,
+    "medianMs": 27.7,
+    "p95Ms": 205.3,
+    "maxMs": 205.3
+  },
+  {
+    "endpoint": "POST /api/admin/products",
+    "samples": 6,
+    "medianMs": 102.7,
+    "p95Ms": 204.9,
+    "maxMs": 204.9
+  },
+  {
+    "endpoint": "GET /api/auth/me",
+    "samples": 110,
+    "medianMs": 17.3,
+    "p95Ms": 201.9,
+    "maxMs": 798.6
+  },
+  {
+    "endpoint": "DELETE /api/admin/governorates/:id",
+    "samples": 10,
+    "medianMs": 43.9,
+    "p95Ms": 200.1,
+    "maxMs": 200.1
+  },
+  {
+    "endpoint": "GET /api/admin/drivers",
+    "samples": 102,
+    "medianMs": 14.9,
+    "p95Ms": 197.0,
+    "maxMs": 538.2
+  },
+  {
+    "endpoint": "GET /api/admin/payments",
+    "samples": 108,
+    "medianMs": 15.8,
+    "p95Ms": 192.3,
+    "maxMs": 669.3
+  },
+  {
+    "endpoint": "DELETE /api/admin/products/:id",
+    "samples": 4,
+    "medianMs": 79.1,
+    "p95Ms": 179.8,
+    "maxMs": 179.8
+  },
+  {
+    "endpoint": "GET /api/admin/products",
+    "samples": 105,
+    "medianMs": 22.7,
+    "p95Ms": 178.6,
+    "maxMs": 407.0
+  },
+  {
+    "endpoint": "GET /api/customers/addresses",
+    "samples": 92,
+    "medianMs": 18.3,
+    "p95Ms": 178.0,
+    "maxMs": 607.6
+  },
+  {
+    "endpoint": "POST /api/admin/payments/:id/reject",
+    "samples": 3,
+    "medianMs": 42.9,
+    "p95Ms": 163.8,
+    "maxMs": 163.8
+  },
+  {
+    "endpoint": "PATCH /api/admin/stores/:id/toggle",
+    "samples": 2,
+    "medianMs": 77.1,
+    "p95Ms": 143.1,
+    "maxMs": 143.1
+  },
+  {
+    "endpoint": "GET /api/admin/stores",
+    "samples": 104,
+    "medianMs": 12.3,
+    "p95Ms": 142.5,
+    "maxMs": 363.1
+  },
+  {
+    "endpoint": "GET /api/admin/app-versions",
+    "samples": 11,
+    "medianMs": 33.4,
+    "p95Ms": 138.0,
+    "maxMs": 138.0
+  },
+  {
+    "endpoint": "GET /api/admin/categories",
+    "samples": 104,
+    "medianMs": 13.7,
+    "p95Ms": 131.9,
+    "maxMs": 364.8
+  },
+  {
+    "endpoint": "GET /api/governorates",
+    "samples": 125,
+    "medianMs": 18.1,
+    "p95Ms": 130.5,
+    "maxMs": 235.7
+  },
+  {
+    "endpoint": "DELETE /api/admin/stores/:id",
+    "samples": 19,
+    "medianMs": 19.0,
+    "p95Ms": 125.3,
+    "maxMs": 125.3
+  },
+  {
+    "endpoint": "POST /api/deals/validate-code",
+    "samples": 14,
+    "medianMs": 17.3,
+    "p95Ms": 115.3,
+    "maxMs": 115.3
+  },
+  {
+    "endpoint": "GET /api/deals",
+    "samples": 82,
+    "medianMs": 20.0,
+    "p95Ms": 112.7,
+    "maxMs": 247.5
+  },
+  {
+    "endpoint": "POST /api/notifications/devices/unregister",
+    "samples": 2,
+    "medianMs": 93.7,
+    "p95Ms": 96.1,
+    "maxMs": 96.1
+  },
+  {
+    "endpoint": "GET /api/admin/driver-settlements",
+    "samples": 105,
+    "medianMs": 12.8,
+    "p95Ms": 96.0,
+    "maxMs": 388.1
+  },
+  {
+    "endpoint": "POST /api/admin/drivers/:id/approve",
+    "samples": 1,
+    "medianMs": 93.0,
+    "p95Ms": 93.0,
+    "maxMs": 93.0
+  },
+  {
+    "endpoint": "PUT /api/admin/system/maintenance",
+    "samples": 2,
+    "medianMs": 61.2,
+    "p95Ms": 90.9,
+    "maxMs": 90.9
+  },
+  {
+    "endpoint": "GET /api/admin/drivers/pending",
+    "samples": 199,
+    "medianMs": 12.4,
+    "p95Ms": 88.5,
+    "maxMs": 498.1
+  },
+  {
+    "endpoint": "GET /api/admin/settings/delivery",
+    "samples": 103,
+    "medianMs": 10.6,
+    "p95Ms": 87.1,
+    "maxMs": 251.5
+  },
+  {
+    "endpoint": "GET /api/admin/audit-logs",
+    "samples": 102,
+    "medianMs": 11.2,
+    "p95Ms": 86.4,
+    "maxMs": 305.2
+  },
+  {
+    "endpoint": "POST /api/auth/logout",
+    "samples": 2,
+    "medianMs": 65.9,
+    "p95Ms": 71.2,
+    "maxMs": 71.2
+  },
+  {
+    "endpoint": "PATCH /api/admin/categories/:id/toggle",
+    "samples": 15,
+    "medianMs": 17.6,
+    "p95Ms": 69.3,
+    "maxMs": 69.3
+  },
+  {
+    "endpoint": "GET /api/admin/deals",
+    "samples": 100,
+    "medianMs": 11.7,
+    "p95Ms": 66.7,
+    "maxMs": 154.6
+  },
+  {
+    "endpoint": "DELETE /api/customers/addresses/:id",
+    "samples": 13,
+    "medianMs": 28.6,
+    "p95Ms": 58.4,
+    "maxMs": 58.4
+  },
+  {
+    "endpoint": "GET /api/profile/governorate",
+    "samples": 105,
+    "medianMs": 25.1,
+    "p95Ms": 56.4,
+    "maxMs": 144.2
+  },
+  {
+    "endpoint": "GET /api/admin/settings/driver-profit-share",
+    "samples": 103,
+    "medianMs": 10.7,
+    "p95Ms": 50.4,
+    "maxMs": 101.4
+  },
+  {
+    "endpoint": "GET /api/admin/settings/order-hours",
+    "samples": 6,
+    "medianMs": 25.1,
+    "p95Ms": 46.1,
+    "maxMs": 46.1
+  },
+  {
+    "endpoint": "PATCH /api/stores/:id/toggle",
+    "samples": 2,
+    "medianMs": 29.0,
+    "p95Ms": 41.5,
+    "maxMs": 41.5
+  },
+  {
+    "endpoint": "GET /api/payments/receipts/:id",
+    "samples": 37,
+    "medianMs": 0.3,
+    "p95Ms": 40.6,
+    "maxMs": 96.0
+  },
+  {
+    "endpoint": "POST /api/account/delete",
+    "samples": 1,
+    "medianMs": 17.0,
+    "p95Ms": 17.0,
+    "maxMs": 17.0
+  },
+  {
+    "endpoint": "OPTIONS /api/account/delete-with-password",
+    "samples": 2,
+    "medianMs": 3.8,
+    "p95Ms": 3.9,
+    "maxMs": 3.9
+  }
+]

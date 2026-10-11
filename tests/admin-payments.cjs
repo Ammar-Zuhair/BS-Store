@@ -12,6 +12,8 @@ const cache = new Map();
 const calls = [];
 const alerts = [];
 let blockRefresh = false;
+const blockedReads = [];
+function releaseReads() { blockRefresh = false; blockedReads.splice(0).forEach(resolve => resolve()); }
 let approve;
 let approvalFailed = false;
 let imageFails = false;
@@ -28,7 +30,7 @@ const apiMock = {
       if (approvalFailed) throw new Error('Not saved');
       return new Promise(resolve => { approve = () => resolve({ orderId: 'order-1', orderStatus: 13, amountReceived: 2400, amountReceivedAt: '2026-10-06T18:00:00Z', amountReceivedBy: 'admin-1' }); });
     }
-    if (blockRefresh && ['getDashboard', 'getOrders', 'getPayments'].includes(name)) return new Promise(() => {});
+    if (blockRefresh && ['getDashboard', 'getOrders', 'getPayments'].includes(name)) await new Promise(resolve => blockedReads.push(resolve));
     if (name === 'getPayments') return [pending];
     if (name === 'getOrders') return [{ id: 'order-1', status: 1, paymentStatus: 1, paymentMethod: 1 }];
     if (name === 'getDashboard') return { pendingVerificationPayments: 1 };
@@ -150,7 +152,7 @@ async function main() {
     assert.equal(paymentButton('اعتماد وتسجيل المبلغ'), undefined);
     await act(async () => { tree.update(React.createElement(AdminProvider, null, React.createElement(Harness, { key: 'return-to-payments' }))); });
     assert.match(screenText(), /مرفوضة/, 'reopening payments with a rejected transfer must render safely');
-    blockRefresh = false;
+    releaseReads();
     Object.assign(pending, { status: 'REJECTED', rawStatus: 3, rejectionReason: 'رفض محفوظ في الخادم' });
     await act(async () => { await context.refreshData(); });
     assert.equal(context.bankTransfers[0].amountReceived, null);

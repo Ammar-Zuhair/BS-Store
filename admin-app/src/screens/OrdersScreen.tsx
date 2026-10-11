@@ -101,7 +101,7 @@ export const OrdersScreen: React.FC = () => {
     return o.status === selectedStatusTab;
   });
   const assignableDrivers = assignModalOrder?.customerGovernorateId
-    ? driverCustodies.filter((d) => d.governorateId === assignModalOrder.customerGovernorateId && d.isApproved !== false)
+    ? driverCustodies.filter((d) => d.governorateId === assignModalOrder.customerGovernorateId && d.isApproved !== false && d.status === 'ONLINE')
     : [];
 
   // ── Handlers ──
@@ -559,7 +559,7 @@ export const OrdersScreen: React.FC = () => {
                 <Text style={styles.assignSubtitle}>اختر موصلاً من محافظة العميل:</Text>
                 {assignableDrivers.length === 0 && (
                   <View style={styles.emptyBox}>
-                    <Text style={styles.emptyText}>{assignModalOrder.customerGovernorateId ? 'لا يوجد موصل مسجل في محافظة العميل' : 'محافظة العميل غير متاحة لهذا الطلب'}</Text>
+                    <Text style={styles.emptyText}>{assignModalOrder.customerGovernorateId ? 'لا يوجد موصل متصل ومتاح في محافظة العميل' : 'محافظة العميل غير متاحة لهذا الطلب'}</Text>
                   </View>
                 )}
                 {assignableDrivers.map((driver) => (
