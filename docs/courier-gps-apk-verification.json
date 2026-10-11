@@ -1,0 +1,21 @@
+{
+  "artifact": "courier-app-1.0.2-gps.apk",
+  "package": "com.bsstore.courier",
+  "versionName": "1.0.2",
+  "versionCode": 9,
+  "targetSdkVersion": 36,
+  "signatureVerified": true,
+  "requiredLocationPermissions": [
+    "android.permission.ACCESS_BACKGROUND_LOCATION",
+    "android.permission.ACCESS_COARSE_LOCATION",
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_LOCATION"
+  ],
+  "locationForegroundServicePresent": true,
+  "backgroundLocationTaskInBundle": true,
+  "sizeBytes": 76200994,
+  "sha256": "750617161303ee81e86913993ca5a782fdfd1c10d4670b5c29730471f3ab072c",
+  "physicalDeviceGpsTested": false,
+  "locationForegroundServiceTypeVerified": true
+}
