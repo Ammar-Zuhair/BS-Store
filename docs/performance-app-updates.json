@@ -1,0 +1,92 @@
+{
+  "checkedAt": "2026-10-11T18:40:03.896085+00:00",
+  "sourceSnapshotCommit": "1daaf152b50c2146b7dd161a04af9275ba1fa728",
+  "backendCommit": "33da01c",
+  "releases": [
+    {
+      "app": "admin",
+      "id": "01a12c3a-f938-737b-8b74-15419479e7c2",
+      "group": "9bb6cb1b-a567-4747-8899-c5a4f5fcb1f8",
+      "runtimeVersion": "1.0.1",
+      "platform": "android",
+      "createdAt": "2026-10-11T18:30:24.824Z",
+      "gitCommitHash": "0ad9b8d8db4ca1cc9be9a14d234c01ec55c8dde3",
+      "message": "Speed up admin saves and enforce available-courier assignment"
+    },
+    {
+      "app": "admin",
+      "id": "01a12c40-61a4-74bb-92af-00b47f8d47c1",
+      "group": "2f5dee0f-14d8-4903-8bd6-988a8eb647d4",
+      "runtimeVersion": "1.0.0",
+      "platform": "android",
+      "createdAt": "2026-10-11T18:36:19.236Z",
+      "gitCommitHash": "1daaf152b50c2146b7dd161a04af9275ba1fa728",
+      "message": "Improve admin saving and unavailable-courier protection on compatible installed builds"
+    },
+    {
+      "app": "customer",
+      "id": "01a12c3e-702b-73ce-ab40-a95ec081d89d",
+      "group": "4cef69dc-3892-48e9-8d45-bb53d6b9cc51",
+      "runtimeVersion": "1.0.2",
+      "platform": "android",
+      "createdAt": "2026-10-11T18:34:11.883Z",
+      "gitCommitHash": "1daaf152b50c2146b7dd161a04af9275ba1fa728",
+      "message": "Improve daily startup and session recovery"
+    },
+    {
+      "app": "customer",
+      "id": "01a12c40-5b8b-738f-89f1-7fa683e3ef5d",
+      "group": "21c93333-8921-44b0-9c50-194d84cc3f2f",
+      "runtimeVersion": "1.0.1",
+      "platform": "android",
+      "createdAt": "2026-10-11T18:36:17.675Z",
+      "gitCommitHash": "1daaf152b50c2146b7dd161a04af9275ba1fa728",
+      "message": "Improve startup and recover temporary session failures on installed customer builds"
+    },
+    {
+      "app": "customer",
+      "id": "01a12c43-3867-7046-9c86-600473f2dc1c",
+      "group": "dbc6e9ac-cf55-4137-8d5e-be4d52f6101c",
+      "runtimeVersion": "1.0.0",
+      "platform": "android",
+      "createdAt": "2026-10-11T18:39:25.287Z",
+      "gitCommitHash": "1daaf152b50c2146b7dd161a04af9275ba1fa728",
+      "message": "Recover customer sessions and load catalogue promptly on compatible older builds"
+    },
+    {
+      "app": "courier",
+      "id": "01a12c3e-094f-733e-b25f-1448618f311d",
+      "group": "df5b6474-7b0b-4d1b-a24c-42311a740bff",
+      "runtimeVersion": "1.0.2",
+      "platform": "android",
+      "createdAt": "2026-10-11T18:33:45.551Z",
+      "gitCommitHash": "1daaf152b50c2146b7dd161a04af9275ba1fa728",
+      "message": "Show busy courier immediately and improve session and dashboard refresh"
+    }
+  ],
+  "channels": [
+    {
+      "app": "admin",
+      "channel": "production",
+      "active": true,
+      "branch": "production"
+    },
+    {
+      "app": "customer",
+      "channel": "production",
+      "active": true,
+      "branch": "production"
+    },
+    {
+      "app": "courier",
+      "channel": "production",
+      "active": true,
+      "branch": "production"
+    }
+  ],
+  "notes": [
+    "Admin runtime 1.0.1 was exported from the tested workspace immediately before committing that same source snapshot; EAS records the previous Git HEAD for that first export.",
+    "No courier update was sent to pre-1.0.2 runtimes because those binaries lack required native GPS/background-task modules.",
+    "EAS confirms publication and production channel mapping; a physical-device install/update was not performed."
+  ]
+}
