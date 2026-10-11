@@ -17,25 +17,39 @@ import {
 } from 'react-native';
 import { typography, borderRadius, spacing, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
-import { authApi, governorateApi } from '../api';
+import { governorateApi } from '../api';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
 import { TermsModal } from '../components/TermsModal';
 import { AppIcon, AppIconName } from '../components/AppIcon';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 
-type AuthMode = 'phone' | 'password' | 'register';
+type AuthMode = 'login' | 'register';
 
 export const AuthScreen: React.FC = () => {
   const { login, register, registeredUser, colors: themeColors } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
-  const [mode, setMode] = useState<AuthMode>('phone');
+  const [mode, setMode] = useState<AuthMode>('login');
   const [isLoading, setIsLoading] = useState(false);
+  const loginInFlight = useRef(false);
+  const [loginBlockedUntil, setLoginBlockedUntil] = useState(0);
+  const [retrySeconds, setRetrySeconds] = useState(0);
 
-  // Phone Step State
+  useEffect(() => {
+    if (!loginBlockedUntil) return;
+    const update = () => {
+      const seconds = Math.max(0, Math.ceil((loginBlockedUntil - Date.now()) / 1000));
+      setRetrySeconds(seconds);
+      if (seconds === 0) setLoginBlockedUntil(0);
+    };
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [loginBlockedUntil]);
+
+  // Login form
   const [phone, setPhone] = useState(registeredUser ? registeredUser.phone : '');
 
-  // Password Step State
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -169,59 +183,32 @@ export const AuthScreen: React.FC = () => {
     setShowMapPicker(false);
   };
 
-  // ─── 1. Check Phone Number & Smart Routing ────────────────────────────────
-  const handleChooseAccountPath = async () => {
-    const cleanPhone = phone.trim();
-    if (!cleanPhone) {
-      Alert.alert('تنبيه', 'يرجى إدخال رقم الهاتف أولاً');
-      return;
-    }
-    if (cleanPhone.length < 9) {
-      Alert.alert('تنبيه', 'يرجى إدخال رقم هاتف صحيح مكون من 9 أرقام');
-      return;
-    }
-
-    setPhone(cleanPhone);
-    setRegPhone(cleanPhone);
-    setIsLoading(true);
-    try {
-      const result = await authApi.checkPhone(cleanPhone);
-      if (result.exists) {
-        switchMode('password');
-      } else {
-        Alert.alert(
-          'رقم الهاتف غير مسجل',
-          'لا يوجد حساب مرتبط بهذا الرقم. هل ترغب في إنشاء حساب جديد؟',
-          [
-            { text: 'إلغاء', style: 'cancel' },
-            { text: 'إنشاء حساب', onPress: () => switchMode('register') },
-          ]
-        );
-      }
-    } catch (error: any) {
-      Alert.alert('تعذر التحقق من الرقم', error?.message || 'تحقق من اتصالك وحاول مرة أخرى.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // ─── 2. Login with Password ──────────────────────────────────────────────
+  // Submit both credentials together; never look up account existence first.
   const handleLogin = async () => {
+    if (loginInFlight.current || Date.now() < loginBlockedUntil) return;
     const cleanPhone = phone.trim();
-    const cleanPassword = password.trim();
-
-    if (!cleanPassword) {
+    if (!cleanPhone || cleanPhone.length < 9) {
+      Alert.alert('تنبيه', 'يرجى إدخال رقم هاتف صحيح');
+      return;
+    }
+    if (!password) {
       Alert.alert('تنبيه', 'يرجى إدخال كلمة المرور');
       return;
     }
 
+    loginInFlight.current = true;
     setIsLoading(true);
     try {
-      await login(cleanPhone, cleanPassword);
-      // Once logged in, session is persisted in AsyncStorage by AppContext
-    } catch {
-      // error handled in AppContext
+      await login(cleanPhone, password);
+    } catch (error: any) {
+      // AppContext displays the server's generic credentials/lockout message.
+      if (error?.status === 429) {
+        const seconds = Number.isFinite(error?.retryAfterSeconds) ? Math.max(1, error.retryAfterSeconds) : 60;
+        setRetrySeconds(seconds);
+        setLoginBlockedUntil(Date.now() + seconds * 1000);
+      }
     } finally {
+      loginInFlight.current = false;
       setIsLoading(false);
     }
   };
@@ -305,7 +292,7 @@ export const AuthScreen: React.FC = () => {
   const handleForgotPassword = () => {
     Alert.alert(
       'استعادة كلمة المرور',
-      'سيتم إرسال رسالة SMS برابط إعادة تعيين كلمة المرور إلى رقمك المسجل.',
+      'لاستعادة الوصول إلى حسابك، تواصل مع الدعم الفني على الرقم 783053937.',
       [{ text: 'حسناً' }]
     );
   };
@@ -381,16 +368,11 @@ export const AuthScreen: React.FC = () => {
 
           {/* ─── Dynamic Animated Form Body ─── */}
           <Animated.View style={[styles.cardContainer, { opacity: formFadeAnim }]}>
-            {/* ════════════════════════════════════════════════════════════════
-                STEP 1: PHONE NUMBER ENTRY
-               ════════════════════════════════════════════════════════════════ */}
-            {mode === 'phone' && (
+            {mode === 'login' && (
               <View style={styles.formCard}>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>تسجيل الدخول / إنشاء حساب</Text>
-                  <Text style={styles.cardSubtitle}>
-                    أدخل رقم هاتفك للمتابعة والوصول السريع
-                  </Text>
+                  <Text style={styles.cardTitle}>تسجيل الدخول</Text>
+                  <Text style={styles.cardSubtitle}>أدخل رقم الهاتف وكلمة المرور للمتابعة</Text>
                 </View>
 
                 {/* Phone Input with +967 Badge */}
@@ -404,6 +386,10 @@ export const AuthScreen: React.FC = () => {
                       value={phone}
                       onChangeText={setPhone}
                       keyboardType="phone-pad"
+                      editable={!isLoading}
+                      autoComplete="tel"
+                      autoCorrect={false}
+                      maxLength={20}
                       textAlign="left"
                       accessibilityLabel="رقم الهاتف المحمول"
                     />
@@ -411,86 +397,6 @@ export const AuthScreen: React.FC = () => {
                       <Text style={styles.countryCode}>+967</Text>
                     </View>
                   </View>
-                </View>
-
-                {/* Primary Action: Continue */}
-                <TouchableOpacity
-                  style={[styles.primaryActionBtn, isLoading && { opacity: 0.75 }]}
-                  onPress={handleChooseAccountPath}
-                  disabled={isLoading}
-                  activeOpacity={0.88}
-                  accessibilityRole="button"
-                  accessibilityLabel="تسجيل الدخول أو إنشاء حساب حسب رقم الهاتف"
-                  accessibilityState={{ disabled: isLoading, busy: isLoading }}
-                >
-                  <View style={styles.btnRow}>
-                    {isLoading ? (
-                      <>
-                        <ActivityIndicator color={themeColors.onPrimary} size="small" />
-                        <Text style={styles.primaryBtnText}>جاري التحقق...</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Text style={styles.primaryBtnText}>تسجيل الدخول</Text>
-                        <AppIcon name="arrow-right" size={17} color={themeColors.onPrimary} />
-                      </>
-                    )}
-                  </View>
-                </TouchableOpacity>
-
-                {/* Register Account Button (Directly Underneath as Requested) */}
-                <TouchableOpacity
-                  style={styles.registerUnderneathBtn}
-                  onPress={() => {
-                    setRegPhone(phone);
-                    switchMode('register');
-                  }}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel="إنشاء حساب جديد"
-                >
-                  <View style={styles.btnRow}>
-                    <AppIcon name="plus" size={16} color={themeColors.primary} />
-                    <Text style={styles.registerUnderneathText}>إنشاء حساب جديد</Text>
-                  </View>
-                </TouchableOpacity>
-
-              </View>
-            )}
-
-            {/* ════════════════════════════════════════════════════════════════
-                STEP 1B: PASSWORD ENTRY (FOR REGISTERED PHONE)
-               ════════════════════════════════════════════════════════════════ */}
-            {mode === 'password' && (
-              <View style={styles.formCard}>
-                {/* Back to Phone Step Button */}
-                <TouchableOpacity
-                  style={styles.backRowBtn}
-                  onPress={() => switchMode('phone')}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel="تغيير رقم الهاتف"
-                >
-                  <AppIcon name="arrow-right" size={15} color={themeColors.primary} />
-                  <Text style={styles.backRowText}>تغيير رقم الهاتف</Text>
-                </TouchableOpacity>
-
-                {/* Verified Phone Badge */}
-                <View style={styles.phoneVerifiedBanner}>
-                  <View style={styles.phoneVerifiedCheck}>
-                    <Text style={styles.phoneCheckIcon}>✓</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end', flex: 1 }}>
-                    <Text style={styles.phoneVerifiedSub}>حساب مسجل مسبقاً</Text>
-                    <Text style={styles.phoneVerifiedNumber}>+967 {phone}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>أهلاً بك مجدداً!</Text>
-                  <Text style={styles.cardSubtitle}>
-                    يرجى إدخال كلمة المرور لحسابك للمتابعة
-                  </Text>
                 </View>
 
                 {/* Password Input */}
@@ -517,6 +423,13 @@ export const AuthScreen: React.FC = () => {
                       placeholder="••••••••"
                       placeholderTextColor={themeColors.outline}
                       value={password}
+                      editable={!isLoading}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      autoComplete="current-password"
+                      maxLength={128}
+                      returnKeyType="go"
+                      onSubmitEditing={handleLogin}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
                       accessibilityLabel="كلمة المرور"
@@ -539,15 +452,21 @@ export const AuthScreen: React.FC = () => {
                   <Text style={styles.checkboxLabel}>حفظ تسجيل الدخول على هذا الجهاز</Text>
                 </TouchableOpacity>
 
+                {retrySeconds > 0 && (
+                  <Text style={styles.cardSubtitle} accessibilityLiveRegion="polite">
+                    محاولات كثيرة. يمكنك المحاولة بعد {retrySeconds} ثانية.
+                  </Text>
+                )}
+
                 {/* Submit Login Button */}
                 <TouchableOpacity
-                  style={[styles.primaryActionBtn, isLoading && { opacity: 0.75 }]}
+                  style={[styles.primaryActionBtn, (isLoading || retrySeconds > 0) && { opacity: 0.75 }]}
                   onPress={handleLogin}
-                  disabled={isLoading}
+                  disabled={isLoading || retrySeconds > 0}
                   activeOpacity={0.88}
                   accessibilityRole="button"
                   accessibilityLabel="تسجيل الدخول"
-                  accessibilityState={{ disabled: isLoading, busy: isLoading }}
+                  accessibilityState={{ disabled: isLoading || retrySeconds > 0, busy: isLoading }}
                 >
                   {isLoading ? (
                     <View style={styles.btnRow}>
@@ -555,7 +474,7 @@ export const AuthScreen: React.FC = () => {
                       <Text style={styles.primaryBtnText}>جاري تسجيل الدخول...</Text>
                     </View>
                   ) : (
-                    <Text style={styles.primaryBtnText}>تسجيل الدخول والدخول للتطبيق ✓</Text>
+                    <Text style={styles.primaryBtnText}>تسجيل الدخول</Text>
                   )}
                 </TouchableOpacity>
 
@@ -570,7 +489,7 @@ export const AuthScreen: React.FC = () => {
                   >
                     <Text style={styles.switchLink}>إنشاء حساب جديد</Text>
                   </TouchableOpacity>
-                  <Text style={styles.switchText}>تريد استخدام حساب آخر؟</Text>
+                  <Text style={styles.switchText}>ليس لديك حساب؟</Text>
                 </View>
               </View>
             )}
@@ -580,10 +499,10 @@ export const AuthScreen: React.FC = () => {
                ════════════════════════════════════════════════════════════════ */}
             {mode === 'register' && (
               <View style={styles.formCard}>
-                {/* Back to Phone Step */}
+                {/* Back to login */}
                 <TouchableOpacity
                   style={styles.backRowBtn}
-                  onPress={() => switchMode('phone')}
+                  onPress={() => switchMode('login')}
                   activeOpacity={0.7}
                   accessibilityRole="button"
                   accessibilityLabel="الرجوع لتسجيل الدخول"
@@ -816,7 +735,7 @@ export const AuthScreen: React.FC = () => {
                   activeOpacity={0.88}
                   accessibilityRole="button"
                   accessibilityLabel="إنشاء الحساب والبدء بالتسوق"
-                  accessibilityState={{ disabled: isLoading, busy: isLoading }}
+                  accessibilityState={{ disabled: isLoading || retrySeconds > 0, busy: isLoading }}
                 >
                   {isLoading ? (
                     <View style={styles.btnRow}>
@@ -831,7 +750,7 @@ export const AuthScreen: React.FC = () => {
                 {/* Switch Back to Login */}
                 <View style={styles.switchRow}>
                   <TouchableOpacity
-                    onPress={() => switchMode('phone')}
+                    onPress={() => switchMode('login')}
                     activeOpacity={0.7}
                   >
                     <Text style={styles.switchLink}>تسجيل الدخول</Text>
@@ -1116,41 +1035,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontFamily: typography.fontFamily.bold,
     fontSize: 12,
     color: colors.primary,
-  },
-  phoneVerifiedBanner: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    backgroundColor: colors.primaryContainer,
-    borderWidth: 1,
-    borderColor: colors.success + '40',
-    borderRadius: borderRadius.lg,
-    padding: 10,
-    marginBottom: 16,
-    gap: 10,
-  },
-  phoneVerifiedCheck: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.success,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  phoneCheckIcon: {
-    color: colors.onPrimary,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  phoneVerifiedSub: {
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 10.5,
-    color: colors.onSurfaceVariant,
-  },
-  phoneVerifiedNumber: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 13,
-    color: colors.success,
-    letterSpacing: 1,
   },
   checkboxRow: {
     flexDirection: 'row-reverse',

@@ -6,9 +6,7 @@ export { api };
 
 // ─── Auth API ────────────────────────────────────────────────────────────────
 export const authApi = {
-  checkPhone: (phone: string) => api.post<{ exists: boolean }>('/auth/check-phone', { phone }),
-
-  login: async (phone: string, password = 'Password123!') => {
+  login: async (phone: string, password: string) => {
     const res = await api.post<{ accessToken: string; refreshToken: string; user: { id: string; name?: string; fullName?: string; phone: string; role: string } }>(
       '/auth/login',
       { phone, password, role: 'Customer' }

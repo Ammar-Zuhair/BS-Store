@@ -105,8 +105,10 @@ async function main(){
   await act(async()=>pressByText(tree,'حذف'));
   await act(async()=>alerts.at(-1)[2].find(b=>b.text==='حذف').onPress());assert.deepEqual(changes.at(-1),['delete','address']);
   await act(async()=>pressByText(tree,'سياسة الخصوصية'));
-  assert.equal(opened.at(-1),'https://ammar-zuhair.github.io/BS-Store/privacy-policy/');
+  assert.equal(opened.at(-1),'https://ammar-zuhair.github.io/BS-Store-Policy/');
   await act(async()=>pressByText(tree,'حذف الحساب'));
+  await act(async()=>pressByText(tree,'حذف الحساب عبر الموقع'));
+  assert.equal(opened.at(-1),'https://ammar-zuhair.github.io/BS-Store-Delete/');
   await act(async()=>pressByText(tree,'حذف حسابي نهائياً'));
   assert.equal(alerts.at(-1)[0],'كلمة المرور مطلوبة');
   await act(async()=>tree.root.findAllByType('TextInput')[0].props.onChangeText('DeletePass123'));

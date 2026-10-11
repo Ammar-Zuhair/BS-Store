@@ -151,7 +151,7 @@ export const ProfileScreen: React.FC = () => {
       </View>
       <View style={styles.card}>
         {button('تواصل مع الدعم الفني', () => setPage('support'), 'phone')}
-        {button('سياسة الخصوصية', () => { void Linking.openURL('https://ammar-zuhair.github.io/BS-Store/privacy-policy/').catch(showError); }, 'info')}
+        {button('سياسة الخصوصية', () => { void Linking.openURL('https://ammar-zuhair.github.io/BS-Store-Policy/').catch(showError); }, 'info')}
         {button('حول التطبيق', () => setPage('about'), 'info')}
       </View>
       {isAuthenticated && <View style={styles.card}>
@@ -190,6 +190,7 @@ export const ProfileScreen: React.FC = () => {
             <Text style={styles.text}>إذا كان لديك طلب قيد التنفيذ، أكمله أو ألغِه أولاً. يمكنك التواصل مع الدعم لطلب المساعدة في الحذف.</Text>
             <Text style={styles.label}>كلمة مرور الحساب</Text>
             <TextInput style={styles.input} value={deletionPassword} onChangeText={setDeletionPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} maxLength={128} accessibilityLabel="كلمة مرور الحساب لتأكيد الحذف" />
+            {button('حذف الحساب عبر الموقع', () => { void Linking.openURL('https://ammar-zuhair.github.io/BS-Store-Delete/').catch(showError); }, 'info')}
             <TouchableOpacity style={[styles.primary, { backgroundColor: colors.error }]} onPress={confirmAccountDeletion} disabled={busy} accessibilityRole="button">
               {busy ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.primaryText}>حذف حسابي نهائياً</Text>}
             </TouchableOpacity>

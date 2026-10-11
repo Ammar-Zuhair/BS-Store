@@ -4,14 +4,12 @@
 
 ## GitHub Pages
 
-في مستودع `Ammar-Zuhair/BS-Store` افتح Settings → Pages → Deploy from a branch → `main` → `/docs` → Save. لا تنشر جذر المستودع أو ملفات إعدادات الخادم. لا تحتاج أي سر GitHub لهذه الصفحات.
+الروابط الرسمية المنشورة:
 
-الرابطان المتوقعان بعد تفعيل Pages:
+- سياسة الخصوصية: `https://ammar-zuhair.github.io/BS-Store-Policy/`
+- حذف الحساب: `https://ammar-zuhair.github.io/BS-Store-Delete/`
 
-- سياسة الخصوصية: `https://ammar-zuhair.github.io/BS-Store/privacy-policy/`
-- حذف الحساب: `https://ammar-zuhair.github.io/BS-Store/account-deletion/`
-
-ضع الرابطين في Play Console. التطبيق يستخدم رابط السياسة أعلاه؛ إن نشرت على نطاق مختلف، عدّل الرابط في `customer-app/src/screens/ProfileScreen.tsx` وروابط الصفحات النسبية عند الحاجة. لم يتم تفعيل Pages أو النشر خارجياً بواسطة هذا التغيير.
+ضع الرابطين في Play Console. التطبيق وروابط الصفحات يستخدمان هذين العنوانين. لنشر النسخة المصدرية هنا في المستودعين المنفصلين، انسخ محتويات `docs/privacy-policy/` إلى مستودع `BS-Store-Policy`، ومحتويات `docs/account-deletion/` إلى مستودع `BS-Store-Delete` بما فيها `config.js` و`app.js` و`style.css`، ثم فعّل Pages من المجلد الذي يحتوي `index.html`. لا تنشر ملفات إعدادات الخادم أو أسراره.
 
 ## اتصال الخادم
 

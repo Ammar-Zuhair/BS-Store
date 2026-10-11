@@ -80,7 +80,7 @@ interface AppContextType {
   }) => Promise<Order>;
   isAuthenticated: boolean;
   isAuthLoading: boolean;
-  login: (phone: string, password?: string, name?: string) => Promise<void>;
+  login: (phone: string, password: string, name?: string) => Promise<void>;
   register: (name: string, phone: string, email: string, password?: string, initialAddress?: Omit<Address, 'id'>) => Promise<void>;
   logout: () => Promise<void>;
   user: { name: string; phone: string; email?: string } | null;
@@ -978,7 +978,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const login = async (phone: string, password = 'Password123!', name?: string) => {
+  const login = async (phone: string, password: string, name?: string) => {
     try {
       const res = await authApi.login(phone, password);
       const userData = { name: res.user.fullName || res.user.name || name || '', phone: res.user.phone };
