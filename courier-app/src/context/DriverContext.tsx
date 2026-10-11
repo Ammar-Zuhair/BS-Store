@@ -10,6 +10,8 @@ import {
 } from '../types';
 import { api, authApi, driverApi } from '../api';
 import { unregisterPushDevice } from '../notifications';
+import { AppState, Alert } from 'react-native';
+import { LOCATION_INTERVAL, prepareLocationTracking, startLocationTracking, stopLocationTracking, publishCurrentLocation } from '../location/tracking';
 
 export type CourierScreenName = 'dashboard' | 'route' | 'purchase' | 'wallet';
 
@@ -81,6 +83,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const signOut = async () => {
+    await stopLocationTracking();
     if (driver.shiftStatus === 'ONLINE' || driver.shiftStatus === 'BUSY') {
       try { await driverApi.updateStatus(1); } catch (error) { console.warn('تعذر تحويل حالة الموصل إلى غير متصل:', error); }
     }
@@ -278,17 +281,37 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (authenticated) void refreshData();
   }, [authenticated]);
 
-  const toggleShiftStatus = async () => {
-    const nextStatus = driver.shiftStatus === 'ONLINE' ? 1 : 0;
-    try {
-      await driverApi.updateStatus(nextStatus);
-      setDriver((prev) => ({
-        ...prev,
-        shiftStatus: nextStatus === 0 ? 'ONLINE' : 'OFFLINE',
-      }));
-    } catch (e) {
-      console.error('Failed to update shift status:', e);
+  useEffect(() => {
+    if (isSessionRestoring) return;
+    if (!authenticated || driver.shiftStatus === 'OFFLINE') {
+      void stopLocationTracking().catch(() => {});
+      return;
     }
+    let active = true;
+    const reportError = (error: unknown) => {
+      if (active) Alert.alert('تعذر تحديث الموقع', (error as Error)?.message || 'تحقق من صلاحيات الموقع والاتصال.');
+    };
+    // A restored shift must already have native permissions; no prompts from the background.
+    void startLocationTracking().catch(reportError);
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') void publishCurrentLocation().catch(() => {});
+    }, LOCATION_INTERVAL);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        void publishCurrentLocation().catch(() => {});
+        void refreshData();
+      }
+    });
+    return () => { active = false; clearInterval(timer); subscription.remove(); };
+  }, [authenticated, isSessionRestoring, driver.shiftStatus]);
+
+  const toggleShiftStatus = async () => {
+    if (driver.shiftStatus === 'BUSY') throw new Error('أكمل الطلب الحالي قبل إنهاء الوردية.');
+    const nextStatus = driver.shiftStatus === 'ONLINE' ? 1 : 0;
+    if (nextStatus === 0) await prepareLocationTracking();
+    await driverApi.updateStatus(nextStatus);
+    if (nextStatus === 1) await stopLocationTracking();
+    setDriver(prev => ({ ...prev, shiftStatus: nextStatus === 0 ? 'ONLINE' : 'OFFLINE' }));
   };
 
   const acceptCurrentOrder = async () => {

@@ -44,6 +44,8 @@ export const authApi = {
 
 // ─── Driver API ──────────────────────────────────────────────────────────────
 export const driverApi = {
+  updateLocation: (latitude: number, longitude: number, recordedAt: string) =>
+    api.put<{ updated: boolean; nextUpdateAfterSeconds: number }>('/driver/location', { latitude, longitude, recordedAt }),
   governorates: () => api.get<{id:string;name:string}[]>('/governorates'),
   myGovernorate: () => api.get<{governorateId:string|null}>('/profile/governorate'),
   updateGovernorate: (governorateId:string) => api.put('/profile/governorate',{governorateId}),

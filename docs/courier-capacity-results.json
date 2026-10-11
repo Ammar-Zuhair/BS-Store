@@ -1,0 +1,54 @@
+{
+  "measuredAt": "2026-10-11T17:22:12.0994442Z",
+  "environment": "4 vCPU / 4 GiB; local isolated PostgreSQL; 25 pooled connections; real two-store checkout \u002B GPS dispatch; test auth; no external push",
+  "results": [
+    {
+      "concurrency": 10,
+      "requests": 50,
+      "failures": 0,
+      "assignedCount": 50,
+      "requestsPerSecond": 9.86,
+      "p50Ms": 518.9,
+      "p95Ms": 2845,
+      "p99Ms": 2855.6,
+      "maxMs": 2855.6,
+      "errors": {}
+    },
+    {
+      "concurrency": 25,
+      "requests": 125,
+      "failures": 0,
+      "assignedCount": 125,
+      "requestsPerSecond": 14.93,
+      "p50Ms": 1354.7,
+      "p95Ms": 2486,
+      "p99Ms": 2600,
+      "maxMs": 2616.6,
+      "errors": {}
+    },
+    {
+      "concurrency": 50,
+      "requests": 250,
+      "failures": 0,
+      "assignedCount": 250,
+      "requestsPerSecond": 10.09,
+      "p50Ms": 3387.3,
+      "p95Ms": 13019,
+      "p99Ms": 13725.4,
+      "maxMs": 13765.8,
+      "errors": {}
+    },
+    {
+      "concurrency": 100,
+      "requests": 500,
+      "failures": 0,
+      "assignedCount": 500,
+      "requestsPerSecond": 10.53,
+      "p50Ms": 6380.8,
+      "p95Ms": 23493.3,
+      "p99Ms": 25772.6,
+      "maxMs": 26331.1,
+      "errors": {}
+    }
+  ]
+}

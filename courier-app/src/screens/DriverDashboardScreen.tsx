@@ -29,8 +29,8 @@ export const DriverDashboardScreen: React.FC = () => {
   const [isStartingTask, setIsStartingTask] = useState(false);
   useEffect(() => { void Promise.all([driverApi.governorates(), driverApi.myGovernorate()]).then(([list, mine]) => { setGovernorates(list); setGovernorateId(mine.governorateId || ''); }).catch(() => {}); }, []);
   const changeGovernorate = async (id:string) => { if (isChangingGovernorate) return; setIsChangingGovernorate(true); try { await driverApi.updateGovernorate(id); setGovernorateId(id); setShowGovernorates(false); Alert.alert('تم التحديث','تم تغيير محافظة عملك.'); } catch (e:any) { Alert.alert('تعذر التحديث',e?.message || 'حاول مرة أخرى.'); } finally { setIsChangingGovernorate(false); } };
-  const handleToggleShift = async () => { if (isTogglingShift) return; setIsTogglingShift(true); try { await toggleShiftStatus(); } finally { setIsTogglingShift(false); } };
-  const isOnline = driver.shiftStatus === 'ONLINE';
+  const handleToggleShift = async () => { if (isTogglingShift) return; setIsTogglingShift(true); try { await toggleShiftStatus(); } catch (e: any) { Alert.alert('تعذر تغيير الوردية', e?.message || 'حاول مرة أخرى.'); } finally { setIsTogglingShift(false); } };
+  const isOnline = driver.shiftStatus === 'ONLINE' || driver.shiftStatus === 'BUSY';
   const hasPendingStorePurchase = activeTask?.stops.some((stop) => stop.type === 'PICKUP_STORE' && stop.status !== 'COMPLETED') === true;
 
   const startTaskAt = async (destination: 'route' | 'purchase') => {
@@ -114,7 +114,7 @@ export const DriverDashboardScreen: React.FC = () => {
             <TouchableOpacity
               style={[styles.switchTrack, isOnline ? styles.trackOnline : styles.trackOffline]}
               onPress={handleToggleShift}
-              disabled={isTogglingShift}
+              disabled={isTogglingShift || driver.shiftStatus === 'BUSY'}
               activeOpacity={0.8}
             >
               {isTogglingShift ? <ActivityIndicator color="#fff" /> : <View style={[styles.switchKnob, isOnline ? styles.knobOnline : styles.knobOffline]} />}
@@ -122,11 +122,11 @@ export const DriverDashboardScreen: React.FC = () => {
 
             <View style={styles.statusTextBox}>
               <Text style={styles.statusTitle}>
-                {isOnline ? 'أنت متصل الآن ومؤهل لاستقبال الطلبات' : 'أنت غير متصل حالياً (في استراحة)'}
+                {driver.shiftStatus === 'BUSY' ? 'أنت مشغول بالطلب الحالي' : isOnline ? 'أنت متصل الآن ومؤهل لاستقبال الطلبات' : 'أنت غير متصل حالياً (في استراحة)'}
               </Text>
               <Text style={styles.statusDesc}>
                 {isOnline
-                  ? 'يتم إسناد الطلبات الأقرب لموقعك تلقائياً'
+                  ? 'يتحدث موقعك كل دقيقة أثناء الوردية، ويتوقف التتبع عند إنهائها'
                   : 'قم بالتفعيل للبدء في جني الأرباح واستلام المهام'}
               </Text>
             </View>

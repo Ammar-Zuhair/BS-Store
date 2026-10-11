@@ -3,7 +3,7 @@
     "name": "BS Store Courier",
     "owner": "ultra-horizon",
     "slug": "bs-store-courier",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "extra": {
       "eas": {
         "projectId": "ed8a7e42-be89-4bb1-8ee7-a99608dcda2c"
@@ -29,7 +29,17 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "نستخدم موقعك أثناء الوردية لتحديد قربك من متاجر الطلبات، حتى عندما يكون التطبيق في الخلفية.",
+          "locationWhenInUsePermission": "نستخدم موقعك لاختيار الطلبات القريبة منك أثناء الوردية.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
     ],
     "androidStatusBar": {
       "barStyle": "dark-content",

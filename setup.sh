@@ -37,3 +37,9 @@ if [ -d /workspace/.tools/android-sdk ] && ! command -v javac >/dev/null 2>&1; t
   apt-get update
   apt-get install -y openjdk-17-jdk-headless
 fi
+
+# Isolated PostgreSQL for courier concurrency checks and checkout capacity measurements.
+if ! command -v psql >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y postgresql
+fi

@@ -1,0 +1,8 @@
+{
+  "measuredAt": "2026-10-11T17:19:39.0112896Z",
+  "remoteDatabase": true,
+  "samples": 20,
+  "medianRoundTripMs": 8.58,
+  "p95RoundTripMs": 12.65,
+  "note": "Read-only SELECT 1 over the configured production connection; not checkout throughput."
+}
