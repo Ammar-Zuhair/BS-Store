@@ -1,0 +1,203 @@
+{
+  "checkedAt": "2026-10-12T17:31:58.444673+00:00",
+  "sourceSnapshotCommit": "59e0b7b1e8583434820f7ab702d9c45c1414983d",
+  "backendCommit": "6be88c02f907d740cc2e86bd4e4f4a146b1fac39",
+  "backend": {
+    "service": "bsstore-backend.service",
+    "port": 5295,
+    "bind": "0.0.0.0",
+    "localHealth": "healthy",
+    "publicHealth": "healthy",
+    "startupWarmupVerified": true,
+    "restartCount": 0,
+    "migrations": [
+      "20261012164044_AddDynamicProductAndBundleOptions",
+      "20261012170858_ExpandOptionOrderNameSnapshot"
+    ],
+    "productionReadOnlyChecks": {
+      "measuredAt": "2026-10-12T17:20:44.7521273Z",
+      "mode": "Read-only deployment checks",
+      "bundles": 0,
+      "pieces": 0,
+      "duplicateDealIds": 0,
+      "duplicatePieceIds": 0,
+      "missingPieceIds": 0,
+      "schemaInstalled": true,
+      "normalizedPieces": 0,
+      "backfillComplete": true
+    }
+  },
+  "validation": {
+    "postgresHttpChecks": 91,
+    "backendFeatureChecks": 32,
+    "typescriptApps": [
+      "admin",
+      "customer",
+      "courier"
+    ],
+    "passingSuites": [
+      "product-options",
+      "customer-offers",
+      "admin-refresh",
+      "session-recovery",
+      "courier-location",
+      "admin-payments",
+      "account-and-image-drafts",
+      "ota-compatibility",
+      "receipts-and-catalogue-images",
+      "mobile-env-audit"
+    ],
+    "physicalAndroidDeviceTested": false,
+    "productionCustomerOrdersCreatedByTests": false
+  },
+  "releases": [
+    {
+      "app": "admin",
+      "id": "01a13123-d016-7e48-ab13-f47ecf718cc8",
+      "group": "6c60a21e-363b-4675-8768-976ab0c0332a",
+      "runtimeVersion": "1.0.1",
+      "platform": "android",
+      "gitCommitHash": "59e0b7b1e8583434820f7ab702d9c45c1414983d",
+      "createdAt": "2026-10-12T17:23:13.046Z",
+      "manifestPermalink": "https://u.expo.dev/update/01a13123-d016-7e48-ab13-f47ecf718cc8"
+    },
+    {
+      "app": "admin",
+      "id": "01a13125-f5d3-7085-b33b-dd0e482f9ea0",
+      "group": "f9f380c3-2852-4d28-b0e1-c33d649e6797",
+      "runtimeVersion": "1.0.0",
+      "platform": "android",
+      "gitCommitHash": "59e0b7b1e8583434820f7ab702d9c45c1414983d",
+      "createdAt": "2026-10-12T17:25:33.779Z",
+      "manifestPermalink": "https://u.expo.dev/update/01a13125-f5d3-7085-b33b-dd0e482f9ea0"
+    },
+    {
+      "app": "customer",
+      "id": "01a13123-db44-726e-ac11-57ebb1cc80db",
+      "group": "c94601b5-0b8e-4891-871b-ea3b0282b9d3",
+      "runtimeVersion": "1.0.2",
+      "platform": "android",
+      "gitCommitHash": "59e0b7b1e8583434820f7ab702d9c45c1414983d",
+      "createdAt": "2026-10-12T17:23:15.908Z",
+      "manifestPermalink": "https://u.expo.dev/update/01a13123-db44-726e-ac11-57ebb1cc80db"
+    },
+    {
+      "app": "customer",
+      "id": "01a13125-fb19-72b1-819c-6426eaac3a5c",
+      "group": "fabd6b11-5c1e-4433-9b10-d427e1d68d3d",
+      "runtimeVersion": "1.0.1",
+      "platform": "android",
+      "gitCommitHash": "59e0b7b1e8583434820f7ab702d9c45c1414983d",
+      "createdAt": "2026-10-12T17:25:35.129Z",
+      "manifestPermalink": "https://u.expo.dev/update/01a13125-fb19-72b1-819c-6426eaac3a5c"
+    },
+    {
+      "app": "customer",
+      "id": "01a13127-c1f8-7c7a-b085-603cd2da145a",
+      "group": "aa703fb4-7921-4a15-a554-2d07b7a90cb0",
+      "runtimeVersion": "1.0.0",
+      "platform": "android",
+      "gitCommitHash": "59e0b7b1e8583434820f7ab702d9c45c1414983d",
+      "createdAt": "2026-10-12T17:27:31.576Z",
+      "manifestPermalink": "https://u.expo.dev/update/01a13127-c1f8-7c7a-b085-603cd2da145a"
+    },
+    {
+      "app": "courier",
+      "id": "01a13123-c0fb-773b-af05-b9cc3664c4e9",
+      "group": "91b8152d-4916-4c62-8f6e-9360e8cc432d",
+      "runtimeVersion": "1.0.2",
+      "platform": "android",
+      "gitCommitHash": "59e0b7b1e8583434820f7ab702d9c45c1414983d",
+      "createdAt": "2026-10-12T17:23:09.179Z",
+      "manifestPermalink": "https://u.expo.dev/update/01a13123-c0fb-773b-af05-b9cc3664c4e9"
+    }
+  ],
+  "channelChecks": [
+    {
+      "app": "admin",
+      "name": "production",
+      "isPaused": false,
+      "branches": [
+        "production"
+      ]
+    },
+    {
+      "app": "customer",
+      "name": "production",
+      "isPaused": false,
+      "branches": [
+        "production"
+      ]
+    },
+    {
+      "app": "courier",
+      "name": "production",
+      "isPaused": false,
+      "branches": [
+        "production"
+      ]
+    }
+  ],
+  "publishedBundleChecks": [
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.1",
+      "apiBaseUrl": "https://implosive-exchange-compacter.ngrok-free.dev/api",
+      "manifestId": "01a13123-d016-7e48-ab13-f47ecf718cc8",
+      "channelManifestVerified": true,
+      "featurePresent": true,
+      "bundleDownloaded": true,
+      "bundleBytes": 2787776
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.0",
+      "apiBaseUrl": "https://implosive-exchange-compacter.ngrok-free.dev/api",
+      "manifestId": "01a13125-f5d3-7085-b33b-dd0e482f9ea0",
+      "channelManifestVerified": true,
+      "featurePresent": true,
+      "bundleDownloaded": true,
+      "bundleBytes": 2787776
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.2",
+      "apiBaseUrl": "https://implosive-exchange-compacter.ngrok-free.dev/api",
+      "manifestId": "01a13123-db44-726e-ac11-57ebb1cc80db",
+      "channelManifestVerified": true,
+      "featurePresent": true,
+      "bundleDownloaded": true,
+      "bundleBytes": 2801472
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.1",
+      "apiBaseUrl": "https://implosive-exchange-compacter.ngrok-free.dev/api",
+      "manifestId": "01a13125-fb19-72b1-819c-6426eaac3a5c",
+      "channelManifestVerified": true,
+      "featurePresent": true,
+      "bundleDownloaded": true,
+      "bundleBytes": 2801472
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.0",
+      "apiBaseUrl": "https://implosive-exchange-compacter.ngrok-free.dev/api",
+      "manifestId": "01a13127-c1f8-7c7a-b085-603cd2da145a",
+      "channelManifestVerified": true,
+      "featurePresent": true,
+      "bundleDownloaded": true,
+      "bundleBytes": 2801472
+    },
+    {
+      "app": "courier",
+      "runtimeVersion": "1.0.2",
+      "apiBaseUrl": "https://implosive-exchange-compacter.ngrok-free.dev/api",
+      "manifestId": "01a13123-c0fb-773b-af05-b9cc3664c4e9",
+      "channelManifestVerified": true,
+      "featurePresent": true,
+      "bundleDownloaded": true,
+      "bundleBytes": 2354420
+    }
+  ]
+}
