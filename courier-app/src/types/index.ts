@@ -31,6 +31,10 @@ export interface TaskStop {
 }
 
 export interface TaskPurchasedItem {
+  baseName?: string;
+  selectedOptions?: { groupName: string; valueName: string }[];
+  bundleTitle?: string;
+  bundleGroupId?: string;
   id: string;
   name: string;
   quantity: number;

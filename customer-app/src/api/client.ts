@@ -232,6 +232,7 @@ class ApiClient {
     if (!response.ok) {
       const error = new Error(getHttpErrorMessage(response.status, data));
       (error as any).code = 'REQUEST_FAILED';
+      (error as any).apiCode = data?.code;
       (error as any).status = response.status;
       if (response.status === 429) {
         const retryAfter = Number(response.headers.get('Retry-After') ?? data?.retryAfterSeconds);

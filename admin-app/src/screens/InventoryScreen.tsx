@@ -1,3 +1,6 @@
+import * as Crypto from 'expo-crypto';
+import { ProductOptionsEditor } from '../components/ProductOptionsEditor';
+import { OptionsDefinition, emptyOptions, optionsInput } from '../options/model';
 /**
  * InventoryScreen → إدارة المنتجات الشاملة (4 تبويبات)
  * الفئات | المتاجر | المنتجات | العروض
@@ -399,13 +402,30 @@ export const InventoryScreen: React.FC = () => {
     { minAmount: '25000', maxAmount: '', discountPercent: '10' },
   ]);
   // Bundle items
-  const [bundleItems, setBundleItems] = useState<{ name: string; price: string; imageUrl?: string }[]>([]);
+  const [bundleItems, setBundleItems] = useState<{ id: string; name: string; price: string; imageUrl?: string; expectedPurchasePrice?: string; hasOptions?: boolean; options?: OptionsDefinition }[]>([]);
+  const [pieceEditorId, setPieceEditorId] = useState<string | null>(null);
+  const [pieceOptionsLoading, setPieceOptionsLoading] = useState(false);
+  const [pieceOptionsError, setPieceOptionsError] = useState('');
   const [bundleItemName, setBundleItemName] = useState('');
   const [bundleItemPrice, setBundleItemPrice] = useState('');
   const [dealImageUrl, setDealImageUrl] = useState('');
   const [showDealImagePicker, setShowDealImagePicker] = useState(false);
   const [bundleImageIndex, setBundleImageIndex] = useState<number | null>(null);
   const totalBundlePrice = bundleItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+
+  const editPieceOptions = async (pieceId: string) => {
+    setPieceEditorId(pieceId); setPieceOptionsError('');
+    const item = bundleItems.find(p => p.id === pieceId);
+    if (!item || item.options) return;
+    if (!editingDeal) { setBundleItems(current => current.map(p => p.id === pieceId ? { ...p, options: emptyOptions() } : p)); return; }
+    setPieceOptionsLoading(true);
+    try {
+      const detail = await adminApi.getPieceDetails(editingDeal.id, pieceId);
+      setBundleItems(current => current.map(p => p.id === pieceId ? { ...p, options: detail.options || emptyOptions(),
+        expectedPurchasePrice: detail.expectedPurchasePrice == null ? p.expectedPurchasePrice : String(detail.expectedPurchasePrice) } : p));
+    } catch (error: any) { setPieceOptionsError(error.message || 'تعذر تحميل خيارات القطعة'); }
+    finally { setPieceOptionsLoading(false); }
+  };
 
   // ── Loading states ────────────────────────────────────────────────────────
   const [isSavingCat, setIsSavingCat] = useState(false);
@@ -526,7 +546,7 @@ export const InventoryScreen: React.FC = () => {
       Alert.alert('تنبيه', 'يرجى إدخال سعر صحيح للمنتج');
       return;
     }
-    setBundleItems((prev) => [...prev, { name: bundleItemName.trim(), price: bundleItemPrice }]);
+    setBundleItems((prev) => [...prev, { id: Crypto.randomUUID(), name: bundleItemName.trim(), price: bundleItemPrice, expectedPurchasePrice: bundleItemPrice, options: emptyOptions() }]);
     setBundleItemName('');
     setBundleItemPrice('');
   };
@@ -567,11 +587,12 @@ export const InventoryScreen: React.FC = () => {
         { minAmount: '25000', maxAmount: '', discountPercent: '10' },
       ]);
     }
-    setBundleItems((deal.products?.length ? deal.products : deal.bundleItems || []).map((item) => ({
+    setBundleItems((deal.products?.length ? deal.products : deal.bundleItems || []).map((raw) => { const item = raw as any; return ({
+      id: item.id || Crypto.randomUUID(), expectedPurchasePrice: item.expectedPurchasePrice == null ? undefined : String(item.expectedPurchasePrice), hasOptions: item.hasOptions,
       name: item.name,
       price: String(item.price ?? 0),
       imageUrl: item.imageUrl,
-    })));
+    }); }));
     setShowDealForm(true);
   };
 
@@ -648,6 +669,14 @@ export const InventoryScreen: React.FC = () => {
 
     const codeUpper = dealCouponCode.trim() ? dealCouponCode.trim().toUpperCase() : undefined;
 
+    for (const item of bundleItems) {
+      if (!item.name.trim() || !Number.isFinite(Number(item.price)) || Number(item.price) <= 0) {
+        Alert.alert('تفاصيل القطعة', 'أدخل اسم القطعة وسعر بيع موجباً'); return;
+      }
+      if (item.options?.groups.length && (!item.expectedPurchasePrice?.trim() || !Number.isFinite(Number(item.expectedPurchasePrice)) || Number(item.expectedPurchasePrice) < 0)) {
+        Alert.alert('سعر الشراء المتوقع', `حدد سعر الشراء المتوقع للقطعة ${item.name}`); return;
+      }
+    }
     setIsSavingDeal(true);
     try {
       const dealData: Omit<AdminFlashDeal, 'id'> = {
@@ -687,11 +716,13 @@ export const InventoryScreen: React.FC = () => {
           : (isTieredDiscount ? 'شرائح خصم' : `خصم ${orderDiscountPct}%`),
         isFreeDelivery: isDelivery && deliveryPct === 100,
         products: isBundle ? bundleItems.map((item, index) => ({
-          id: editingDeal?.products?.[index]?.id || `piece-${Date.now()}-${index}`,
+          id: item.id,
           name: item.name,
           price: Number(item.price) || 0,
+          expectedPurchasePrice: item.expectedPurchasePrice?.trim() ? Number(item.expectedPurchasePrice) : null,
+          options: item.options ? optionsInput(item.options) as any : undefined,
           imageUrl: item.imageUrl,
-          description: editingDeal?.products?.[index]?.description || '',
+          description: editingDeal?.products?.find(p => p.id === item.id)?.description || '',
         })) : [],
       };
       if (editingDeal) await updateFlashDeal(editingDeal.id, dealData);
@@ -720,8 +751,8 @@ export const InventoryScreen: React.FC = () => {
       setDealType('bundle');
       setDealVisibility('home');
       Alert.alert('نجاح ✓', editingDeal ? 'تم تحديث العرض بنجاح' : 'تمت إضافة العرض بنجاح');
-    } catch {
-      Alert.alert('خطأ', 'فشل حفظ العرض');
+    } catch (error: any) {
+      Alert.alert('تعذر حفظ العرض', error.message || 'فشل حفظ العرض');
     } finally {
       setIsSavingDeal(false);
     }
@@ -1461,17 +1492,38 @@ export const InventoryScreen: React.FC = () => {
                 <>
                   <Text style={s.formLabel}>محتويات الباقة / الطقم</Text>
                   {bundleItems.map((item, i) => (
-                    <View key={i} style={s.bundleItemRow}>
+                    <View key={item.id} style={s.bundleItemRow}>
                       <TouchableOpacity onPress={() => setBundleItems((prev) => prev.filter((_, idx) => idx !== i))}>
                         <Text style={s.removeIcon}>✕</Text>
                       </TouchableOpacity>
                       <Text style={s.bundleItemPrice}>{item.price} ر.ي</Text>
                       <Text style={s.bundleItemName} numberOfLines={1}>{item.name}</Text>
+                      {i > 0 && <TouchableOpacity accessibilityLabel={`رفع ترتيب ${item.name}`} onPress={() => setBundleItems(current => {
+                        const next = [...current]; [next[i - 1], next[i]] = [next[i], next[i - 1]]; return next;
+                      })}><Text style={{ padding: 8 }}>↑</Text></TouchableOpacity>}
+                      <TouchableOpacity onPress={() => void editPieceOptions(item.id)}><Text style={{ color: '#2563EB', padding: 8 }}>الخيارات والأسعار</Text></TouchableOpacity>
                       <TouchableOpacity onPress={() => { setBundleImageIndex(i); setShowDealImagePicker(true); }}>
                         <Text style={s.removeIcon}>{item.imageUrl ? '🖼️✓' : '🖼️'}</Text>
                       </TouchableOpacity>
                     </View>
                   ))}
+                  {pieceEditorId && bundleItems.some(p => p.id === pieceEditorId) && <View style={{ gap: 8, paddingVertical: 12 }}>
+                    <Text style={s.formLabel}>تفاصيل {bundleItems.find(p => p.id === pieceEditorId)?.name}</Text>
+                    {pieceOptionsLoading ? <ActivityIndicator /> : pieceOptionsError ? <TouchableOpacity onPress={() => void editPieceOptions(pieceEditorId)}><Text>{pieceOptionsError} — إعادة المحاولة</Text></TouchableOpacity> : <>
+                      <TextInput style={s.formInput} placeholder="اسم القطعة" value={bundleItems.find(p => p.id === pieceEditorId)?.name || ''}
+                        onChangeText={name => setBundleItems(current => current.map(p => p.id === pieceEditorId ? { ...p, name } : p))} />
+                      <TextInput style={s.formInput} placeholder="سعر بيع القطعة الأساسي" keyboardType="decimal-pad" value={bundleItems.find(p => p.id === pieceEditorId)?.price || ''}
+                        onChangeText={price => setBundleItems(current => current.map(p => p.id === pieceEditorId ? { ...p, price } : p))} />
+                      <TextInput style={s.formInput} placeholder="سعر الشراء المتوقع (مطلوب للخيارات)" keyboardType="decimal-pad"
+                        value={bundleItems.find(p => p.id === pieceEditorId)?.expectedPurchasePrice || ''}
+                        onChangeText={expectedPurchasePrice => setBundleItems(current => current.map(p => p.id === pieceEditorId ? { ...p, expectedPurchasePrice } : p))} />
+                      <ProductOptionsEditor value={bundleItems.find(p => p.id === pieceEditorId)?.options || emptyOptions()}
+                        price={Number(bundleItems.find(p => p.id === pieceEditorId)?.price) || 0}
+                        cost={Number(bundleItems.find(p => p.id === pieceEditorId)?.expectedPurchasePrice) || 0}
+                        onChange={options => setBundleItems(current => current.map(p => p.id === pieceEditorId ? { ...p, options } : p))} />
+                    </>}
+                    <TouchableOpacity onPress={() => setPieceEditorId(null)}><Text>إغلاق تفاصيل القطعة</Text></TouchableOpacity>
+                  </View>}
                   <View style={s.bundleAddRow}>
                     <TouchableOpacity style={s.bundleAddBtn} onPress={handleAddBundleItem}>
                       <Text style={s.bundleAddBtnText}>+ إضافة</Text>

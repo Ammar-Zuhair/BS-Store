@@ -69,6 +69,23 @@ static class AccountAndCatalogueChecks
         await admin.SaveDeals(JsonDocument.Parse("[]").RootElement, default);
         await cleanup.ProcessAsync(default);
         Check(!client.Objects.ContainsKey(sharedKey), "Deleting the final offer reference must delete its R2 image");
+        var historyKey = $"catalogue/products/{Guid.NewGuid():N}.jpg";
+        var activeOptionKey = $"catalogue/products/{Guid.NewGuid():N}.jpg";
+        var retiredOptionKey = $"catalogue/products/{Guid.NewGuid():N}.jpg";
+        string PublicImage(string key) => "https://api.test/api/images/" + key[10..];
+        foreach (var key in new[] { historyKey, activeOptionKey, retiredOptionKey }) client.Objects[key] = [3];
+        db.OrderItems.Add(new OrderItem { SubOrder = new SubOrder { OrderId = order.Id, StoreId = store.Id }, ProductNameSnapshot = "Historical variant",
+            SelectedImageSnapshot = PublicImage(historyKey), Quantity = 1 });
+        var activeValue = new ProductOptionValue { Name = "Active", ImageUrl = PublicImage(activeOptionKey) };
+        db.ProductOptionGroups.Add(new ProductOptionGroup { ProductId = product.Id, Name = "Color", Values = [activeValue,
+            new ProductOptionValue { Name = "Retired", ImageUrl = PublicImage(retiredOptionKey), IsActive = false }] });
+        cleanup.Queue(new[] { PublicImage(historyKey), PublicImage(activeOptionKey), PublicImage(retiredOptionKey) });
+        await db.SaveChangesAsync(); await cleanup.ProcessAsync(default);
+        Check(client.Objects.ContainsKey(historyKey) && client.Objects.ContainsKey(activeOptionKey) && !client.Objects.ContainsKey(retiredOptionKey),
+            "Image cleanup protects historical order photos and active option photos while deleting unused retired photos");
+        activeValue.IsActive = false; cleanup.Queue([PublicImage(activeOptionKey)]);
+        await db.SaveChangesAsync(); await cleanup.ProcessAsync(default);
+        Check(!client.Objects.ContainsKey(activeOptionKey) && client.Objects.ContainsKey(historyKey), "Historical variant photo remains after every catalogue reference is removed");
         Check(CatalogueImageCleanup.Key("r2:private/receipts/test.jpg") == null && CatalogueImageCleanup.Key("../catalogue/stores/test.jpg") == null, "Catalogue cleanup cannot delete receipts or arbitrary paths");
         Console.WriteLine("PASS address edit/delete preserves order destinations, ownership/default checks, real account names, hashed password change/session revocation, persisted store/product deletion, shared image protection and offer image cleanup");
     }

@@ -132,6 +132,7 @@ class ApiClient {
       const data = await response.json().catch(() => null);
       const error = new Error(data?.message || getSafeHttpErrorMessage(response.status));
       (error as any).code = 'REQUEST_FAILED';
+      (error as any).apiCode = data?.code;
       (error as any).status = response.status;
       throw error;
     }

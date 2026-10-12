@@ -1,3 +1,4 @@
+import type { OptionsDefinition, VariantChoice, BundleSelection } from '../options/model';
 /**
  * Types & Domain Models for BS Store Platform
  * Derived from System Architecture Specification
@@ -61,6 +62,10 @@ export interface Store {
 }
 
 export interface BundlePiece {
+  hasOptions?: boolean;
+  options?: OptionsDefinition;
+  minSellingPrice?: number | null;
+  maxSellingPrice?: number | null;
   id: string;
   name: string;
   price: number;
@@ -69,6 +74,10 @@ export interface BundlePiece {
 }
 
 export interface Product {
+  hasOptions?: boolean;
+  options?: OptionsDefinition;
+  minSellingPrice?: number | null;
+  maxSellingPrice?: number | null;
   id: string;
   storeId: string;
   storeName: string;
@@ -90,7 +99,11 @@ export interface Product {
   dealProductId?: string;
 }
 
-export interface CartItem {
+export interface CartItem extends VariantChoice {
+  serverItemId?: string;
+  bundleTitle?: string;
+  bundleGroupId?: string;
+  bundleSelections?: BundleSelection[];
   product: Product;
   quantity: number;
   notes?: string;

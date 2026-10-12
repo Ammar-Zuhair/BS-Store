@@ -1,3 +1,4 @@
+import type { OptionsDefinition } from '../options/model';
 /**
  * Admin App Domain Models & Types
  * Derived from System Architecture Specification
@@ -46,6 +47,8 @@ export interface AdminKPI {
 export interface AdminOrderItem {
   productId: string;
   productName: string;
+  bundleTitle?: string;
+  bundleGroupId?: string;
   expectedPurchaseCost: number;
   sellingPrice: number;
   quantity: number;
@@ -189,7 +192,7 @@ export interface AdminFlashDeal {
   description?: string;
   badge?: string;
   isFreeDelivery?: boolean;
-  products?: { id: string; name: string; price: number; description?: string; imageUrl?: string }[];
+  products?: { id: string; name: string; price: number; description?: string; imageUrl?: string; expectedPurchasePrice?: number | null; hasOptions?: boolean; options?: OptionsDefinition }[];
 }
 
 export interface AdminProductPriceChange {
@@ -244,6 +247,8 @@ export interface AdminPriceChangeComplaint {
 }
 
 export interface AdminProduct {
+  hasOptions?: boolean;
+  options?: OptionsDefinition;
   id: string;
   name: string;
   description?: string;

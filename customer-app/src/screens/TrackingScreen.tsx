@@ -491,6 +491,7 @@ export const TrackingScreen: React.FC = () => {
                       {item.product.name}
                       {pieceName}
                     </Text>
+                    {!!item.bundleTitle && <Text style={{ textAlign: 'right', color: themeColors.primary }}>ضمن باقة: {item.bundleTitle}</Text>}
                     <Text style={styles.orderItemQty}>
                       الكمية: {item.quantity} × {itemPrice.toLocaleString()} ر.ي
                     </Text>

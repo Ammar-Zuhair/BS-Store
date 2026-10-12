@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 if (args.Contains("--query-diagnostics")) { await ProductionQueryChecks.RunAsync(); return; }
+if (args.Contains("--options-production-status")) { await OptionsDeploymentChecks.RunAsync(); return; }
 if (args.Contains("--probe-production-db")) { await ProductionLatency.RunAsync(); return; }
 
 // Fixed loopback database created by run.sh. No production configuration or credentials are loaded.
@@ -36,6 +37,7 @@ builder.Services.AddControllers().AddApplicationPart(typeof(CheckoutController).
 builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuthentication>("Test", _ => { });
 builder.Services.AddAuthorization();
 var app = builder.Build();
+app.UseMiddleware<BSStore.API.Middleware.ExceptionHandlingMiddleware>();
 app.UseAuthentication(); app.UseAuthorization(); app.MapControllers();
 var governorate = new Governorate { Name = "Dispatch test" };
 var otherGovernorate = new Governorate { Name = "Other test" };
@@ -184,6 +186,8 @@ using (var response = await http.SendAsync(request)) Check(response.IsSuccessSta
 using (var scope = app.Services.CreateScope()) Check(await scope.ServiceProvider.GetRequiredService<AppDbContext>().Drivers.AnyAsync(d => d.Id == closestFar.Id && d.Status == DriverStatus.Online), "completing the final task makes courier available again");
 Check(await Assign(extra.Id, closestFar.Id), "available courier can receive a new order after completion");
 
+
+await OptionsChecks.RunAsync(app, http, customer, near, category, Check);
 
 if (args.Contains("--benchmark"))
 {

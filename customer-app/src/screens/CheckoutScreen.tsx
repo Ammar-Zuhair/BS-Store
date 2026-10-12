@@ -1,3 +1,4 @@
+import { optionsLabel } from '../options/model';
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
@@ -252,12 +253,21 @@ export const CheckoutScreen: React.FC = () => {
             </View>
           </View>
           {cartSubOrders.map((so, idx) => (
-            <View key={so.storeId} style={styles.stopRow}>
+            <View key={so.storeId}>
+              <View style={styles.stopRow}>
               <CheckoutText style={styles.stopFee}>{so.subtotal.toLocaleString()} ر.ي</CheckoutText>
               <View style={styles.stopInfo}>
                 <CheckoutText style={styles.stopNumber}>محطة {idx + 1}:</CheckoutText>
                 <CheckoutText style={styles.stopName}>{so.storeName}</CheckoutText>
               </View>
+              </View>
+              {so.items.map((item, index) => <View key={index} style={{ paddingVertical: 4 }}>
+                <CheckoutText style={{ textAlign: 'right', color: themeColors.onSurface }}>{item.product.name} × {item.quantity}{optionsLabel(item.selectedOptions) ? ' — ' + optionsLabel(item.selectedOptions) : ''}</CheckoutText>
+                {item.bundleSelections?.map(choice => <CheckoutText key={choice.dealProductId} style={{ textAlign: 'right', color: themeColors.onSurfaceVariant }}>
+                  {item.product.bundleItems?.find(p => p.id === choice.dealProductId)?.name || choice.dealProductId}{optionsLabel(choice.selectedOptions) ? ' — ' + optionsLabel(choice.selectedOptions) : ''}
+                </CheckoutText>)}
+              </View>)}
+
             </View>
           ))}
         </View>

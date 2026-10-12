@@ -402,7 +402,9 @@ export const DriverDashboardScreen: React.FC = () => {
                           {(item.customerPrice * item.quantity).toLocaleString()} ر.ي
                         </Text>
                         <View style={styles.modalItemInfo}>
-                          <Text style={styles.modalItemName}>{item.name}</Text>
+                          <Text style={styles.modalItemName}>{item.baseName || item.name}</Text>
+              {!!item.selectedOptions?.length && <Text style={{ textAlign: 'right', color: '#475569' }}>{item.selectedOptions.map(o => `${o.groupName}: ${o.valueName}`).join(' — ')}</Text>}
+              {!!item.bundleTitle && <Text style={{ textAlign: 'right', color: '#2563EB' }}>ضمن باقة: {item.bundleTitle}</Text>}
                           <Text style={styles.modalItemSub}>
                           الكمية: {item.quantity} | سعر الوحدة على العميل: {item.customerPrice.toLocaleString()} ر.ي
                           </Text>

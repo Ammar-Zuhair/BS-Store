@@ -63,7 +63,9 @@ export const StorePurchaseScreen: React.FC = () => {
         ) : items.map((item) => (
           <View key={item.id} style={styles.itemCard}>
             <View style={styles.itemDetails}>
-              <Text style={styles.itemName}>{item.name}</Text>
+              <Text style={styles.itemName}>{item.baseName || item.name}</Text>
+              {!!item.selectedOptions?.length && <Text style={{ textAlign: 'right', color: '#475569' }}>{item.selectedOptions.map(o => `${o.groupName}: ${o.valueName}`).join(' — ')}</Text>}
+              {!!item.bundleTitle && <Text style={{ textAlign: 'right', color: '#2563EB' }}>ضمن باقة: {item.bundleTitle}</Text>}
               <Text style={styles.itemMeta}>الكمية: {item.quantity}</Text>
               <Text style={styles.priceLabel}>سعر الوحدة على العميل: {item.customerPrice.toLocaleString()} ر.ي</Text>
               <Text style={styles.lineTotal}>إجمالي الصنف على العميل: {(item.customerPrice * item.quantity).toLocaleString()} ر.ي</Text>

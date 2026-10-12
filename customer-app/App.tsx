@@ -1,3 +1,5 @@
+import { ProductDetailsModal } from './src/components/ProductDetailsModal';
+import { BundleOptionsModal } from './src/components/BundleOptionsModal';
 import { exitApplication } from './src/utils/exitApplication';
 import React, { useCallback, useEffect } from 'react';
 import {
@@ -57,6 +59,7 @@ const MainNavigator: React.FC = () => {
     colors: themeColors,
     refreshOrders,
     currentOrder,
+    productOptionsRequest, closeProductOptions, bundleOptionsRequest, closeBundleOptions,
   } = useApp();
   const onNotificationOpen = useCallback((type: string) => {
     navigateTo(type === 'order_status' ? 'tracking' : 'home');
@@ -167,6 +170,8 @@ const MainNavigator: React.FC = () => {
             hidden={false}
           />
           {resolvedScreen}
+          {productOptionsRequest && <ProductDetailsModal product={productOptionsRequest} onClose={closeProductOptions} />}
+          {bundleOptionsRequest && <BundleOptionsModal product={bundleOptionsRequest} onClose={closeBundleOptions} />}
           <BoosthisScreenTracker key={currentScreen} screen={BOOSTHIS_SCREEN_NAMES[currentScreen]} />
           {isAuthenticated && currentScreen !== 'auth' && <FloatingCartBar />}
           {showNav && <BottomNav />}

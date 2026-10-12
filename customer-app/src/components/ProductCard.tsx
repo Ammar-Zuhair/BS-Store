@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { CachedImage } from './CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Product } from '../types';
@@ -16,10 +16,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const isDiscounted = product.discountPrice && product.discountPrice < product.sellingPrice;
-  const currentPrice = isDiscounted ? product.discountPrice! : product.sellingPrice;
+  const currentPrice = product.hasOptions ? product.minSellingPrice ?? product.sellingPrice : isDiscounted ? product.discountPrice! : product.sellingPrice;
 
   const cartItem = cart.find((c) => c.product.id === product.id && !c.selectedPiece);
-  const qty = cartItem ? cartItem.quantity : 0;
+  const qty = !product.hasOptions && cartItem ? cartItem.quantity : 0;
 
   return (
     <TouchableOpacity
@@ -94,13 +94,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
           ) : (
             <TouchableOpacity
               style={styles.addBtn}
-              onPress={() => addToCart(product, 1)}
+              onPress={() => product.hasOptions && onPress ? onPress() : void addToCart(product, 1).catch(error => Alert.alert('تعذر الإضافة', error.message))}
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel={'إضافة ' + product.name + ' إلى السلة'}
             >
               <AppIcon name="plus" size={15} color={themeColors.onPrimary} />
-              <Text style={styles.addBtnText}>إضافة</Text>
+              <Text style={styles.addBtnText}>{product.hasOptions ? 'اختر الخيارات' : 'إضافة'}</Text>
             </TouchableOpacity>
           )}
         </View>

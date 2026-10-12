@@ -1,3 +1,4 @@
+import { VariantChoice, BundleSelection, optionsLabel, bundleUnitPrice } from '../options/model';
 import { formatOrderDate } from '../utils/orderDate';
 import * as React from 'react';
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
@@ -39,8 +40,13 @@ interface AppContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   cart: CartItem[];
-  addToCart: (product: Product, quantity?: number) => Promise<void>;
-  addBundlePieceToCart: (product: Product, piece: BundlePiece, quantity?: number) => void;
+  addToCart: (product: Product, quantity?: number, choice?: VariantChoice, bundleSelections?: BundleSelection[]) => Promise<void>;
+  productOptionsRequest: Product | null;
+  closeProductOptions: () => void;
+  bundleOptionsRequest: Product | null;
+  closeBundleOptions: () => void;
+  getItemKey: (item: CartItem) => string;
+  addBundlePieceToCart: (product: Product, piece: BundlePiece, quantity?: number) => Promise<void>;
   removeFromCart: (itemKey: string) => Promise<void>;
   updateQuantity: (itemKey: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -158,6 +164,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [selectedStoreDealId, setSelectedStoreDealId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [productOptionsRequest, setProductOptionsRequest] = useState<Product | null>(null);
+  const [bundleOptionsRequest, setBundleOptionsRequest] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [promoCode, setPromoCode] = useState<string>('');
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
@@ -232,6 +240,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         return {
           id: p.id,
+          hasOptions: p.hasOptions, minSellingPrice: p.minSellingPrice, maxSellingPrice: p.maxSellingPrice,
           storeId: p.storeId,
           storeName: p.storeName || '',
           categoryId: p.categoryId,
@@ -299,6 +308,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           .filter((p: any) => p?.id && p?.name)
           .map((p: any) => ({
             id: String(p.id),
+            hasOptions: p.hasOptions, minSellingPrice: p.minSellingPrice, maxSellingPrice: p.maxSellingPrice,
             name: String(p.name),
             price: Number(p.price) || 0,
             description: p.description || '',
@@ -506,7 +516,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               sourceType: 'IN_STOCK' as const,
               inStock: false,
             },
-            quantity: i.quantity || 1,
+            quantity: i.quantity || 1, bundleTitle: i.bundleTitle, bundleGroupId: i.bundleGroupId, variantId: i.variantId, selectedOptions: i.selectedOptions,
+            imageUrl: i.imageUrl, unitPrice: Number(i.unitPrice) || 0,
             originalUnitPrice: Number(i.originalUnitPrice ?? i.unitPrice) || 0,
             priceChangeId: i.priceChangeId || undefined,
           }))
@@ -566,66 +577,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [isAuthenticated]);
 
-  const getItemKey = (item: CartItem) =>
-    item.selectedPiece ? `${item.product.id}__piece__${item.selectedPiece.id}` : item.product.id;
+  const getItemKey = (item: CartItem) => {
+    const owner = item.selectedPiece ? `${item.product.id}__piece__${item.selectedPiece.id}` : item.product.id;
+    if (item.bundleSelections?.length && item.product.isBundle) return owner + '__bundle__' + [...item.bundleSelections].sort((a, b) => a.dealProductId.localeCompare(b.dealProductId)).map(s => `${s.dealProductId}:${s.variantId || ''}`).join('|');
+    return item.variantId ? owner + '__variant__' + item.variantId : owner;
+  };
 
-  const addToCart = async (product: Product, quantity = 1) => {
-    try {
-      if (isAuthenticated && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(product.id)) {
-        await cartApi.addItem(product.id, quantity);
+  const addToCart = async (product: Product, quantity = 1, choice?: VariantChoice, suppliedBundle?: BundleSelection[]) => {
+    if (product.hasOptions && !choice?.variantId) { setProductOptionsRequest(product); return; }
+    const dealPieces = product.isBundle ? deals.find(d => d.id === product.dealId)?.products || product.bundleItems || [] : [];
+    if (product.isBundle && dealPieces.some(p => p.hasOptions) && !suppliedBundle) { setBundleOptionsRequest({ ...product, bundleItems: dealPieces }); return; }
+    const bundleSelections: BundleSelection[] | undefined = suppliedBundle || (product.isBundle && dealPieces.length ? dealPieces.map(p => ({ dealProductId: p.id, unitPrice: p.price, imageUrl: p.imageUrl, selectedOptions: [] })) : undefined);
+    const localPrice = choice?.unitPrice ?? (product.isBundle && bundleSelections?.length
+      ? bundleUnitPrice(dealPieces, product.discountPrice ?? product.sellingPrice, bundleSelections)
+      : product.discountPrice ?? product.sellingPrice);
+    let saved: any;
+    if (isAuthenticated) {
+      try {
+        if (product.dealId || choice?.variantId) saved = await cartApi.addConfiguredItem({ productId: product.dealId ? undefined : product.id,
+          dealId: product.dealId, dealProductId: product.dealProductId, quantity, variantId: choice?.variantId,
+          imageValueId: choice?.imageValueId, bundleSelections: bundleSelections?.map(s => ({ dealProductId: s.dealProductId, variantId: s.variantId, imageValueId: s.imageValueId })) });
+        else if (/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(product.id)) saved = await cartApi.addItem(product.id, quantity);
+      } catch (error: any) {
+        // Business validation errors must never add an unavailable selection locally.
+        if (error?.apiCode === 'OPTIONS_REQUIRED' && !product.dealId) { setProductOptionsRequest({ ...product, hasOptions: true }); return; }
+        if (error?.status && error.status < 500) throw error;
+        if (__DEV__) console.info('Cart synchronization deferred:', error.message);
       }
-    } catch (err: any) {
-      if (__DEV__) console.info('Cart backend sync deferred:', err.message);
     }
-
-    setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id && !item.selectedPiece);
-      if (existing) {
-        return prev.map((item) =>
-          item.product.id === product.id && !item.selectedPiece
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        );
-      }
-      return [...prev, { product, quantity }];
+    const serverItem = saved?.items?.find((i: any) => i.id === saved.addedItemId);
+    const entry: CartItem = { product, quantity, ...choice, bundleSelections,
+      unitPrice: serverItem?.unitPrice ?? localPrice, imageUrl: choice?.imageUrl || product.imageUrl,
+      serverItemId: serverItem?.id };
+    setCart(previous => {
+      const key = getItemKey(entry), current = previous.find(item => getItemKey(item) === key);
+      return current ? previous.map(item => getItemKey(item) === key ? { ...item, ...entry, quantity: item.quantity + quantity } : item) : [...previous, entry];
     });
   };
 
-  const addBundlePieceToCart = (product: Product, piece: BundlePiece, quantity = 1) => {
-    setCart((prev) => {
-      const existing = prev.find(
-        (item) => item.product.id === product.id && item.selectedPiece?.id === piece.id
-      );
-      if (existing) {
-        return prev.map((item) =>
-          item.product.id === product.id && item.selectedPiece?.id === piece.id
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        );
-      }
-      return [...prev, { product, quantity, selectedPiece: piece }];
-    });
+  const addBundlePieceToCart = async (product: Product, piece: BundlePiece, quantity = 1) => {
+    const pieceProduct: Product = { ...product, id: `${product.dealId || product.id}_${piece.id}`, name: piece.name,
+      description: piece.description || '', sellingPrice: piece.price, discountPrice: undefined,
+      imageUrl: piece.imageUrl || product.imageUrl, images: piece.imageUrl ? [piece.imageUrl] : [],
+      dealId: product.dealId || product.id, dealProductId: piece.id, isBundle: false, hasOptions: piece.hasOptions,
+      minSellingPrice: piece.minSellingPrice, maxSellingPrice: piece.maxSellingPrice };
+    await addToCart(pieceProduct, quantity);
   };
 
   const removeFromCart = async (itemKey: string) => {
-    setCart((prev) =>
-      prev.filter((item) => getItemKey(item) !== itemKey && item.product.id !== itemKey)
-    );
+    const item = cart.find(item => getItemKey(item) === itemKey);
+    if (item?.serverItemId) await cartApi.removeItem(item.serverItemId);
+    setCart(previous => previous.filter(item => getItemKey(item) !== itemKey));
   };
 
   const updateQuantity = async (itemKey: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(itemKey);
-      return;
-    }
-    setCart((prev) =>
-      prev.map((item) => {
-        if (getItemKey(item) === itemKey || (!item.selectedPiece && item.product.id === itemKey)) {
-          return { ...item, quantity };
-        }
-        return item;
-      })
-    );
+    if (quantity <= 0) { await removeFromCart(itemKey); return; }
+    const item = cart.find(item => getItemKey(item) === itemKey);
+    if (item?.serverItemId) await cartApi.updateItem(item.serverItemId, quantity);
+    setCart(previous => previous.map(item => getItemKey(item) === itemKey ? { ...item, quantity } : item));
   };
 
   const clearCart = async () => {
@@ -654,7 +663,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const cartSubOrders: SubOrderGroup[] = Array.from(storeMap.entries()).map(([storeId, items]) => {
     const subtotal = items.reduce((sum, item) => {
-      const price = item.selectedPiece ? item.selectedPiece.price : (item.product.discountPrice ?? item.product.sellingPrice);
+      const price = item.unitPrice ?? (item.selectedPiece ? item.selectedPiece.price : (item.product.discountPrice ?? item.product.sellingPrice));
       return sum + price * item.quantity;
     }, 0);
     const deliveryFee = Number(deliveryQuote?.storeFees[storeId]) || 0;
@@ -905,7 +914,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           productId: c.product.dealId ? undefined : c.product.id,
           dealId: c.product.dealId,
           dealProductId: c.product.dealProductId,
-          quantity: c.quantity,
+          quantity: c.quantity, variantId: c.variantId, imageValueId: c.imageValueId,
+          bundleSelections: c.bundleSelections?.map(selection => ({ dealProductId: selection.dealProductId, variantId: selection.variantId, imageValueId: selection.imageValueId })),
         })),
       });
 
@@ -1072,6 +1082,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSearchQuery,
         cart,
         addToCart,
+        productOptionsRequest, closeProductOptions: () => setProductOptionsRequest(null),
+        bundleOptionsRequest, closeBundleOptions: () => setBundleOptionsRequest(null), getItemKey,
         addBundlePieceToCart,
         removeFromCart,
         updateQuantity,

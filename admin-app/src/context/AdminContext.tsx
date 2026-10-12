@@ -285,6 +285,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           items: (so.items || []).map((i: any) => ({
             productId: i.productId,
             productName: i.productName || i.productNameSnapshot || 'منتج',
+            bundleTitle: i.bundleTitle,
+            bundleGroupId: i.bundleGroupId,
             sellingPrice: Number(i.unitPrice ?? i.sellingPriceSnapshot ?? (i.totalPrice && i.quantity ? Math.round(i.totalPrice / i.quantity) : 0)),
             quantity: i.quantity || 1,
             expectedPurchaseCost: i.expectedPurchasePrice != null
@@ -371,6 +373,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return {
             id: p.id,
             name: p.name,
+            hasOptions: p.hasOptions,
             description: cleanDesc,
             storeId: p.storeId,
             storeName: p.storeName || 'متجر معتمد',
@@ -820,6 +823,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         expectedPurchasePrice: Number(prodData.expectedPurchasePrice || 0),
         sellingPrice: Number(prodData.sellingPrice || 0),
         images: imageList,
+        options: prodData.options,
       }, 'products', prepared => adminApi.createProduct(prepared));
       void refreshResources(["products", "categories", "stores"]);
       navigateTo('inventory');
@@ -849,6 +853,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sellingPrice: Number(data.sellingPrice ?? 0),
         isActive: data.isActive ?? true,
         images: imageList,
+        options: data.options,
       }, 'products', prepared => adminApi.updateProduct(productId, prepared));
       setEditingProduct(null);
       void refreshResources(["products", "categories", "stores"]);

@@ -320,7 +320,7 @@ export const OrdersScreen: React.FC = () => {
                     </Text>
                     {sub.items.map((it, itemIdx) => (
                       <Text key={itemIdx} style={{ fontSize: 12, color: colors.onSurfaceVariant, paddingRight: 10, fontFamily: 'Tajawal_500Medium', textAlign: 'right' }}>
-                        - {it.productName || 'صنف'} (×{it.quantity})
+                        - {it.bundleTitle ? `ضمن ${it.bundleTitle}: ` : ''}{it.productName || 'صنف'} (×{it.quantity})
                       </Text>
                     ))}
                   </View>
@@ -421,7 +421,7 @@ export const OrdersScreen: React.FC = () => {
                             {(it.sellingPrice * it.quantity).toLocaleString()} ر.ي
                           </Text>
                           <Text style={styles.soItemName}>
-                            {it.productName} (×{it.quantity})
+                            {it.bundleTitle ? `ضمن ${it.bundleTitle}: ` : ''}{it.productName} (×{it.quantity})
                           </Text>
                         </View>
                       ))}

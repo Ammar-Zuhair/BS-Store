@@ -151,6 +151,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       (so.items || []).map((i: any) => ({
         id: i.id,
         name: i.productNameSnapshot,
+        baseName: i.baseProductName, selectedOptions: i.selectedOptions, bundleTitle: i.bundleTitle, bundleGroupId: i.bundleGroupId,
         quantity: i.quantity,
         customerPrice: Number(i.unitPrice) || 0,
         imageUrl: i.imageUrl || '',

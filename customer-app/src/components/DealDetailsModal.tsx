@@ -1,3 +1,4 @@
+import type { OptionsDefinition } from '../options/model';
 import React, { useMemo } from 'react';
 import {
   View,
@@ -34,6 +35,9 @@ export interface DealItem {
   discountPercent: number;
   products: {
     id: string;
+    hasOptions?: boolean;
+    options?: OptionsDefinition;
+    minSellingPrice?: number | null;
     name: string;
     price: number;
     description?: string;
@@ -84,7 +88,7 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
   };
 
   // Convert deal products to BundlePiece
-  const handleAddPiece = (piece: { id: string; name: string; price: number; description?: string; imageUrl?: string }) => {
+  const handleAddPiece = (piece: { id: string; name: string; price: number; description?: string; imageUrl?: string; hasOptions?: boolean; minSellingPrice?: number | null }) => {
     if (!deal.storeId) return;
     const parentProd: Product = {
       id: `${deal.id}_${piece.id}`,
@@ -99,8 +103,10 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
       inStock: true,
       dealId: deal.id,
       dealProductId: piece.id,
+      hasOptions: piece.hasOptions, minSellingPrice: piece.minSellingPrice,
     };
-    addToCart(parentProd, 1);
+    if (piece.hasOptions) onClose();
+    void addToCart(parentProd, 1).catch(error => Alert.alert('تعذر الإضافة', error.message));
   };
 
   const handleAddWholeDeal = () => {
@@ -118,6 +124,7 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
       sourceType: 'IN_STOCK',
       inStock: true,
       isBundle: true,
+      bundleItems: deal.products,
       dealId: deal.id,
     };
     addToCart(wholeDealProd, 1);

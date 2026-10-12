@@ -1,8 +1,11 @@
+import type { OptionsDefinition, BundleSelection } from '../options/model';
 import { api } from './client';
 import { prepareReceiptUpload } from '../utils/receiptUpload';
+import { createReadLimiter } from '../utils/requests';
 import { Address, Order, PaymentMethodType, Product, Store, Category } from '../types';
 
 export { api };
+const readPiece = createReadLimiter(3);
 
 // ─── Auth API ────────────────────────────────────────────────────────────────
 export const authApi = {
@@ -109,6 +112,10 @@ export interface ApiStore {
 }
 
 export interface ApiProduct {
+  hasOptions?: boolean;
+  options?: OptionsDefinition;
+  minSellingPrice?: number | null;
+  maxSellingPrice?: number | null;
   id: string;
   name: string;
   description?: string;
@@ -166,6 +173,7 @@ export const catalogApi = {
     return api.get<{ items: ApiProduct[]; page: number; totalCount: number }>(`/products${qs ? `?${qs}` : ''}`);
   },
   getProduct: (id: string) => api.get<ApiProduct>(`/products/${id}`),
+  getPiece: (dealId: string, pieceId: string) => readPiece(() => api.get<any>(`/deals/${encodeURIComponent(dealId)}/pieces/${encodeURIComponent(pieceId)}`)),
   searchProducts: (q: string) => api.get<ApiProduct[]>(`/products/search?q=${encodeURIComponent(q)}`),
   getDeals: (params?: { categoryId?: string; storeId?: string }) => {
     const query = new URLSearchParams();
@@ -181,6 +189,7 @@ export const cartApi = {
   getCart: () => api.get<any>('/cart'),
   addItem: (productId: string, quantity = 1, notes?: string) =>
     api.post<any>('/cart/items', { productId, quantity, notes }),
+  addConfiguredItem: (input: { productId?: string; quantity: number; variantId?: string; imageValueId?: string; dealId?: string; dealProductId?: string; bundleSelections?: BundleSelection[] }) => api.post<any>('/cart/items', input),
   updateItem: (id: string, quantity: number, notes?: string) =>
     api.put<any>(`/cart/items/${id}`, { quantity, notes }),
   removeItem: (id: string) => api.delete<any>(`/cart/items/${id}`),
@@ -273,7 +282,7 @@ export const ordersApi = {
     productDiscountDealId?: string;
     transferProvider?: 'ALKURAIMI' | 'WALLET';
     transferReference?: string;
-    items?: { productId?: string; dealId?: string; dealProductId?: string; quantity: number }[];
+    items?: { productId?: string; dealId?: string; dealProductId?: string; quantity: number; variantId?: string; imageValueId?: string; bundleSelections?: BundleSelection[] }[];
   }) => api.post<any>('/checkout/place-order', req),
 
   getMyOrders: () => api.get<any[]>('/orders'),

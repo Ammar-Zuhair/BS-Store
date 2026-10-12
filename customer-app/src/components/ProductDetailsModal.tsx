@@ -1,5 +1,8 @@
+import { catalogApi } from '../api';
+import { OptionSelector } from './OptionSelector';
+import { OptionsDefinition, VariantChoice } from '../options/model';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
 import { CachedImage } from './CachedImage';
 import { Product } from '../types';
 import { borderRadius, spacing, ThemeColors, typography } from '../theme';
@@ -12,6 +15,20 @@ interface Props { product: Product | null; onClose: () => void }
 export const ProductDetailsModal: React.FC<Props> = ({ product, onClose }) => {
   const { addToCart, colors } = useApp();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const [definition, setDefinition] = useState<OptionsDefinition | null>(null);
+  const [choice, setChoice] = useState<VariantChoice | null>(null);
+  const [previewImage, setPreviewImage] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [reload, setReload] = useState(0);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    let active = true; setDefinition(null); setChoice(null); setPreviewImage(''); setLoadError('');
+    if (!product?.hasOptions) return;
+    const load = product.dealId && product.dealProductId ? catalogApi.getPiece(product.dealId, product.dealProductId) : catalogApi.getProduct(product.id);
+    load.then(detail => { if (active) setDefinition(detail.options || { groups: [], variants: [] }); })
+      .catch(error => { if (active) setLoadError(error.message || 'تعذر تحميل خيارات المنتج'); });
+    return () => { active = false; };
+  }, [product?.id, product?.hasOptions, reload]);
   const [imageIndex, setImageIndex] = useState(0);
   const images = useMemo(() => Array.from(new Set([...(product?.images || []), product?.imageUrl].filter((item): item is string => Boolean(item)))), [product]);
 
@@ -35,9 +52,9 @@ export const ProductDetailsModal: React.FC<Props> = ({ product, onClose }) => {
             <Text style={styles.headerTitle}>تفاصيل المنتج</Text>
           </View>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
-            <CachedImage source={{ uri: images[imageIndex] || product.imageUrl }} style={styles.hero} resizeMode="contain" accessibilityLabel={'صورة ' + product.name} />
+            <CachedImage source={{ uri: previewImage || images[imageIndex] || product.imageUrl }} style={styles.hero} resizeMode="contain" accessibilityLabel={'صورة ' + product.name} />
             {images.length > 1 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbnails}>
-              {images.map((uri, index) => <TouchableOpacity key={`${uri}-${index}`} onPress={() => setImageIndex(index)} style={[styles.thumbWrap, index === imageIndex && styles.thumbSelected]} accessibilityRole="button" accessibilityLabel={`عرض الصورة ${index + 1} من ${images.length}`} accessibilityState={{ selected: index === imageIndex }}>
+              {images.map((uri, index) => <TouchableOpacity key={`${uri}-${index}`} onPress={() => { setPreviewImage(''); setImageIndex(index); }} style={[styles.thumbWrap, index === imageIndex && styles.thumbSelected]} accessibilityRole="button" accessibilityLabel={`عرض الصورة ${index + 1} من ${images.length}`} accessibilityState={{ selected: index === imageIndex }}>
                 <CachedImage source={{ uri }} style={styles.thumb} resizeMode="cover" />
               </TouchableOpacity>)}
             </ScrollView>}
@@ -47,16 +64,20 @@ export const ProductDetailsModal: React.FC<Props> = ({ product, onClose }) => {
               <Text style={styles.store}>{product.storeName}</Text>
             </View>
             {!!product.description?.trim() && <Text style={styles.description}>{product.description}</Text>}
-            <Text style={styles.price}>{(product.discountPrice ?? product.sellingPrice).toLocaleString()} ر.ي</Text>
+            {product.hasOptions && (loadError ? <TouchableOpacity onPress={() => setReload(n => n + 1)}><Text>{loadError} — إعادة المحاولة</Text></TouchableOpacity>
+              : definition ? <OptionSelector key={product.id} definition={definition} fallbackImage={product.imageUrl} onChoice={setChoice} onImage={setPreviewImage} /> : <ActivityIndicator color={colors.primary} />)}
+            <Text style={styles.price}>{product.hasOptions && !choice ? 'ابتداءً من ' : ''}{(choice?.unitPrice ?? product.minSellingPrice ?? product.discountPrice ?? product.sellingPrice).toLocaleString()} ر.ي</Text>
             {product.discountPrice != null && product.discountPrice < product.sellingPrice && <Text style={styles.oldPrice}>{product.sellingPrice.toLocaleString()} ر.ي</Text>}
             <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => { void addToCart(product, 1); onClose(); }}
+              style={[styles.addButton, (saving || (product.hasOptions && !choice)) && { opacity: 0.5 }]}
+              disabled={saving || (!!product.hasOptions && !choice)}
+              onPress={async () => { setSaving(true); try { await addToCart(product, 1, choice || undefined); onClose(); }
+                catch (error: any) { Alert.alert('تعذر الإضافة', error.message); if (error.apiCode === 'VARIANT_UNAVAILABLE') setReload(n => n + 1); } finally { setSaving(false); } }}
               accessibilityRole="button"
               accessibilityLabel={'إضافة ' + product.name + ' إلى السلة'}
             >
               <AppIcon name="shopping-bag" size={18} color={colors.onPrimary} />
-              <Text style={styles.addText}>إضافة إلى السلة</Text>
+              <Text style={styles.addText}>{saving ? 'جارٍ الإضافة...' : 'إضافة إلى السلة'}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

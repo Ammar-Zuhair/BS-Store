@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  View,
+  View, Alert,
   Text,
   StyleSheet,
   ScrollView,
@@ -21,7 +21,7 @@ export const StoreDetailScreen: React.FC = () => {
     selectedStore,
     selectedStoreDealId,
     navigateTo,
-    addToCart,
+    addToCart, getItemKey,
     addBundlePieceToCart,
     removeFromCart,
     updateQuantity,
@@ -58,6 +58,7 @@ export const StoreDetailScreen: React.FC = () => {
   // Include composite bundles and deals belonging to this store
   const storeDealsAsBundles: Product[] = storeDeals.map((d) => ({
       id: d.id,
+      dealId: d.id,
       storeId: store?.id || '',
       storeName: store?.name || '',
       categoryId: d.categoryId || store?.categoryId || '',
@@ -73,7 +74,7 @@ export const StoreDetailScreen: React.FC = () => {
       bundleItems: d.products.map((p) => ({
         id: p.id,
         name: p.name,
-        price: p.price,
+        price: p.price, hasOptions: p.hasOptions, minSellingPrice: p.minSellingPrice,
         description: p.description,
         imageUrl: p.imageUrl,
       })),
@@ -215,7 +216,7 @@ export const StoreDetailScreen: React.FC = () => {
               const cartItem = cart.find(
                 (i) => i.product.id === product.id && !i.selectedPiece
               );
-              const quantity = cartItem?.quantity || 0;
+              const quantity = product.hasOptions || (isBundle && product.bundleItems?.some(p => p.hasOptions)) ? 0 : cartItem?.quantity || 0;
 
               return (
                 <TouchableOpacity
@@ -286,7 +287,7 @@ export const StoreDetailScreen: React.FC = () => {
                         <View style={styles.stepper}>
                           <TouchableOpacity
                             style={styles.stepBtn}
-                            onPress={() => updateQuantity(product.id, quantity + 1)}
+                            onPress={() => updateQuantity(cartItem ? getItemKey(cartItem) : product.id, quantity + 1)}
                             accessibilityRole="button"
                             accessibilityLabel={`زيادة كمية ${product.name}`}
                           >
@@ -295,7 +296,7 @@ export const StoreDetailScreen: React.FC = () => {
                           <Text style={styles.stepQty}>{quantity}</Text>
                           <TouchableOpacity
                             style={styles.stepBtn}
-                            onPress={() => updateQuantity(product.id, quantity - 1)}
+                            onPress={() => updateQuantity(cartItem ? getItemKey(cartItem) : product.id, quantity - 1)}
                             accessibilityRole="button"
                             accessibilityLabel={`تقليل كمية ${product.name}`}
                           >
@@ -306,7 +307,7 @@ export const StoreDetailScreen: React.FC = () => {
                     ) : (
                       <TouchableOpacity
                         style={styles.simpleAddBtn}
-                        onPress={() => addToCart(product, 1)}
+                        onPress={() => void addToCart(product, 1).catch(error => Alert.alert('تعذر الإضافة', error.message))}
                         activeOpacity={0.85}
                         accessibilityRole="button"
                         accessibilityLabel={`إضافة ${product.name} إلى السلة`}
@@ -400,7 +401,7 @@ export const StoreDetailScreen: React.FC = () => {
                         i.product.id === selectedBundleProduct.id &&
                         !i.selectedPiece
                     );
-                    const fullBundleQty = fullBundleItem?.quantity || 0;
+                    const fullBundleQty = selectedBundleProduct.bundleItems?.some(p => p.hasOptions) ? 0 : fullBundleItem?.quantity || 0;
 
                     if (fullBundleQty > 0) {
                       return (
@@ -413,7 +414,7 @@ export const StoreDetailScreen: React.FC = () => {
                               style={styles.stepBtn}
                               onPress={() =>
                                 updateQuantity(
-                                  selectedBundleProduct.id,
+                                  getItemKey(fullBundleItem!),
                                   fullBundleQty + 1
                                 )
                               }
@@ -427,7 +428,7 @@ export const StoreDetailScreen: React.FC = () => {
                               style={styles.stepBtn}
                               onPress={() =>
                                 updateQuantity(
-                                  selectedBundleProduct.id,
+                                  getItemKey(fullBundleItem!),
                                   fullBundleQty - 1
                                 )
                               }
@@ -445,7 +446,9 @@ export const StoreDetailScreen: React.FC = () => {
                       <TouchableOpacity
                         style={styles.fullBundleOrderBtn}
                         activeOpacity={0.88}
-                        onPress={() => addToCart(selectedBundleProduct, 1)}
+                        onPress={() => { const bundle = selectedBundleProduct;
+                          if (bundle.bundleItems?.some(p => p.hasOptions)) setSelectedBundleProduct(null);
+                          void addToCart(bundle, 1).catch(error => Alert.alert('تعذر الإضافة', error.message)); }}
                         accessibilityRole="button"
                         accessibilityLabel={selectedBundleProduct.isBundle ? 'إضافة الطقم كاملاً إلى السلة' : 'إضافة المنتج إلى السلة'}
                       >
@@ -466,12 +469,8 @@ export const StoreDetailScreen: React.FC = () => {
                     </Text>
 
                     {selectedBundleProduct.bundleItems.map((piece) => {
-                      const pieceItemKey = `${selectedBundleProduct.id}__piece__${piece.id}`;
-                      const pieceCartItem = cart.find(
-                        (i) =>
-                          i.product.id === selectedBundleProduct.id &&
-                          i.selectedPiece?.id === piece.id
-                      );
+                      const pieceCartItem = piece.hasOptions ? undefined : cart.find(i => i.product.dealId === (selectedBundleProduct.dealId || selectedBundleProduct.id) && i.product.dealProductId === piece.id);
+                      const pieceItemKey = pieceCartItem ? getItemKey(pieceCartItem) : `${selectedBundleProduct.id}__piece__${piece.id}`;
                       const pieceQty = pieceCartItem?.quantity || 0;
 
                       return (
@@ -517,13 +516,9 @@ export const StoreDetailScreen: React.FC = () => {
                             <TouchableOpacity
                               style={styles.pieceAddButton}
                               activeOpacity={0.85}
-                              onPress={() =>
-                                addBundlePieceToCart(
-                                  selectedBundleProduct,
-                                  piece,
-                                  1
-                                )
-                              }
+                              onPress={() => { const bundle = selectedBundleProduct;
+                                if (piece.hasOptions) setSelectedBundleProduct(null);
+                                void addBundlePieceToCart(bundle, piece, 1).catch(error => Alert.alert('تعذر الإضافة', error.message)); }}
                               accessibilityRole="button"
                               accessibilityLabel={`طلب ${piece.name}`}
                             >

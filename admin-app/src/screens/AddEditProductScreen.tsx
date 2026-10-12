@@ -1,3 +1,6 @@
+import { adminApi } from '../api';
+import { ProductOptionsEditor } from '../components/ProductOptionsEditor';
+import { emptyOptions, optionsInput, OptionsDefinition } from '../options/model';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
@@ -196,6 +199,21 @@ export const AddEditProductScreen: React.FC = () => {
     stores,
     updateStore,
   } = useAdmin();
+
+  const [productOptions, setProductOptions] = useState<OptionsDefinition>(emptyOptions());
+  const [optionsLoading, setOptionsLoading] = useState(!!editingProduct);
+  const [optionsError, setOptionsError] = useState('');
+  const [optionsReload, setOptionsReload] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setOptionsError('');
+    if (!editingProduct) { setProductOptions(emptyOptions()); setOptionsLoading(false); return; }
+    setOptionsLoading(true);
+    adminApi.getProductDetails(editingProduct.id).then(details => { if (active) setProductOptions(details.options || emptyOptions()); })
+      .catch(error => { if (active) setOptionsError(error.message || 'تعذر تحميل خيارات المنتج'); })
+      .finally(() => { if (active) setOptionsLoading(false); });
+    return () => { active = false; };
+  }, [editingProduct?.id, optionsReload]);
 
   const [isSavingProduct, setIsSavingProduct] = useState(false);
 
@@ -424,6 +442,11 @@ export const AddEditProductScreen: React.FC = () => {
       return;
     }
 
+    if (optionsLoading || optionsError) { Alert.alert('خيارات المنتج', 'انتظر تحميل الخيارات أو أعد المحاولة قبل الحفظ'); return; }
+    let preparedOptions;
+    try { preparedOptions = optionsInput(productOptions); }
+    catch (error: any) { Alert.alert('خيارات المنتج', error.message); return; }
+
     const storeObj = selectedStore;
     const catObj = currentCategory || categories[0];
 
@@ -448,6 +471,7 @@ export const AddEditProductScreen: React.FC = () => {
       isActive: isActiveForOrder,
       imageUrl: finalImages[0],
       images: finalImages,
+      options: preparedOptions as any,
     };
 
     setIsSavingProduct(true);
@@ -717,6 +741,9 @@ export const AddEditProductScreen: React.FC = () => {
             </View>
             <Text style={{ fontSize: 18 }}>🧮</Text>
           </View>
+
+          {optionsLoading ? <ActivityIndicator /> : optionsError ? <TouchableOpacity onPress={() => setOptionsReload(n => n + 1)}><Text>{optionsError} — إعادة المحاولة</Text></TouchableOpacity>
+            : <ProductOptionsEditor value={productOptions} onChange={setProductOptions} price={sellNum} cost={costNum} />}
 
           <View style={styles.twoColsRow}>
             {/* سعر الشراء من المتجر */}

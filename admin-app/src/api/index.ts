@@ -158,6 +158,9 @@ export const adminApi = {
     return api.get<{ items: any[]; page: number; totalCount: number }>(`/admin/products${qs ? `?${qs}` : ''}`);
   },
 
+  getProductDetails: (id: string) => api.get<any>(`/admin/products/${id}`),
+  getPieceDetails: (dealId: string, pieceId: string) => api.get<any>(`/admin/deals/${encodeURIComponent(dealId)}/pieces/${encodeURIComponent(pieceId)}`),
+
   createProduct: (data: any) =>
     api.post<any>('/admin/products', data),
 

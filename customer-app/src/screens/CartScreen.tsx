@@ -1,3 +1,4 @@
+import { optionsLabel } from '../options/model';
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { CachedImage } from '../components/CachedImage';
@@ -10,7 +11,7 @@ import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 export const CartScreen: React.FC = () => {
   const {
     cart,
-    cartSubOrders,
+    cartSubOrders, getItemKey,
     updateQuantity,
     removeFromCart,
     cartSubtotal,
@@ -105,17 +106,21 @@ export const CartScreen: React.FC = () => {
 
               {subOrder.items.map((item) => {
                 const itemPrice =
-                  item.product.discountPrice ?? item.product.sellingPrice;
+                  item.unitPrice ?? item.product.discountPrice ?? item.product.sellingPrice;
                 return (
-                  <View key={item.product.id} style={styles.itemRow}>
+                  <View key={getItemKey(item)} style={styles.itemRow}>
                     <CachedImage
-                      source={{ uri: item.product.imageUrl }}
+                      source={{ uri: item.imageUrl || item.product.imageUrl }}
                       style={styles.itemImage}
                     />
                     <View style={styles.itemDetails}>
                       <Text style={styles.itemName} numberOfLines={1}>
                         {item.product.name}
                       </Text>
+                      {!!item.selectedOptions?.length && <Text style={{ textAlign: 'right', color: themeColors.onSurfaceVariant }}>{optionsLabel(item.selectedOptions)}</Text>}
+                      {item.bundleSelections?.map(selection => <Text key={selection.dealProductId} style={{ textAlign: 'right', color: themeColors.onSurfaceVariant }}>
+                        {item.product.bundleItems?.find(piece => piece.id === selection.dealProductId)?.name || selection.dealProductId}{optionsLabel(selection.selectedOptions) ? ' — ' + optionsLabel(selection.selectedOptions) : ''}
+                      </Text>)}
                       <Text style={styles.itemPrice}>
                         {(itemPrice * item.quantity).toLocaleString()} ر.ي
                       </Text>
@@ -126,7 +131,7 @@ export const CartScreen: React.FC = () => {
                       <TouchableOpacity
                         style={styles.stepBtn}
                         onPress={() =>
-                          updateQuantity(item.product.id, item.quantity + 1)
+                          updateQuantity(getItemKey(item), item.quantity + 1)
                         }
                         accessibilityRole="button"
                         accessibilityLabel={`زيادة كمية ${item.product.name}`}
@@ -137,7 +142,7 @@ export const CartScreen: React.FC = () => {
                       <TouchableOpacity
                         style={styles.stepBtn}
                         onPress={() =>
-                          updateQuantity(item.product.id, item.quantity - 1)
+                          updateQuantity(getItemKey(item), item.quantity - 1)
                         }
                         accessibilityRole="button"
                         accessibilityLabel={`تقليل كمية ${item.product.name}`}
