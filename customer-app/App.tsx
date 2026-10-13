@@ -31,6 +31,7 @@ import { AuthScreen } from './src/screens/AuthScreen';
 import { CategoryScreen } from './src/screens/CategoryScreen';
 import { FloatingCartBar } from './src/components/FloatingCartBar';
 import { BottomNav } from './src/components/BottomNav';
+import { AppBackground } from './src/components/AppBackground';
 import { colors } from './src/theme';
 import { usePushNotifications } from './src/notifications';
 import { api } from './src/api';
@@ -149,20 +150,16 @@ const MainNavigator: React.FC = () => {
         style={[
           styles.safeArea,
           {
-            backgroundColor: themeColors.surfaceContainerLowest,
+            backgroundColor: isDarkMode ? '#080A0E' : '#EEF2F6',
           },
         ]}
         edges={['top', 'left', 'right']}
       >
         <View
           key={isDarkMode ? 'dark' : 'light'}
-          style={[
-            styles.appContainer,
-            {
-              backgroundColor: themeColors.background,
-            },
-          ]}
+          style={styles.appContainer}
         >
+          <AppBackground isDark={isDarkMode} />
           <StatusBar
             barStyle={isDarkMode ? 'light-content' : 'dark-content'}
             backgroundColor="transparent"
@@ -212,16 +209,16 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: '#080A0E',
   },
   appContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
     position: 'relative',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#080A0E',
     alignItems: 'center',
     justifyContent: 'center',
   },

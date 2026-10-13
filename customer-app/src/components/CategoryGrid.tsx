@@ -48,9 +48,11 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryPress }) =
             accessibilityLabel={'تصفح فئة ' + cat.name}
             accessibilityHint="يفتح متاجر وعروض هذه الفئة"
           >
-            <Text style={styles.categoryIcon} accessible={false}>
-              {cat.icon}
-            </Text>
+            <View style={styles.iconCircle}>
+              <Text style={styles.categoryIcon} accessible={false}>
+                {cat.icon}
+              </Text>
+            </View>
 
             <Text style={styles.categoryName} numberOfLines={1}>
               {cat.name}
@@ -114,19 +116,29 @@ const createStyles = (colors: ThemeColors) =>
   gridItem: {
     width: '48%',
     backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
+    borderRadius: borderRadius.xxl,
     padding: spacing.baseMd,
-    minHeight: 132,
+    minHeight: 140,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.outlineVariant,
     ...shadows.card,
   },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.surfaceContainerLow,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.baseSm,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+  },
   categoryIcon: {
-    fontSize: 34,
-    lineHeight: 42,
-    marginBottom: spacing.baseXs,
+    fontSize: 32,
+    lineHeight: 38,
   },
   categoryName: {
     fontFamily: typography.fontFamily.bold,

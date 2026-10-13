@@ -113,21 +113,23 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
   card: {
     backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
+    borderRadius: borderRadius.xxl,
     flexDirection: 'row-reverse',
     padding: spacing.baseSm,
     marginBottom: spacing.baseSm,
     borderWidth: 1,
-    borderColor: colors.outlineVariant + '30',
+    borderColor: colors.outlineVariant,
     ...shadows.card,
   },
   imageWrap: {
-    width: 90,
-    height: 90,
-    borderRadius: borderRadius.lg,
+    width: 92,
+    height: 92,
+    borderRadius: borderRadius.xl,
     overflow: 'hidden',
     position: 'relative',
     marginLeft: spacing.baseSm,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
   },
   image: {
     width: '100%',

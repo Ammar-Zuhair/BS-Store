@@ -24,7 +24,14 @@ export const OrderHoursBanner: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  card: { marginHorizontal: spacing.screenGutter, marginTop: spacing.baseMd, padding: spacing.baseMd, borderRadius: borderRadius.xl, borderWidth: 1, gap: 5 },
+  card: {
+    marginHorizontal: spacing.screenGutter,
+    marginTop: spacing.baseMd,
+    padding: spacing.baseMd,
+    borderRadius: borderRadius.xxl,
+    borderWidth: 1,
+    gap: 6,
+  },
   title: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.md, textAlign: 'right' },
   status: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, textAlign: 'right' },
   description: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, textAlign: 'right' },

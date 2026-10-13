@@ -42,7 +42,11 @@ export const BottomNav: React.FC = () => {
               <View
                 style={[
                   styles.iconWrap,
-                  isActive && { backgroundColor: themeColors.primaryContainer },
+                  isActive && {
+                    backgroundColor: themeColors.primaryContainer,
+                    borderWidth: 1,
+                    borderColor: themeColors.outlineVariant,
+                  },
                 ]}
               >
                 <AppIcon

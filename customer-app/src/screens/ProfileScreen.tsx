@@ -229,7 +229,7 @@ export const ProfileScreen: React.FC = () => {
 };
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.surface },
+  container: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: 18, paddingBottom: 110, gap: 16 },
   card: { backgroundColor: c.surfaceContainerLowest, borderRadius: 18, padding: 16, gap: 12, borderWidth: 1, borderColor: c.outline + '30' },
   identity: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14 },

@@ -16,9 +16,14 @@ const sourceRoot = path.resolve(__dirname, '../src');
 let serverOrders = [{ id: 'order-1', orderNumber: '101', status: 9, subOrders: [], createdAt: '2026-10-06T06:00:00Z' }];
 const serverHours = { isEnabled: true, openingTime: '09:00', closingTime: '23:00', serverTime: '2026-10-06T06:00:00Z', timeZone: 'Asia/Aden' };
 const serverStore = { id: 'store-1', name: 'متجر الاختبار', phone: '', address: 'صنعاء', isActive: true, openingTime: '09:00', closingTime: '23:00', is24Hours: false };
-const storage = { getItem: async () => null, setItem: async () => {}, removeItem: async () => {}, multiRemove: async () => {} };
+const storage = {
+  getItem: async (key) => key === '@bs_customer_user' ? JSON.stringify({ name: 'عميل الاختبار', phone: '0000000' }) : key === 'auth_token' ? 'test-token' : null,
+  setItem: async () => {},
+  removeItem: async () => {},
+  multiRemove: async () => {},
+};
 const native = {
-  StyleSheet: { create: value => value, flatten: value => value },
+  StyleSheet: { create: value => value, flatten: value => value, absoluteFillObject: {} },
   AppState: { currentState: 'active', addEventListener: (_, callback) => {
     appStateListeners.add(callback); return { remove() { appStateListeners.delete(callback); } };
   } },
@@ -26,7 +31,7 @@ const native = {
   ...Object.fromEntries(['View', 'Text', 'ScrollView', 'TouchableOpacity', 'RefreshControl', 'ActivityIndicator', 'TextInput'].map(name => [name, name])),
 };
 const apiMock = {
-  api: { getToken: () => 'test-token', initToken: async () => 'test-token', refreshSession: async () => {},
+  api: { getToken: () => 'test-token', initToken: async () => 'test-token', refreshSession: async () => true,
     setSessionExpiredHandler() {}, get: async () => serverHours },
   authApi: { me: async () => ({ fullName: 'عميل الاختبار', phone: '0000000' }) },
   catalogApi: { getCategories: async () => [], getStores: async () => [serverStore], getProducts: async () => ({ items: [] }), getDeals: async () => [] },
@@ -43,11 +48,24 @@ function load(file) {
     if (specifier === 'react-native') return native;
     if (specifier === 'react' || specifier === 'react/jsx-runtime') return require(specifier);
     if (specifier === '@react-native-async-storage/async-storage') return storage;
+    if (specifier === 'expo-linear-gradient') return { LinearGradient: 'LinearGradient' };
+    if (specifier === 'react-native-svg') return {
+      default: 'Svg',
+      Svg: 'Svg',
+      Path: 'Path',
+      Defs: 'Defs',
+      LinearGradient: 'LinearGradient',
+      RadialGradient: 'RadialGradient',
+      Stop: 'Stop',
+      Circle: 'Circle',
+      Rect: 'Rect',
+      G: 'G',
+    };
     if (specifier.endsWith('/api')) return apiMock;
     if (specifier.endsWith('/notifications')) return { unregisterPushDevice: async () => {} };
     const name = path.basename(specifier);
-    if (['Header', 'AppIcon', 'CachedImage', 'KeyboardAwareScrollView', 'BoosthisRuntime'].includes(name)) {
-      return { [name]: name, BoosthisScreenTracker: () => null };
+    if (['Header', 'AppIcon', 'CachedImage', 'KeyboardAwareScrollView', 'BoosthisRuntime', 'AppBackground'].includes(name)) {
+      return { [name]: name, BoosthisScreenTracker: () => null, AppBackground: () => null };
     }
     if (specifier.endsWith('/transferReceipt')) return {};
     const base = path.resolve(path.dirname(file), specifier);
