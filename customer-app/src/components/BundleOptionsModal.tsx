@@ -38,26 +38,33 @@ export function BundleOptionsModal({ product, onClose }: { product: Product | nu
   const complete = pieces.every(piece => !piece.hasOptions || !!choices[piece.id]?.variantId);
   const price = bundleUnitPrice(pieces, product.discountPrice ?? product.sellingPrice, selections);
   return <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-    <View style={s.backdrop}><View style={[s.sheet, { backgroundColor: colors.background }]}>
-      <View style={s.row}><Text style={[s.title, { color: colors.onSurface }]}>اختيارات {product.name}</Text><TouchableOpacity onPress={onClose}><Text style={s.close}>إغلاق</Text></TouchableOpacity></View>
-      <ScrollView>
-        <Text style={s.hint}>حدد تفاصيل كل قطعة. يطبق خصم الباقة على أسعار الاختيارات.</Text>
+    <View style={s.backdrop}><View style={[s.sheet, { backgroundColor: colors.sheetBackground, borderColor: colors.outlineVariant }]}>
+      <View style={s.row}><Text style={[s.title, { color: colors.onSurface }]}>اختيارات {product.name}</Text><TouchableOpacity onPress={onClose}><Text style={[s.close, { color: colors.primary }]}>إغلاق</Text></TouchableOpacity></View>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Text style={[s.hint, { color: colors.onSurfaceVariant }]}>حدد تفاصيل كل قطعة. يطبق خصم الباقة على أسعار الاختيارات.</Text>
         {pieces.map(piece => piece.hasOptions
           ? <PieceChoices key={piece.id} dealId={product.dealId || product.id} piece={piece} fallbackImage={product.imageUrl}
               onChoice={choice => setChoices(current => ({ ...current, [piece.id]: choice }))} />
-          : <View key={piece.id} style={s.piece}><Text style={[s.title, { color: colors.onSurface }]}>{piece.name}</Text><Text style={{ color: colors.onSurface }}>{piece.price.toLocaleString()} ر.ي</Text></View>)}
+          : <View key={piece.id} style={[s.piece, { borderBottomColor: colors.outlineVariant }]}><Text style={[s.title, { color: colors.onSurface }]}>{piece.name}</Text><Text style={{ color: colors.onSurface }}>{piece.price.toLocaleString()} ر.ي</Text></View>)}
       </ScrollView>
       <Text style={[s.title, { color: colors.primary }]}>{complete ? 'سعر الباقة' : 'السعر حسب الاختيارات'}: {price.toLocaleString()} ر.ي</Text>
       <TouchableOpacity accessibilityLabel="إضافة الباقة بالاختيارات" disabled={!complete || saving}
         style={[s.button, { backgroundColor: colors.primary, opacity: !complete || saving ? 0.5 : 1 }]}
         onPress={async () => { setSaving(true); try { await addToCart(product, 1, undefined, selections); onClose(); }
           catch (error: any) { Alert.alert('تعذر إضافة الباقة', error.message); } finally { setSaving(false); } }}>
-        <Text style={{ color: '#FFF', fontWeight: '700' }}>{saving ? 'جارٍ الإضافة...' : 'إضافة الباقة إلى السلة'}</Text>
+        <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{saving ? 'جارٍ الإضافة...' : 'إضافة الباقة إلى السلة'}</Text>
       </TouchableOpacity>
     </View></View>
   </Modal>;
 }
-const s = StyleSheet.create({ backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#0008' }, sheet: { maxHeight: '92%', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, gap: 14 },
-  row: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 10 }, title: { fontWeight: '700', fontSize: 17, textAlign: 'right', color: '#172554' },
-  close: { padding: 8, color: '#2563EB' }, hint: { textAlign: 'right', color: '#64748B' }, piece: { paddingVertical: 14, gap: 10, borderBottomWidth: 1, borderBottomColor: '#CBD5E1' },
-  image: { width: '100%', height: 160 }, button: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 10 } });
+const s = StyleSheet.create({
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.72)' },
+  sheet: { maxHeight: '92%', borderTopLeftRadius: 26, borderTopRightRadius: 26, borderTopWidth: 1.5, borderLeftWidth: 1, borderRightWidth: 1, padding: 18, gap: 14 },
+  row: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 10, alignItems: 'center' },
+  title: { fontWeight: '700', fontSize: 17, textAlign: 'right' },
+  close: { padding: 8, fontWeight: '600' },
+  hint: { textAlign: 'right', marginBottom: 8 },
+  piece: { paddingVertical: 14, gap: 10, borderBottomWidth: 1 },
+  image: { width: '100%', height: 160, borderRadius: 12 },
+  button: { minHeight: 50, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
+});

@@ -491,7 +491,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       <View style={styles.container}>
         <StatusBar
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-          backgroundColor={themeColors.surfaceContainerLowest}
+          backgroundColor={themeColors.surfaceSolidLow}
         />
 
         {/* 1. Header Bar */}
@@ -694,10 +694,10 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.modalWindowBg,
   },
   topBar: {
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: colors.surfaceSolidLow,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -869,7 +869,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   bottomCard: {
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: colors.sheetBackground,
     borderTopLeftRadius: borderRadius.xxl,
     borderTopRightRadius: borderRadius.xxl,
     paddingHorizontal: 18,

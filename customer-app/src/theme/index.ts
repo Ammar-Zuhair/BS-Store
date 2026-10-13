@@ -52,7 +52,7 @@ export const lightColors = {
   onSurfaceVariant: '#475569',
   onBackground: '#0F172A',
   outline: '#64748B',
-  outlineVariant: 'rgba(148, 163, 184, 0.25)',
+  outlineVariant: '#CBD5E1',
 
   // Luxury Silver & Black Accents
   silver: '#94A3B8',
@@ -60,6 +60,17 @@ export const lightColors = {
   silverMuted: '#64748B',
   accentGlow: '#0F172A',
   cardGlass: 'rgba(255, 255, 255, 0.92)',
+
+  // Solid & Modal Surfaces (Opaque non-transparent)
+  sheetBackground: '#FFFFFF',
+  modalWindowBg: '#F8FAFC',
+  surfaceSolid: '#FFFFFF',
+  surfaceSolidLow: '#F8FAFC',
+  surfaceSolidHigh: '#F1F5F9',
+  cardBorder: 'rgba(203, 213, 225, 0.60)',
+  tileBackground: 'rgba(241, 245, 249, 0.85)',
+  tileBorder: 'rgba(203, 213, 225, 0.50)',
+  iconBadgeBg: 'rgba(17, 24, 39, 0.06)',
 
   // Feedback & Functional Statuses
   error: '#DC2626',
@@ -119,7 +130,7 @@ export const darkColors = {
   onSurfaceVariant: '#94A3B8',
   onBackground: '#F8FAFC',
   outline: '#94A3B8',
-  outlineVariant: 'rgba(203, 213, 225, 0.15)',
+  outlineVariant: '#334155',
 
   // Luxury Silver & Black Accents
   silver: '#CBD5E1',
@@ -127,6 +138,17 @@ export const darkColors = {
   silverMuted: '#64748B',
   accentGlow: '#FFFFFF',
   cardGlass: 'rgba(18, 24, 34, 0.82)',
+
+  // Solid & Modal Surfaces (Opaque non-transparent)
+  sheetBackground: '#0F141E',
+  modalWindowBg: '#080A0E',
+  surfaceSolid: '#0F141E',
+  surfaceSolidLow: '#0B0E17',
+  surfaceSolidHigh: '#1A2234',
+  cardBorder: 'rgba(203, 213, 225, 0.15)',
+  tileBackground: 'rgba(24, 32, 47, 0.75)',
+  tileBorder: 'rgba(203, 213, 225, 0.15)',
+  iconBadgeBg: 'rgba(203, 213, 225, 0.12)',
 
   // Feedback & Functional Statuses
   error: '#EF4444',

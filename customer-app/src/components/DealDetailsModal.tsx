@@ -309,13 +309,17 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: colors.sheetBackground,
     borderTopLeftRadius: borderRadius.xxl,
     borderTopRightRadius: borderRadius.xxl,
+    borderTopWidth: 1.5,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.outlineVariant,
     maxHeight: '85%',
     paddingBottom: 20,
     ...shadows.floating,

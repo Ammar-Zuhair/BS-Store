@@ -64,7 +64,7 @@ export const ProductDetailsModal: React.FC<Props> = ({ product, onClose }) => {
               <Text style={styles.store}>{product.storeName}</Text>
             </View>
             {!!product.description?.trim() && <Text style={styles.description}>{product.description}</Text>}
-            {product.hasOptions && (loadError ? <TouchableOpacity onPress={() => setReload(n => n + 1)}><Text>{loadError} — إعادة المحاولة</Text></TouchableOpacity>
+            {product.hasOptions && (loadError ? <TouchableOpacity onPress={() => setReload(n => n + 1)} style={styles.errorRetry}><Text style={styles.errorText}>{loadError} — إعادة المحاولة</Text></TouchableOpacity>
               : definition ? <OptionSelector key={product.id} definition={definition} fallbackImage={product.imageUrl} onChoice={setChoice} onImage={setPreviewImage} /> : <ActivityIndicator color={colors.primary} />)}
             <Text style={styles.price}>{product.hasOptions && !choice ? 'ابتداءً من ' : ''}{(choice?.unitPrice ?? product.minSellingPrice ?? product.discountPrice ?? product.sellingPrice).toLocaleString()} ر.ي</Text>
             {product.discountPrice != null && product.discountPrice < product.sellingPrice && <Text style={styles.oldPrice}>{product.sellingPrice.toLocaleString()} ر.ي</Text>}
@@ -87,23 +87,73 @@ export const ProductDetailsModal: React.FC<Props> = ({ product, onClose }) => {
 };
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#0008' },
-  sheet: { maxHeight: '92%', backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
-  header: { minHeight: 54, paddingHorizontal: spacing.baseMd, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surfaceContainerLowest },
-  close: { width: 44, height: 44, borderRadius: borderRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceContainerHigh },
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.72)' },
+  sheet: {
+    maxHeight: '92%',
+    backgroundColor: colors.sheetBackground,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderTopWidth: 1.5,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.outlineVariant,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 25,
+  },
+  header: {
+    minHeight: 56,
+    paddingHorizontal: spacing.baseMd,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceSolidLow,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outlineVariant,
+  },
+  close: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+  },
   headerTitle: { fontFamily: typography.fontFamily.bold, color: colors.onSurface, fontSize: typography.fontSize.md },
-  body: { padding: spacing.baseMd, paddingBottom: 32 },
-  hero: { width: '100%', height: 280, borderRadius: borderRadius.xl, backgroundColor: colors.surfaceContainerLow },
+  body: { padding: spacing.baseMd, paddingBottom: 36, backgroundColor: colors.sheetBackground },
+  hero: {
+    width: '100%',
+    height: 280,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+  },
   thumbnails: { gap: 8, paddingVertical: 12 },
-  thumbWrap: { width: 60, height: 60, borderRadius: borderRadius.md, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent' },
-  thumbSelected: { borderColor: colors.primary },
+  thumbWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: colors.outlineVariant,
+    backgroundColor: colors.surfaceContainerLow,
+  },
+  thumbSelected: { borderColor: colors.primary, borderWidth: 2 },
   thumb: { width: '100%', height: '100%' },
-  name: { marginTop: 8, fontFamily: typography.fontFamily.bold, color: colors.onSurface, textAlign: 'right', fontSize: 20 },
+  name: { marginTop: 12, fontFamily: typography.fontFamily.bold, color: colors.onSurface, textAlign: 'right', fontSize: 20 },
   storeRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'flex-start', gap: 6, marginTop: 6 },
   store: { fontFamily: typography.fontFamily.medium, color: colors.onSurfaceVariant, textAlign: 'right' },
   description: { marginTop: 14, fontFamily: typography.fontFamily.regular, color: colors.onSurface, textAlign: 'right', lineHeight: 24, fontSize: 15 },
-  price: { marginTop: 14, fontFamily: typography.fontFamily.bold, color: colors.primary, textAlign: 'right', fontSize: 21 },
+  price: { marginTop: 14, fontFamily: typography.fontFamily.bold, color: colors.primary, textAlign: 'right', fontSize: 22 },
   oldPrice: { fontFamily: typography.fontFamily.medium, color: colors.onSurfaceVariant, textAlign: 'right', textDecorationLine: 'line-through' },
-  addButton: { marginTop: 18, minHeight: 52, borderRadius: borderRadius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row-reverse', gap: 8 },
+  addButton: { marginTop: 20, minHeight: 52, borderRadius: borderRadius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row-reverse', gap: 8 },
   addText: { fontFamily: typography.fontFamily.bold, color: colors.onPrimary, fontSize: 16 },
+  errorRetry: { padding: 8, marginVertical: 8, alignItems: 'center' },
+  errorText: { fontFamily: typography.fontFamily.medium, color: colors.error, fontSize: 14 },
 });
