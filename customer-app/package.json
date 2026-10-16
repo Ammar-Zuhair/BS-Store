@@ -11,7 +11,7 @@
     "ios": "expo start --port 8085 --ios",
     "web": "expo start --port 8085 --web",
     "ts:check": "tsc --noEmit",
-    "test:features": "node tests/order-hours-and-navigation.cjs"
+    "test:features": "node tests/order-hours-and-navigation.cjs && node tests/notifications.cjs"
   },
   "dependencies": {
     "@expo-google-fonts/tajawal": "^0.4.1",

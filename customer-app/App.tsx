@@ -26,6 +26,8 @@ import { StoreDetailScreen } from './src/screens/StoreDetailScreen';
 import { CartScreen } from './src/screens/CartScreen';
 import { CheckoutScreen } from './src/screens/CheckoutScreen';
 import { TrackingScreen } from './src/screens/TrackingScreen';
+import { NotificationsScreen } from './src/screens/NotificationsScreen';
+import { notificationDestination } from './src/utils/notificationInbox';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { CategoryScreen } from './src/screens/CategoryScreen';
@@ -46,6 +48,7 @@ const BOOSTHIS_SCREEN_NAMES: Record<ScreenName, string> = {
   cart: 'Cart',
   checkout: 'Checkout',
   tracking: 'Orders',
+  notifications: 'Notifications',
   profile: 'Profile',
   auth: 'Authentication',
 };
@@ -63,8 +66,8 @@ const MainNavigator: React.FC = () => {
     productOptionsRequest, closeProductOptions, bundleOptionsRequest, closeBundleOptions,
   } = useApp();
   const onNotificationOpen = useCallback((type: string) => {
-    navigateTo(type === 'order_status' ? 'tracking' : 'home');
-    void refreshOrders();
+    navigateTo(notificationDestination(type));
+    if (type === 'order_status') void refreshOrders();
   }, [navigateTo, refreshOrders]);
   usePushNotifications(isAuthenticated, 'customer', api, onNotificationOpen);
 
@@ -127,6 +130,8 @@ const MainNavigator: React.FC = () => {
         return isAuthenticated ? <CheckoutScreen /> : <AuthScreen />;
       case 'tracking':
         return <TrackingScreen />;
+      case 'notifications':
+        return <NotificationsScreen />;
       case 'profile':
         return <ProfileScreen />;
       case 'auth':

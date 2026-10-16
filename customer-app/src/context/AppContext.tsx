@@ -11,7 +11,7 @@ import { colors, lightColors, darkColors, ThemeColors, setGlobalThemeMode } from
 import { OrderHours } from '../utils/openingHours';
 import { unregisterPushDevice } from '../notifications';
 
-export type ScreenName = 'home' | 'category' | 'category_stores' | 'store_detail' | 'cart' | 'checkout' | 'tracking' | 'profile' | 'auth';
+export type ScreenName = 'home' | 'category' | 'category_stores' | 'store_detail' | 'cart' | 'checkout' | 'tracking' | 'notifications' | 'profile' | 'auth';
 
 const ICON_MAP: Record<string, string> = {
   'silverware-fork-knife': '🍔',

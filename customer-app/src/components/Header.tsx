@@ -10,15 +10,16 @@ interface HeaderProps {
   showBack?: boolean;
   onBack?: () => void;
   rightAction?: React.ReactNode;
+  onRefresh?: () => Promise<void>;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack, rightAction }) => {
+export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack, rightAction, onRefresh }) => {
   const { selectedAddress, setSelectedAddress, addresses, navigateTo, colors: themeColors, refreshData } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const refresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
-    try { await refreshData(); } catch (e: any) { Alert.alert('تعذر التحديث', e?.message || 'تحقق من الاتصال وحاول مجدداً.'); }
+    try { await (onRefresh || refreshData)(); } catch (e: any) { Alert.alert('تعذر التحديث', e?.message || 'تحقق من الاتصال وحاول مجدداً.'); }
     finally { setRefreshing(false); }
   };
   const refreshButton = <TouchableOpacity onPress={() => void refresh()} disabled={refreshing} accessibilityRole="button" accessibilityLabel="تحديث البيانات" hitSlop={6} style={{ width: 36, height: 38, justifyContent: 'center', alignItems: 'center' }}>
@@ -98,13 +99,12 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
               ) : (
                 <TouchableOpacity
                   style={styles.iconButton}
-                  onPress={() => navigateTo('tracking')}
+                  onPress={() => navigateTo('notifications')}
                   accessibilityRole="button"
-                  accessibilityLabel="الانتقال إلى طلباتي"
+                  accessibilityLabel="الانتقال إلى الإشعارات"
                   hitSlop={4}
                 >
                   <AppIcon name="bell" size={20} color={themeColors.onSurface} />
-                  <View style={styles.notificationDot} />
                 </TouchableOpacity>
               )}
             </View>
@@ -383,15 +383,6 @@ const createStyles = (colors: ThemeColors) =>
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.secondaryContainer,
   },
   backBtn: {
     width: 38,
