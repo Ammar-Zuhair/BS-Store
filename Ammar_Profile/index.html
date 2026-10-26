@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#F6F8FB" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="/fonts/tajawal-arabic-400-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/tajawal-latin-400-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <!--head-->
+    <script>
+      (function () {
+        var theme, saved;
+        try {
+          theme = localStorage.getItem("ammar-theme");
+          saved = localStorage.getItem("ammar-language");
+        } catch (e) {}
+        var dark =
+          theme === "dark" ||
+          (theme !== "light" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        document.querySelector('meta[name="theme-color"]').content = dark
+          ? "#0B1422"
+          : "#F6F8FB";
+        var explicit = location.pathname.match(/^\/(ar|en)(?:\/|$)/);
+        var primary =
+          (navigator.languages && navigator.languages[0]) ||
+          navigator.language ||
+          "en";
+        var lang = explicit
+          ? explicit[1]
+          : saved === "ar" || saved === "en"
+            ? saved
+            : /^ar/i.test(primary)
+              ? "ar"
+              : "en";
+        document.documentElement.lang = lang;
+        document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+        if (location.pathname === "/")
+          location.replace("/" + lang + location.search + location.hash);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"><!--app--></div>
+    <noscript
+      ><div class="noscript-language">
+        اللغة / Language: <a href="/ar">العربية</a> · <a href="/en">English</a>
+      </div></noscript
+    >
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

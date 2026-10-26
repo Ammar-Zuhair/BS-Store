@@ -43,3 +43,8 @@ if ! command -v psql >/dev/null 2>&1; then
   apt-get update
   apt-get install -y postgresql
 fi
+
+# Ammar Profile: restore website dependencies and browser verification tooling.
+if [ -f /workspace/Ammar_Profile/package-lock.json ]; then
+  (cd /workspace/Ammar_Profile && npm ci && npx playwright install chromium)
+fi
