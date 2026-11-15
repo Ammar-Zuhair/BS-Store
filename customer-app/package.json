@@ -12,7 +12,8 @@
     "web": "expo start --port 8085 --web",
     "ts:check": "tsc --noEmit",
     "test:features": "node tests/order-hours-and-navigation.cjs && node tests/notifications.cjs",
-    "test:otp": "node tests/otp-auth.cjs"
+    "test:otp": "node tests/otp-auth.cjs",
+    "test:search": "node tests/search-and-updates.cjs"
   },
   "dependencies": {
     "@expo-google-fonts/tajawal": "^0.4.1",

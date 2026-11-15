@@ -1,4 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import { CatalogSearchModal } from './CatalogSearchModal';
+import { SearchScope } from '../search/catalog';
+import { holdUpdates } from '../system/updateSafety';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, Alert, ActivityIndicator } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
@@ -6,6 +9,7 @@ import { LocationPickerModal, LocationResult } from './LocationPickerModal';
 import { AppIcon } from './AppIcon';
 
 interface HeaderProps {
+  searchScope?: SearchScope;
   title?: string;
   showBack?: boolean;
   onBack?: () => void;
@@ -13,8 +17,9 @@ interface HeaderProps {
   onRefresh?: () => Promise<void>;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack, rightAction, onRefresh }) => {
+export const Header: React.FC<HeaderProps> = ({ searchScope, title, showBack = false, onBack, rightAction, onRefresh }) => {
   const { selectedAddress, setSelectedAddress, addresses, navigateTo, colors: themeColors, refreshData } = useApp();
+  const [searchOpen, setSearchOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const refresh = async () => {
     if (refreshing) return;
@@ -22,13 +27,15 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
     try { await (onRefresh || refreshData)(); } catch (e: any) { Alert.alert('تعذر التحديث', e?.message || 'تحقق من الاتصال وحاول مجدداً.'); }
     finally { setRefreshing(false); }
   };
-  const refreshButton = <TouchableOpacity onPress={() => void refresh()} disabled={refreshing} accessibilityRole="button" accessibilityLabel="تحديث البيانات" hitSlop={6} style={{ width: 36, height: 38, justifyContent: 'center', alignItems: 'center' }}>
+  const refreshButton = <TouchableOpacity onPress={() => void refresh()} disabled={refreshing} accessibilityRole="button" accessibilityLabel="تحديث البيانات" hitSlop={6} style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}>
     {refreshing ? <ActivityIndicator size="small" color={themeColors.primary} /> : <Text style={{ fontFamily: 'Tajawal_700Bold', color: themeColors.primary, fontSize: 26 }}>↻</Text>}
   </TouchableOpacity>;
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
 
+  useEffect(() => { if (addressModalVisible || showMapPicker) return holdUpdates(); }, [addressModalVisible, showMapPicker]);
+  const searchButton = searchScope ? <TouchableOpacity onPress={() => setSearchOpen(true)} accessibilityRole="button" accessibilityLabel="البحث" style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}><AppIcon name="search" size={23} color={themeColors.primary} /></TouchableOpacity> : null;
   const handleMapLocationPicked = (loc: LocationResult) => {
     setSelectedAddress({
       id: 'custom-' + Date.now(),
@@ -58,22 +65,22 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
             <AppIcon name="arrow-right" size={20} color={themeColors.onSurface} />
           </TouchableOpacity>
           <View style={styles.titleWrapper}>
-            <Text style={styles.titleText}>{title}</Text>
+            <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
           </View>
           <View style={styles.actions}>
-            {refreshButton}
-            {rightAction !== undefined ? rightAction : <View style={{ width: 38 }} />}
+            {searchButton}{refreshButton}
+            {rightAction}
           </View>
         </View>
       ) : title ? (
         <View style={styles.inner}>
           <View style={{ width: 38 }} />
           <View style={styles.titleWrapper}>
-            <Text style={styles.titleText}>{title}</Text>
+            <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
           </View>
           <View style={styles.actions}>
-            {refreshButton}
-            {rightAction !== undefined ? rightAction : <View style={{ width: 38 }} />}
+            {searchButton}{refreshButton}
+            {rightAction}
           </View>
         </View>
       ) : (
@@ -93,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
             </View>
 
             <View style={styles.actions}>
-            {refreshButton}
+            {searchButton}{refreshButton}
               {rightAction !== undefined ? (
                 rightAction
               ) : (
@@ -140,6 +147,8 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack = false, onBack,
           </TouchableOpacity>
         </View>
       )}
+
+      {searchOpen && searchScope && <CatalogSearchModal scope={searchScope} onClose={() => setSearchOpen(false)} />}
 
       {/* Address Selection Modal */}
       <Modal
@@ -236,7 +245,7 @@ const createStyles = (colors: ThemeColors) =>
     zIndex: 50,
   },
   inner: {
-    height: 52,
+    minHeight: 60,
     paddingHorizontal: spacing.screenGutter,
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -289,7 +298,7 @@ const createStyles = (colors: ThemeColors) =>
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 44,
+    minHeight: 52,
   },
   deliveryBar: {
     flexDirection: 'row-reverse',
@@ -336,6 +345,8 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.primary,
   },
   brandWrapper: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
@@ -346,6 +357,7 @@ const createStyles = (colors: ThemeColors) =>
     borderRadius: borderRadius.sm,
   },
   brandTitle: {
+    flexShrink: 1,
     fontSize: typography.fontSize.xxl,
     fontWeight: typography.fontWeight.extraBold,
     color: colors.primary,
@@ -363,6 +375,8 @@ const createStyles = (colors: ThemeColors) =>
     color: colors.onSecondary,
   },
   titleWrapper: {
+    flex: 1,
+    minWidth: 0,
     alignItems: 'center',
   },
   titleText: {
@@ -376,8 +390,8 @@ const createStyles = (colors: ThemeColors) =>
     gap: spacing.baseXs,
   },
   iconButton: {
-    width: 38,
-    height: 38,
+    width: 48,
+    height: 48,
     borderRadius: borderRadius.full,
     backgroundColor: colors.surfaceContainerLow,
     alignItems: 'center',
@@ -385,8 +399,8 @@ const createStyles = (colors: ThemeColors) =>
     position: 'relative',
   },
   backBtn: {
-    width: 38,
-    height: 38,
+    width: 48,
+    height: 48,
     borderRadius: borderRadius.full,
     backgroundColor: colors.surfaceContainerLow,
     alignItems: 'center',

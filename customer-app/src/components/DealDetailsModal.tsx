@@ -1,5 +1,6 @@
+import { holdUpdates } from '../system/updateSafety';
 import type { OptionsDefinition } from '../options/model';
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -54,12 +55,14 @@ export interface DealItem {
 interface DealDetailsModalProps {
   visible: boolean;
   onClose: () => void;
+  onConfigure?: () => void;
   deal: DealItem | null;
 }
 
 export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
   visible,
   onClose,
+  onConfigure,
   deal,
 }) => {
   const {
@@ -74,6 +77,7 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
   } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
+  useEffect(() => { if (visible && deal) return holdUpdates(); }, [visible, deal]);
   if (!deal) return null;
 
   const openStore = () => {
@@ -105,7 +109,7 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
       dealProductId: piece.id,
       hasOptions: piece.hasOptions, minSellingPrice: piece.minSellingPrice,
     };
-    if (piece.hasOptions) onClose();
+    if (piece.hasOptions) { onClose(); onConfigure?.(); }
     void addToCart(parentProd, 1).catch(error => Alert.alert('تعذر الإضافة', error.message));
   };
 
@@ -127,7 +131,8 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
       bundleItems: deal.products,
       dealId: deal.id,
     };
-    addToCart(wholeDealProd, 1);
+    if (deal.products.some(piece => piece.hasOptions)) onConfigure?.();
+    void addToCart(wholeDealProd, 1).catch(error => Alert.alert('تعذر الإضافة', error.message));
     onClose();
   };
 

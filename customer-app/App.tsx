@@ -1,13 +1,15 @@
+import { handleScreenBack } from './src/utils/screenBackAction';
+import { SilentUpdates } from './src/system/SilentUpdates';
+import { ExitDialog } from './src/components/ExitDialog';
 import { ProductDetailsModal } from './src/components/ProductDetailsModal';
 import { BundleOptionsModal } from './src/components/BundleOptionsModal';
 import { exitApplication } from './src/utils/exitApplication';
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   StatusBar,
   StyleSheet,
   View,
   BackHandler,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -63,9 +65,9 @@ const MainNavigator: React.FC = () => {
     isDarkMode,
     colors: themeColors,
     refreshOrders,
-    currentOrder,
     productOptionsRequest, closeProductOptions, bundleOptionsRequest, closeBundleOptions,
   } = useApp();
+  const [exitVisible, setExitVisible] = useState(false);
   const onNotificationOpen = useCallback((type: string) => {
     navigateTo(notificationDestination(type));
     if (type === 'order_status') void refreshOrders();
@@ -74,20 +76,9 @@ const MainNavigator: React.FC = () => {
 
   useEffect(() => {
     const handleBackPress = () => {
+      if (handleScreenBack()) return true;
       if (currentScreen === 'home' || (!isAuthenticated && currentScreen === 'auth')) {
-        Alert.alert(
-          'تأكيد الخروج',
-          'هل أنت متأكد من الخروج من التطبيق؟',
-          [
-            { text: 'إلغاء', style: 'cancel' },
-            {
-              text: 'موافق',
-              style: 'destructive',
-              onPress: () => { void exitApplication(); },
-            },
-          ],
-          { cancelable: true }
-        );
+        setExitVisible(true);
         return true;
       } else if (currentScreen === 'store_detail') {
         navigateTo('category_stores');
@@ -107,7 +98,7 @@ const MainNavigator: React.FC = () => {
 
   if (isAuthLoading) {
     return (
-      <SystemGate palette={themeColors} appType="customer" safeToReload={false}>
+      <SystemGate palette={themeColors} appType="customer">
         <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
           <ActivityIndicator size="large" color={themeColors.primary} />
         </View>
@@ -150,7 +141,6 @@ const MainNavigator: React.FC = () => {
     <SystemGate
       palette={themeColors}
       appType="customer"
-      safeToReload={!currentOrder && (currentScreen === 'home' || currentScreen === 'auth' || currentScreen === 'profile')}
     >
       <SafeAreaView
         style={[
@@ -173,6 +163,7 @@ const MainNavigator: React.FC = () => {
             hidden={false}
           />
           {resolvedScreen}
+          <ExitDialog visible={exitVisible} onStay={() => setExitVisible(false)} onExit={() => { setExitVisible(false); void exitApplication(); }} />
           {productOptionsRequest && <ProductDetailsModal product={productOptionsRequest} onClose={closeProductOptions} />}
           {bundleOptionsRequest && <BundleOptionsModal product={bundleOptionsRequest} onClose={closeBundleOptions} />}
           <BoosthisScreenTracker key={currentScreen} screen={BOOSTHIS_SCREEN_NAMES[currentScreen]} />
@@ -205,6 +196,7 @@ export default function App() {
     <SafeAreaProvider>
       <AppProvider>
         <BoosthisRuntime>
+          <SilentUpdates />
           <MainNavigator />
         </BoosthisRuntime>
       </AppProvider>

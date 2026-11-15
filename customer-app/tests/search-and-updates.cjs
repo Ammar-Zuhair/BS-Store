@@ -1,0 +1,76 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
+const React = require('react');
+const { act, create } = require('react-test-renderer');
+global.IS_REACT_ACT_ENVIRONMENT = true;
+const root=path.resolve(__dirname,'../src');
+const cache=new Map();let now=100000;let id=0;const timers=new Map();
+const RealDate=Date;const FakeDate=class extends RealDate { static now(){return now;} };
+const setTimer=(fn,ms)=>{const key=++id;timers.set(key,{fn,at:now+ms});return key;};
+function advance(ms){now+=ms;for(const [key,t]of [...timers])if(t.at<=now){timers.delete(key);t.fn();}}
+let app={};let onState;let pending=false;let enabled=true;let checks=0,downloads=0,reloads=0;
+const updates={ get isEnabled(){return enabled;},useUpdates:()=>({isUpdatePending:pending}),checkForUpdateAsync:async()=>{checks++;return {isAvailable:true};},fetchUpdateAsync:async()=>{downloads++;return{isNew:true};},reloadAsync:async()=>{reloads++;} };
+const native={Platform:{OS:'android'},AppState:{currentState:'active',addEventListener:(_,fn)=>{onState=fn;return{remove:()=>{}};}},StyleSheet:{create:x=>x,absoluteFill:{}},...Object.fromEntries(['Modal','View','Text','Image','Pressable','ScrollView'].map(n=>[n,n]))};
+function load(file){if(cache.has(file))return cache.get(file).exports;const module={exports:{}};cache.set(file,module);
+ const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true,target:ts.ScriptTarget.ES2022}}).outputText;
+ const req=name=>{
+  if(name==='react'||name==='react/jsx-runtime')return require(name);
+  if(name==='react-native')return native;if(name==='expo-updates')return updates;
+  if(name.endsWith('/context/AppContext'))return{useApp:()=>app};
+  if(name.endsWith('/AppIcon'))return{AppIcon:'AppIcon'};
+  if(name.endsWith('.png'))return 1;
+  const p=path.resolve(path.dirname(file),name);return load([p+'.ts',p+'.tsx',path.join(p,'index.ts')].find(fs.existsSync));
+ };
+ vm.runInThisContext(`(function(require,module,exports,setTimeout,clearTimeout,Date){${code}\n})`,{filename:file})(req,module,module.exports,setTimer,key=>timers.delete(key),FakeDate);return module.exports;}
+const flush=async()=>{await Promise.resolve();await Promise.resolve();await Promise.resolve();};
+async function main(){
+ const memory=load(path.join(root,'search/cache.ts'));const {createSearchSession}=load(path.join(root,'search/session.ts'));
+ const calls=[];const deferred=[];let state;
+ const request=(q,page,signal)=>{calls.push({q,page,signal});return new Promise((resolve,reject)=>deferred.push({resolve,reject}));};
+ const session=createSearchSession('user:g1:store:catA',request,s=>state=s);
+ session.change('');advance(400);assert.equal(calls.length,0);
+ session.change('ق');advance(400);assert.equal(calls.length,0,'one letter waits for explicit submit');
+ session.change('قه');advance(200);session.change('قهو');advance(349);assert.equal(calls.length,0);
+ advance(1);assert.equal(calls.length,1,'350ms debounce combines keystrokes');
+ session.change('قهوة');assert.equal(calls[0].signal.aborted,true,'abort superseded request immediately');
+ advance(350);assert.equal(calls.length,2);
+ deferred[1].resolve({items:['fresh'],page:1,hasMore:true});await flush();
+ deferred[0].resolve({items:['stale'],page:1,hasMore:false});await flush();assert.deepEqual(state.items,['fresh'],'late responses cannot overwrite results');
+ session.more();deferred[2].resolve({items:['page2'],page:2,hasMore:false});await flush();assert.deepEqual(state.items,['fresh','page2']);
+ session.change('قهوة');session.submit();await flush();assert.equal(calls.length,3,'cached first page prevents network');assert.deepEqual(state.items,['fresh']);
+ advance(29000);session.submit();await flush();assert.equal(calls.length,3);advance(1001);session.submit();assert.equal(calls.length,4,'cache expires thirty seconds after fetch, even with repeated cache hits');deferred[3].resolve({items:['renewed'],page:1,hasMore:false});await flush();
+ session.change('ش');session.submit();assert.equal(calls[4].q,'ش','explicit search runs one-letter prefix immediately');
+ session.close();assert.equal(calls[4].signal.aborted,true,'close aborts pending network');
+ deferred[4].resolve({items:['closed'],page:1,hasMore:false});await flush();assert.deepEqual(state.items,[]);
+ let scopedState;const other=createSearchSession('user:g2:product:storeB',request,s=>scopedState=s);
+ other.change('قهوة');other.submit();assert.equal(calls.length,6,'different governorate/type/scope cannot share cache');
+ memory.invalidateSearchCache();deferred[5].resolve({items:['old-scope'],page:1,hasMore:false});await flush();assert.deepEqual(scopedState.items,[],'invalidation rejects in-flight old data');other.close();
+ const errors=createSearchSession('errors',request,s=>state=s);errors.change('test');errors.submit();deferred[6].reject(new Error('offline'));await flush();assert.equal(state.error,'offline');errors.retry();deferred[7].resolve({items:['retry'],page:1,hasMore:false});await flush();assert.deepEqual(state.items,['retry']);errors.close();
+ const back=load(path.join(root,'utils/screenBackAction.ts'));assert.equal(back.handleScreenBack(),false);const clearBack=back.registerScreenBackAction(()=>true);assert.equal(back.handleScreenBack(),true,'active OTP back action wins before root exit');clearBack();assert.equal(back.handleScreenBack(),false);
+ const {createReturnPolicy}=load(path.join(root,'system/silentUpdatePolicy.ts'));const policy=createReturnPolicy();
+ assert.equal(policy.resume(true,true),false,'cold foreground never manually reloads');policy.background(false);assert.equal(policy.resume(true,true),false,'unsafe departure defers until another return');
+ policy.background(true);assert.equal(policy.resume(false,true),false,'unsafe return never reloads');assert.equal(policy.resume(true,true),false,'finishing a foreground task cannot reload');
+ policy.background(true);assert.equal(policy.resume(true,false),false);policy.background(true);assert.equal(policy.resume(true,true),true);assert.equal(policy.resume(true,true),false,'one reload per lifecycle transition');
+ const safety=load(path.join(root,'system/updateSafety.ts'));const stop=safety.beginWrite();assert.equal(safety.canApplyUpdate(),false);stop();const release=safety.holdUpdates();assert.equal(safety.canApplyUpdate(),false);release();release();assert.equal(safety.canApplyUpdate(),true);
+ const {SilentUpdates}=load(path.join(root,'system/SilentUpdates.tsx'));
+ app={currentScreen:'home',isAuthenticated:true,isAuthLoading:false,needsProfileCompletion:false};let tree;
+ await act(async()=>{tree=create(React.createElement(SilentUpdates));});await act(async()=>{advance(1500);await flush();});assert.equal(checks,1);assert.equal(downloads,1);assert.equal(reloads,0,'download never interrupts foreground');
+ await act(async()=>{onState('background');onState('active');await flush();});assert.equal(reloads,1,'safe return applies downloaded update');
+ await act(async()=>tree.unmount());
+ pending=true;app.currentScreen='auth';await act(async()=>{tree=create(React.createElement(SilentUpdates));});
+ await act(async()=>{onState('background');onState('active');});assert.equal(reloads,1,'OTP protected');
+ app.currentScreen='home';await act(async()=>tree.update(React.createElement(SilentUpdates)));assert.equal(reloads,1,'leaving OTP in foreground does not apply');
+ const finishWrite=safety.beginWrite();await act(async()=>{onState('background');onState('active');});assert.equal(reloads,1,'outstanding save blocks reload');finishWrite();
+ await act(async()=>{onState('background');onState('inactive');onState('active');await flush();});assert.equal(reloads,2,'later safe return applies');await act(async()=>tree.unmount());
+ const {lightColors,darkColors}=load(path.join(root,'theme/index.ts'));const {ExitDialog}=load(path.join(root,'components/ExitDialog.tsx'));let stay=0,exit=0;
+ for(const colors of[lightColors,darkColors]){app.colors=colors;await act(async()=>tree=create(React.createElement(ExitDialog,{visible:true,onStay:()=>stay++,onExit:()=>exit++})));
+ const modal=tree.root.findByType('Modal');await act(async()=>modal.props.onRequestClose());
+ const buttons=tree.root.findAllByType('Pressable').filter(n=>n.props.accessibilityRole==='button');assert.equal(buttons.length,2);await act(async()=>buttons[0].props.onPress());await act(async()=>buttons[1].props.onPress());
+ assert.ok(tree.root.findAllByType('Text').some(n=>n.children.includes('إلى لقاء قريب')));await act(async()=>tree.unmount());}
+ assert.equal(stay,4);assert.equal(exit,2);
+ console.log('Search, cache, cancellation, lifecycle, write protection and light/dark exit checks passed');
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});

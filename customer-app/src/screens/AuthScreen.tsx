@@ -1,5 +1,6 @@
+import { registerScreenBackAction } from '../utils/screenBackAction';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { authApi, governorateApi } from '../api';
@@ -45,14 +46,13 @@ export const AuthScreen: React.FC = () => {
     return () => clearInterval(timer);
   }, [resendAt]);
   useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+    return registerScreenBackAction(() => {
       if (step === 'otp' && !needsProfileCompletion) {
         if (!inFlight.current) { setStep('phone'); setOtp(''); setError(''); }
         return true;
       }
       return false;
     });
-    return () => subscription.remove();
   }, [step, needsProfileCompletion]);
 
   const run = async (action: () => Promise<void>) => {

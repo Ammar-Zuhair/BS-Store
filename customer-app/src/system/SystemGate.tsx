@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, InteractionManager, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Alert, StatusBar } from 'react-native';
+import { ActivityIndicator, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Alert, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
@@ -7,7 +7,7 @@ import { api } from '../api';
 import { typography } from '../theme';
 
 type Palette = {
-  primary: string; background: string; onSurface: string; onSurfaceVariant: string;
+  primary: string; onPrimary: string; background: string; surfaceDim: string; onSurface: string; onSurfaceVariant: string;
   surfaceContainerLowest?: string; surfaceContainerLow?: string; outlineVariant?: string;
   success?: string; warning?: string; error?: string;
 };
@@ -26,19 +26,14 @@ export const SystemGate: React.FC<{
   children: React.ReactNode;
   appType: 'customer' | 'admin' | 'courier';
   palette: Palette;
-  safeToReload: boolean;
   showMaintenance?: boolean;
-}> = ({ children, appType, palette, safeToReload, showMaintenance = true }) => {
+}> = ({ children, appType, palette, showMaintenance = true }) => {
   const insets = useSafeAreaInsets();
   const safeTopInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const [maintenance, setMaintenance] = useState<MaintenanceStatus | null>(null);
   const [versionStatus, setVersionStatus] = useState<VersionStatus | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [initialCheckComplete, setInitialCheckComplete] = useState(false);
-  const [isOtaReady, setIsOtaReady] = useState(false);
-  const [isOtaDismissed, setIsOtaDismissed] = useState(false);
-  const [isApplyingOta, setIsApplyingOta] = useState(false);
-
   const refreshStatus = useCallback(async () => {
     const result = await Promise.allSettled([withTimeout(api.get<MaintenanceStatus>('/system/status'))]);
     if (result[0].status === 'fulfilled' && result[0].value) setMaintenance(result[0].value);
@@ -72,30 +67,6 @@ export const SystemGate: React.FC<{
     return () => { clearInterval(interval); subscription.remove(); };
   }, [refreshStatus]);
 
-  useEffect(() => {
-    if (!initialCheckComplete) return;
-    let active = true;
-    let interactionTask: { cancel: () => void } | undefined;
-    const timer = setTimeout(() => {
-      if (!active) return;
-      interactionTask = InteractionManager.runAfterInteractions(() => {
-        void (async () => {
-          try {
-            const Updates = await import('expo-updates');
-            if (!active || !Updates.isEnabled) return;
-            const result = await Updates.checkForUpdateAsync();
-            if (!result.isAvailable) return;
-            const fetched = await Updates.fetchUpdateAsync();
-            if (active && fetched.isNew) setIsOtaReady(true);
-          } catch {
-            // The embedded app remains usable when OTA is unavailable or offline.
-          }
-        })();
-      });
-    }, 1200);
-    return () => { active = false; clearTimeout(timer); interactionTask?.cancel(); };
-  }, [initialCheckComplete]);
-
   const openUpdate = async () => {
     const url = versionStatus?.updateUrl;
     if (!url) {
@@ -106,22 +77,9 @@ export const SystemGate: React.FC<{
     catch { Alert.alert('تعذر فتح التحديث', 'تحقق من اتصال الإنترنت وحاول مرة أخرى.'); }
   };
 
-  const applyOta = async () => {
-    if (!safeToReload || isApplyingOta) return;
-    setIsApplyingOta(true);
-    try {
-      const Updates = await import('expo-updates');
-      await Updates.reloadAsync();
-    }
-    catch {
-      setIsApplyingOta(false);
-      Alert.alert('تعذر تطبيق التحديث', 'سيبقى التطبيق على النسخة الحالية ويمكن المحاولة لاحقاً.');
-    }
-  };
-
   if (!initialCheckComplete) {
     return (
-      <View style={[styles.startup, { backgroundColor: palette.background }]}>
+      <View style={[styles.startup, { backgroundColor: palette.surfaceDim }]}>
         <ActivityIndicator size="large" color={palette.primary} />
         <Text style={[styles.startupText, { color: palette.onSurfaceVariant }]}>جارٍ التحقق من حالة النظام وإصدار التطبيق…</Text>
       </View>
@@ -139,25 +97,11 @@ export const SystemGate: React.FC<{
   return (
     <View style={{ flex: 1 }}>
       {children}
-      {isOtaReady && safeToReload && !isOtaDismissed && (
-        <View style={[styles.banner, { top: safeTopInset + 8, backgroundColor: palette.surfaceContainerLowest || '#FFFFFF', borderColor: palette.outlineVariant || '#DDE1E7' }]}>
-          <View style={styles.bannerCopy}>
-            <Text style={[styles.bannerTitle, { color: palette.onSurface }]}>يتوفر تحديث جديد</Text>
-            <Text style={[styles.bannerMessage, { color: palette.onSurfaceVariant }]}>تم تنزيل تحسينات جديدة للتطبيق.</Text>
-          </View>
-          <Pressable accessibilityRole="button" onPress={() => void applyOta()} style={[styles.primaryButton, { backgroundColor: palette.primary }]}>
-            {isApplyingOta ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>تطبيق</Text>}
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => setIsOtaDismissed(true)} style={styles.laterButton}>
-            <Text style={[styles.laterText, { color: palette.onSurfaceVariant }]}>لاحقاً</Text>
-          </Pressable>
-        </View>
-      )}
       {!!versionStatus?.updateAvailable && !versionStatus.updateRequired && (
-        <Pressable accessibilityRole="button" onPress={() => void openUpdate()} style={[styles.versionBanner, { top: safeTopInset + 84, backgroundColor: palette.primary }]}>
-          <Text style={styles.primaryButtonText}>{versionStatus.title || `يتوفر الإصدار ${versionStatus.latestVersion}`}</Text>
-          <Text style={styles.versionBannerMessage} numberOfLines={2}>{versionStatus.message || 'حدّث التطبيق للاستفادة من التحسينات الجديدة.'}</Text>
-          <Text style={styles.versionBannerAction}>عرض التحديث</Text>
+        <Pressable accessibilityRole="button" onPress={() => void openUpdate()} style={[styles.versionBanner, { top: safeTopInset + 8, backgroundColor: palette.primary }]}>
+          <Text style={[styles.primaryButtonText, { color: palette.onPrimary }]}>{versionStatus.title || `يتوفر الإصدار ${versionStatus.latestVersion}`}</Text>
+          <Text style={[styles.versionBannerMessage, { color: palette.onPrimary }]} numberOfLines={2}>{versionStatus.message || 'حدّث التطبيق للاستفادة من التحسينات الجديدة.'}</Text>
+          <Text style={[styles.versionBannerAction, { color: palette.onPrimary }]}>عرض التحديث</Text>
         </Pressable>
       )}
     </View>
@@ -165,27 +109,27 @@ export const SystemGate: React.FC<{
 };
 
 const MaintenanceScreen: React.FC<{ status: MaintenanceStatus; palette: Palette; onRetry: () => void; isRefreshing: boolean }> = ({ status, palette, onRetry, isRefreshing }) => (
-  <ScrollView contentContainerStyle={[styles.gateScreen, { backgroundColor: palette.background }]}>
+  <ScrollView contentContainerStyle={[styles.gateScreen, { backgroundColor: palette.surfaceDim }]}>
     <View style={[styles.illustration, { backgroundColor: palette.surfaceContainerLow || '#EAECEF' }]}><Text style={styles.illustrationIcon}>🛠️</Text></View>
     <Text style={[styles.eyebrow, { color: palette.onSurfaceVariant }]}>متجر بي إس</Text>
     <Text accessibilityRole="header" style={[styles.title, { color: palette.onSurface }]}>{status.title || 'نعود إليك قريباً'}</Text>
     <Text style={[styles.description, { color: palette.onSurfaceVariant }]}>{status.message || 'نجري بعض التحسينات على النظام. شكراً لصبرك.'}</Text>
     {status.expectedEndAt ? <Text style={[styles.returnTime, { color: palette.onSurface }]}>{formatExpectedTime(status.expectedEndAt)}</Text> : null}
     <Pressable accessibilityRole="button" onPress={onRetry} disabled={isRefreshing} style={[styles.primaryButton, styles.wideButton, { backgroundColor: palette.primary }]}>
-      {isRefreshing ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>حاول مجدداً</Text>}
+      {isRefreshing ? <ActivityIndicator color={palette.onPrimary} /> : <Text style={[styles.primaryButtonText, { color: palette.onPrimary }]}>حاول مجدداً</Text>}
     </Pressable>
     <Text style={[styles.footnote, { color: palette.onSurfaceVariant }]}>سيعود التطبيق للعمل تلقائياً عند انتهاء الصيانة.</Text>
   </ScrollView>
 );
 
 const RequiredUpdateScreen: React.FC<{ status: VersionStatus; palette: Palette; onUpdate: () => void; onRetry: () => void; isRefreshing: boolean }> = ({ status, palette, onUpdate, onRetry, isRefreshing }) => (
-  <ScrollView contentContainerStyle={[styles.gateScreen, { backgroundColor: palette.background }]}>
+  <ScrollView contentContainerStyle={[styles.gateScreen, { backgroundColor: palette.surfaceDim }]}>
     <View style={[styles.illustration, { backgroundColor: palette.surfaceContainerLow || '#EAECEF' }]}><Text style={styles.illustrationIcon}>⬆️</Text></View>
     <Text style={[styles.eyebrow, { color: palette.onSurfaceVariant }]}>متجر بي إس</Text>
     <Text accessibilityRole="header" style={[styles.title, { color: palette.onSurface }]}>يلزم تحديث التطبيق</Text>
     <Text style={[styles.description, { color: palette.onSurfaceVariant }]}>{status.message || `هذا الإصدار لم يعد مدعوماً. حدّث إلى ${status.latestVersion} للمتابعة.`}</Text>
     <Pressable accessibilityRole="button" onPress={() => void onUpdate()} style={[styles.primaryButton, styles.wideButton, { backgroundColor: palette.primary }]}>
-      <Text style={styles.primaryButtonText}>تحديث الآن</Text>
+      <Text style={[styles.primaryButtonText, { color: palette.onPrimary }]}>تحديث الآن</Text>
     </Pressable>
     <Pressable accessibilityRole="button" onPress={onRetry} disabled={isRefreshing} style={styles.retryButton}>
       {isRefreshing ? <ActivityIndicator color={palette.primary} /> : <Text style={[styles.retryText, { color: palette.primary }]}>إعادة التحقق</Text>}
@@ -219,17 +163,11 @@ const styles = StyleSheet.create({
   returnTime: { fontFamily: typography.fontFamily.medium, fontSize: 15, textAlign: 'center', writingDirection: 'rtl', marginBottom: 26 },
   primaryButton: { minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
   wideButton: { width: '100%', maxWidth: 360, marginTop: 6 },
-  primaryButtonText: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontWeight: '700', fontSize: 16, textAlign: 'center', writingDirection: 'rtl' },
+  primaryButtonText: { fontFamily: typography.fontFamily.bold, fontWeight: '700', fontSize: 16, textAlign: 'center', writingDirection: 'rtl' },
   footnote: { fontFamily: typography.fontFamily.regular, marginTop: 20, fontSize: 14, textAlign: 'center', writingDirection: 'rtl' },
   retryButton: { marginTop: 20, padding: 12 },
   retryText: { fontFamily: typography.fontFamily.bold, fontWeight: '700', fontSize: 16 },
-  banner: { position: 'absolute', top: 8, left: 12, right: 12, zIndex: 200, elevation: 12, borderWidth: 1, borderRadius: 16, padding: 12, flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
-  bannerCopy: { flex: 1, alignItems: 'flex-end' },
-  bannerTitle: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '700', writingDirection: 'rtl' },
-  bannerMessage: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginTop: 3, writingDirection: 'rtl' },
-  laterButton: { paddingHorizontal: 6, paddingVertical: 10 },
-  laterText: { fontFamily: typography.fontFamily.medium, fontSize: 13, fontWeight: '600' },
-  versionBanner: { position: 'absolute', top: 84, left: 12, right: 12, zIndex: 190, elevation: 10, borderRadius: 16, padding: 14, alignItems: 'flex-end' },
-  versionBannerMessage: { color: '#FFFFFF', fontSize: 13, marginTop: 4, textAlign: 'right', writingDirection: 'rtl' },
-  versionBannerAction: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontSize: 13, fontWeight: '700', marginTop: 7 },
+  versionBanner: { position: 'absolute', top: 8, left: 12, right: 12, zIndex: 190, elevation: 10, borderRadius: 16, padding: 14, alignItems: 'flex-end' },
+  versionBannerMessage: { fontSize: 13, marginTop: 4, textAlign: 'right', writingDirection: 'rtl' },
+  versionBannerAction: { fontFamily: typography.fontFamily.bold, fontSize: 13, fontWeight: '700', marginTop: 7 },
 });

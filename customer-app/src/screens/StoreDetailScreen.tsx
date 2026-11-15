@@ -1,3 +1,4 @@
+import { holdUpdates } from '../system/updateSafety';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Alert,
@@ -108,6 +109,7 @@ export const StoreDetailScreen: React.FC = () => {
   // Selected composite product for Modal popup
   const [selectedBundleProduct, setSelectedBundleProduct] = useState<Product | null>(null);
   const [selectedRegularProduct, setSelectedRegularProduct] = useState<Product | null>(null);
+  useEffect(() => { if (selectedBundleProduct || selectedRegularProduct) return holdUpdates(); }, [selectedBundleProduct, selectedRegularProduct]);
 
   const filteredProducts = allStoreProducts.filter((p) => {
     if (selectedSubcat === 'الكل') return true;
@@ -125,6 +127,7 @@ export const StoreDetailScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <Header
+        searchScope={{ storeId: store.id, title: store.name }}
         title={store.name}
         showBack
         onBack={() => navigateTo('category_stores')}

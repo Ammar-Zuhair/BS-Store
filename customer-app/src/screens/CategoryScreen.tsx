@@ -31,7 +31,7 @@ export const CategoryScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Header title="تصفح الأقسام والمتاجر" showBack onBack={() => navigateTo('home')} />
+      <Header searchScope={{ categoryId: selectedCategory && selectedCategory !== 'cat-all' ? selectedCategory : undefined }} title="تصفح الأقسام والمتاجر" showBack onBack={() => navigateTo('home')} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

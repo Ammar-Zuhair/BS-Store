@@ -17,7 +17,7 @@ export const HomeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Header />
+      <Header searchScope={{}} />
 
       {showSkeleton ? (
         <HomeSkeleton />

@@ -1,3 +1,5 @@
+import { beginWrite } from '../system/updateSafety';
+import { invalidateSearchCache } from '../search/cache';
 import { fetchWithTimeout } from '../utils/requests';
 import Constants from 'expo-constants';
 import { tokenStorage } from './tokenStorage';
@@ -72,6 +74,7 @@ class ApiClient {
   }
 
   async setToken(token: string | null): Promise<void> {
+    if (this.token !== token) invalidateSearchCache();
     this.token = token;
     if (token === null) {
       await this.clearStoredTokens();
@@ -93,6 +96,7 @@ class ApiClient {
   }
 
   private async clearStoredTokens(): Promise<void> {
+    invalidateSearchCache();
     this.token = null;
     await tokenStorage.remove([TOKEN_STORAGE_KEY, REFRESH_TOKEN_STORAGE_KEY]);
   }
@@ -187,6 +191,12 @@ class ApiClient {
   }
 
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const release = options.method && options.method !== 'GET' ? beginWrite() : () => {};
+    try { return await this.performRequest<T>(endpoint, options); }
+    finally { release(); }
+  }
+
+  private async performRequest<T>(endpoint: string, options: RequestInit): Promise<T> {
     const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
     const sentToken = this.token;
@@ -197,7 +207,8 @@ class ApiClient {
         ...options,
         headers: this.buildHeaders(options, this.token),
       });
-    } catch {
+    } catch (error) {
+      if (options.signal?.aborted || (error as Error)?.name === 'AbortError') throw error;
       throw new Error('تعذر الاتصال بالخدمة. تحقق من اتصال الإنترنت وحاول مجدداً.');
     }
 
@@ -211,7 +222,8 @@ class ApiClient {
             headers: this.buildHeaders(options, this.token),
           });
           retriedAfterRefresh = true;
-        } catch {
+        } catch (error) {
+          if (options.signal?.aborted || (error as Error)?.name === 'AbortError') throw error;
           throw new Error('تعذر الاتصال بالخدمة. تحقق من اتصال الإنترنت وحاول مجدداً.');
         }
       } else if (this.token) {

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
 } from 'react-native';
 import { CachedImage } from '../components/CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
@@ -50,7 +49,6 @@ export const CategoryStoresScreen: React.FC = () => {
       : allCategories[0]?.id || 'cat-all'
   );
 
-  const [searchQuery, setSearchQuery] = useState<string>('');
   const [visibleStoresCount, setVisibleStoresCount] = useState(6);
   const [selectedDeal, setSelectedDeal] = useState<DealItem | null>(null);
   const [dealModalVisible, setDealModalVisible] = useState(false);
@@ -96,7 +94,7 @@ export const CategoryStoresScreen: React.FC = () => {
     });
   }, [deals, activeCat, allStores]);
 
-  // 2. Filter stores: must belong to the active category, AND match dynamic search query
+  // Stores in the active category; catalog search is handled by the shared server search.
   const filteredCategoryStores = useMemo(() => {
     return allStores.filter((store) => {
       // Category match:
@@ -107,18 +105,9 @@ export const CategoryStoresScreen: React.FC = () => {
 
       if (!matchesCat) return false;
 
-      // Dynamic Live Search query match (fuzzy/case-insensitive substring)
-      if (!searchQuery.trim()) return true;
-
-      const q = searchQuery.trim().toLowerCase();
-      const nameMatch = (store.name || '').toLowerCase().includes(q);
-      const addressMatch = (store.address || '').toLowerCase().includes(q);
-      const subcatsMatch =
-        store.subcategories &&
-        store.subcategories.some((sub) => (sub || '').toLowerCase().includes(q));
-      return nameMatch || addressMatch || subcatsMatch;
+      return true;
     });
-  }, [allStores, activeCat, searchQuery]);
+  }, [allStores, activeCat]);
 
   const handleSelectStore = (store: Store) => {
     setSelectedStore(store);
@@ -133,6 +122,7 @@ export const CategoryStoresScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <Header
+        searchScope={{ categoryId: activeCat === 'cat-all' ? undefined : activeCat, title: currentCatObj?.name }}
         title={currentCatObj ? currentCatObj.name : 'المتاجر والمنتجات'}
         showBack
         onBack={() => navigateTo('home')}
@@ -177,36 +167,8 @@ export const CategoryStoresScreen: React.FC = () => {
           })}
         </ScrollView>
 
-        {/* Dynamic Real-Time Search Bar for Stores in this Category */}
-        <View style={styles.searchSection}>
-          <View style={styles.searchBar}>
-            {searchQuery.trim() ? (
-              <TouchableOpacity
-                style={styles.clearSearchBtn}
-                onPress={() => setSearchQuery('')}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel="مسح البحث"
-              >
-                <AppIcon name="close" size={14} color={themeColors.onSurfaceVariant} />
-              </TouchableOpacity>
-            ) : null}
-            <TextInput
-              style={styles.searchInput}
-              placeholder={`ابحث عن متجر في قسم ${currentCatObj?.name || ''} (مثال: ابو)...`}
-              placeholderTextColor={themeColors.onSurfaceVariant}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              textAlign="right"
-              returnKeyType="search"
-              accessibilityLabel="البحث عن متجر"
-            />
-            <AppIcon name="search" size={18} color={themeColors.onSurfaceVariant} />
-          </View>
-        </View>
-
         {/* 1. Category Offers (Genuine deals & bundles, never random products) */}
-        {categoryDeals.length > 0 && !searchQuery.trim() && (
+        {categoryDeals.length > 0 && (
           <View style={styles.offersSection}>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.badgeWrap}>
@@ -351,14 +313,10 @@ export const CategoryStoresScreen: React.FC = () => {
             </View>
             <View style={styles.titleWrap}>
               <Text style={styles.sectionTitle}>
-                {searchQuery.trim()
-                  ? `نتائج البحث عن "${searchQuery.trim()}"`
-                  : `متاجر قسم: ${currentCatObj.name}`}
+                {`متاجر قسم: ${currentCatObj?.name || 'المتاجر'}`}
               </Text>
               <Text style={styles.sectionSubtitle}>
-                {searchQuery.trim()
-                  ? 'تمت مطابقة وفرز المتاجر حسب كلمة البحث'
-                  : 'اختر متجراً لاستعراض أصنافه ومنتجاته'}
+                اختر متجراً لاستعراض أصنافه ومنتجاته
               </Text>
             </View>
           </View>
@@ -369,26 +327,14 @@ export const CategoryStoresScreen: React.FC = () => {
                 <AppIcon name="store" size={28} color={themeColors.onSurfaceVariant} />
               </View>
               <Text style={styles.emptyTitle}>
-                {searchQuery.trim()
-                  ? `لا توجد متاجر تطابق "${searchQuery.trim()}"`
-                  : 'لا توجد متاجر مسجلة حالياً في هذا القسم'}
+                لا توجد متاجر مسجلة حالياً في هذا القسم
               </Text>
               <Text style={styles.emptySubtitle}>
-                {searchQuery.trim()
-                  ? 'حاول تغيير كلمة البحث أو كتابة أحرف أقل'
-                  : isAuthenticated && customerGovernorateId === null
+                {isAuthenticated && customerGovernorateId === null
                     ? 'اختر محافظة التسوق من الملف الشخصي لعرض المتاجر المتاحة فيها.'
                     : 'جرب تحديث قائمة المتاجر أو اختيار فئة أخرى.'}
               </Text>
-              {searchQuery.trim() ? (
-                <TouchableOpacity
-                  style={styles.resetSearchBtn}
-                  onPress={() => setSearchQuery('')}
-                >
-                  <Text style={styles.resetSearchText}>إلغاء البحث وإظهار كل المتاجر</Text>
-                </TouchableOpacity>
-              ) : (
-                <>
+              <>
                   {isAuthenticated && (
                     <TouchableOpacity style={styles.resetSearchBtn} onPress={() => navigateTo('profile')}>
                       <Text style={styles.resetSearchText}>
@@ -399,8 +345,7 @@ export const CategoryStoresScreen: React.FC = () => {
                   <TouchableOpacity style={styles.resetSearchBtn} onPress={() => { void refreshCatalog(); }}>
                     <Text style={styles.resetSearchText}>إعادة تحميل المتاجر</Text>
                   </TouchableOpacity>
-                </>
-              )}
+              </>
             </View>
           ) : (
             filteredCategoryStores.slice(0, visibleStoresCount).map((store) => (

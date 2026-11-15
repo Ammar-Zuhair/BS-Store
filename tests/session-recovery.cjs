@@ -60,6 +60,20 @@ async function main() {
   const { fetchWithTimeout } = load(path.join(root, app, 'src/utils/requests.ts'));
   global.fetch = async (_, options) => new Promise((_, reject) => options.signal.addEventListener('abort', () => reject(new Error('aborted'))));
   await assert.rejects(fetchWithTimeout('https://example.test', {}, 20), /aborted/);
+  if (app === 'customer-app') {
+   const signal = new AbortController();
+   global.fetch = async (_, options) => new Promise((_, reject) => options.signal.addEventListener('abort', () => reject(new DOMException('Aborted','AbortError'))));
+   const pendingSearch = api.request('/catalog/search?q=test', { method: 'GET', signal: signal.signal });
+   signal.abort();
+   await assert.rejects(pendingSearch, error => error.name === 'AbortError');
+   const { canApplyUpdate } = load(path.join(root, app, 'src/system/updateSafety.ts'));
+   let releaseWrite;
+   global.fetch = async () => new Promise(resolve => { releaseWrite = () => resolve(Response.json({data:{ok:true}})); });
+   const write = api.post('/draft', { name: 'test' });
+   assert.equal(canApplyUpdate(), false, 'pending server save blocks silent reload');
+   releaseWrite(); await write;
+   assert.equal(canApplyUpdate(), true, 'completed save releases silent reload guard');
+  }
   console.log('PASS ' + app + ': transient session recovery, invalid-session removal, concurrent refresh race, duplicate reads and timeout');
  }
 }

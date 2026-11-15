@@ -1,3 +1,4 @@
+import { invalidateSearchCache } from '../search/cache';
 import { VariantChoice, BundleSelection, optionsLabel, bundleUnitPrice } from '../options/model';
 import { formatOrderDate } from '../utils/orderDate';
 import * as React from 'react';
@@ -68,7 +69,7 @@ interface AppContextType {
   activateDeliveryDeal: (dealId: string, percent: number) => void;
   activeDeliveryDealId: string | null;
   activeOrderDiscountDeal: { id: string; title: string } | null;
-  activateProductDiscountDeal: (dealId: string) => void;
+  activateProductDiscountDeal: (dealId: string, catalogDeal?: DealItem) => void;
   addresses: Address[];
   selectedAddress: Address | null;
   setSelectedAddress: React.Dispatch<React.SetStateAction<Address | null>>;
@@ -218,6 +219,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const catalogInFlight = useRef<Promise<void> | null>(null);
   const loadCatalog = async () => {
     try {
+      invalidateSearchCache();
       setIsLoadingCatalog(true);
       const [catsRes, storesRes, prodsRes, dealsRes] = await Promise.all([
         catalogApi.getCategories().catch(() => []),
@@ -810,9 +812,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsTieredPromo(false);
   };
 
-  const activateProductDiscountDeal = (dealId: string) => {
-    const deal = deals.find((item) => item.id === dealId);
+  const activateProductDiscountDeal = (dealId: string, catalogDeal?: DealItem) => {
+    const deal = catalogDeal?.id === dealId ? catalogDeal : deals.find((item) => item.id === dealId);
     if (!deal || deal.couponCode || deal.dealType !== 'PRODUCT_DISCOUNT') return;
+    if (catalogDeal) setDeals(current => [...current.filter(item => item.id !== deal.id), deal]);
     setProductDiscountDealId(dealId);
     setPromoCode('');
     setDeliveryPromoDealId(null);

@@ -49,6 +49,7 @@ function load(file) {
     if (specifier === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ bottom: 12 }) };
     if (specifier.endsWith('/context/AppContext')) return { useApp: () => app };
     if (specifier === './client') return { api };
+    if (specifier.endsWith('/CatalogSearchModal')) return { CatalogSearchModal: () => null };
     if (specifier.endsWith('/AppIcon')) return { AppIcon: 'Icon' };
     if (specifier.endsWith('/LocationPickerModal')) return { LocationPickerModal: () => null };
     if (specifier.endsWith('.png')) return 1;

@@ -1,3 +1,4 @@
+import { invalidateSearchCache } from '../search/cache';
 import type { OptionsDefinition, BundleSelection } from '../options/model';
 import { api } from './client';
 import { prepareReceiptUpload } from '../utils/receiptUpload';
@@ -39,7 +40,7 @@ export const authApi = {
 export const governorateApi = {
   list: () => api.get<{ id: string; name: string }[]>('/governorates'),
   mine: () => api.get<{ governorateId: string | null }>('/profile/governorate'),
-  update: (governorateId: string) => api.put('/profile/governorate', { governorateId }),
+  update: async (governorateId: string) => { invalidateSearchCache(); try { return await api.put('/profile/governorate', { governorateId }); } finally { invalidateSearchCache(); } },
 };
 
 // ─── Catalog API ─────────────────────────────────────────────────────────────
