@@ -9,64 +9,21 @@ const readPiece = createReadLimiter(3);
 
 // ─── Auth API ────────────────────────────────────────────────────────────────
 export const authApi = {
-  login: async (phone: string, password: string) => {
-    const res = await api.post<{ accessToken: string; refreshToken: string; user: { id: string; name?: string; fullName?: string; phone: string; role: string } }>(
-      '/auth/login',
-      { phone, password, role: 'Customer' }
-    );
-    await api.setToken(res.accessToken);
+  requestOtp: async (phone: string) => {
+    const { getOtpDeviceId } = await import('../utils/otp');
+    return api.post<{ phone: string; expiresIn: number; resendAfter: number; deliveryStatus: string }>('/auth/otp/request', { phone, deviceId: await getOtpDeviceId() });
+  },
+  verifyOtp: async (phone: string, otp: string) => {
+    const res = await api.post<{ accessToken: string; refreshToken: string; isNewUser: boolean; requiresProfileCompletion: boolean; user: { id: string; fullName: string; phone: string; role: string } }>('/auth/otp/verify', { phone, otp });
     await api.setRefreshToken(res.refreshToken);
+    await api.setToken(res.accessToken);
     return res;
   },
-
-  register: async (
-    fullName: string,
-    phone: string,
-    password = 'Password123!',
-    initialAddress?: {
-      city: string;
-      district: string;
-      street: string;
-      building?: string;
-      description?: string;
-      latitude: number;
-      longitude: number;
-      governorateId?: string;
-    }
-  ) => {
-    const res = await api.post<{ accessToken: string; refreshToken: string; user: { id: string; name?: string; fullName?: string; phone: string; role: string } }>(
-      '/auth/register',
-      {
-        fullName,
-        phone,
-        password,
-        initialAddress: initialAddress
-          ? {
-              city: initialAddress.city || '',
-              district: initialAddress.district || '',
-              street: initialAddress.street || '',
-              building: initialAddress.building,
-              description: initialAddress.description,
-              latitude: initialAddress.latitude || 0,
-              longitude: initialAddress.longitude || 0,
-              label: 0,
-              governorateId: initialAddress.governorateId,
-            }
-          : undefined,
-      }
-    );
-    await api.setToken(res.accessToken);
-    await api.setRefreshToken(res.refreshToken);
-    return res;
-  },
-
-  changePassword: async (currentPassword: string, newPassword: string) => {
-    const res = await api.post<{ accessToken: string; refreshToken: string }>('/auth/change-password', { currentPassword, newPassword });
-    await api.setToken(res.accessToken);
-    await api.setRefreshToken(res.refreshToken);
-  },
-
-  deleteAccount: (password: string) => api.post('/account/delete', { password }),
+  completeProfile: (fullName: string, initialAddress: Omit<Address, 'id'>) => api.post<{ fullName: string; phone: string }>('/auth/complete-profile', {
+    fullName, initialAddress: { ...initialAddress, label: 0 },
+  }),
+  requestDeletionOtp: () => api.post<{ resendAfter: number }>('/account/delete/otp/request'),
+  deleteAccount: (otp: string) => api.post('/account/delete/otp/verify', { otp }),
 
   me: () => api.get<{ id: string; name?: string; fullName?: string; phone: string; role: string }>('/auth/me'),
 

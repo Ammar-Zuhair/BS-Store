@@ -59,6 +59,7 @@ const MainNavigator: React.FC = () => {
     navigateTo,
     isAuthenticated,
     isAuthLoading,
+    needsProfileCompletion,
     isDarkMode,
     colors: themeColors,
     refreshOrders,
@@ -141,9 +142,9 @@ const MainNavigator: React.FC = () => {
     }
   };
 
-  const showNav = isAuthenticated && currentScreen !== 'auth' && currentScreen !== 'checkout';
+  const showNav = isAuthenticated && !needsProfileCompletion && currentScreen !== 'auth' && currentScreen !== 'checkout';
 
-  const resolvedScreen = !isAuthenticated && currentScreen !== 'auth' ? <AuthScreen /> : renderScreen();
+  const resolvedScreen = needsProfileCompletion || (!isAuthenticated && currentScreen !== 'auth') ? <AuthScreen /> : renderScreen();
 
   return (
     <SystemGate
@@ -175,7 +176,7 @@ const MainNavigator: React.FC = () => {
           {productOptionsRequest && <ProductDetailsModal product={productOptionsRequest} onClose={closeProductOptions} />}
           {bundleOptionsRequest && <BundleOptionsModal product={bundleOptionsRequest} onClose={closeBundleOptions} />}
           <BoosthisScreenTracker key={currentScreen} screen={BOOSTHIS_SCREEN_NAMES[currentScreen]} />
-          {isAuthenticated && currentScreen !== 'auth' && <FloatingCartBar />}
+          {isAuthenticated && !needsProfileCompletion && currentScreen !== 'auth' && <FloatingCartBar />}
           {showNav && <BottomNav />}
         </View>
       </SafeAreaView>

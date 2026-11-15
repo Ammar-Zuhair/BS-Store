@@ -201,7 +201,7 @@ class ApiClient {
       throw new Error('تعذر الاتصال بالخدمة. تحقق من اتصال الإنترنت وحاول مجدداً.');
     }
 
-    const isAuthEndpoint = /^\/auth\/(?:login|register|check-phone|refresh)(?:\/|$)/.test(endpoint);
+    const isAuthEndpoint = /^\/auth\/(?:login|register|otp|check-phone|refresh)(?:\/|$)/.test(endpoint);
     if (response.status === 401 && !isAuthEndpoint) {
       const refreshed = (this.token !== sentToken && !!this.token) || await this.refreshAccessToken();
       if (refreshed) {

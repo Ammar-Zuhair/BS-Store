@@ -86,8 +86,9 @@ interface AppContextType {
   }) => Promise<Order>;
   isAuthenticated: boolean;
   isAuthLoading: boolean;
-  login: (phone: string, password: string, name?: string) => Promise<void>;
-  register: (name: string, phone: string, email: string, password?: string, initialAddress?: Omit<Address, 'id'>) => Promise<void>;
+  verifyOtp: (phone: string, otp: string) => Promise<void>;
+  completeProfile: (name: string, address: Omit<Address, 'id'>) => Promise<void>;
+  needsProfileCompletion: boolean;
   logout: () => Promise<void>;
   user: { name: string; phone: string; email?: string } | null;
   registeredUser: { name: string; phone: string; email: string } | null;
@@ -108,6 +109,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('home');
   const [categories, setCategories] = useState<Category[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -396,16 +398,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (!renewed && api.getToken()) throw new Error('تعذر تجديد الجلسة مؤقتاً');
             const serverUser = await authApi.me();
             setUser({ name: serverUser.fullName || serverUser.name || '', phone: serverUser.phone });
+            const pending = await AsyncStorage.getItem('@bs_customer_profile_pending') === '1';
+            setNeedsProfileCompletion(pending);
             setIsAuthenticated(true);
-            setCurrentScreen('home');
+            setCurrentScreen(pending ? 'auth' : 'home');
           } catch (error: any) {
             // A delayed/offline server must not destroy a valid persisted session.
             if (error?.status !== 401 && error?.status !== 403) {
               const cached = await AsyncStorage.getItem('@bs_customer_user');
               if (cached && api.getToken()) {
                 setUser(JSON.parse(cached));
+                const pending = await AsyncStorage.getItem('@bs_customer_profile_pending') === '1';
+                setNeedsProfileCompletion(pending);
                 setIsAuthenticated(true);
-                setCurrentScreen('home');
+                setCurrentScreen(pending ? 'auth' : 'home');
               }
               console.warn('تعذر التحقق من الجلسة مؤقتاً:', error);
               return;
@@ -1008,38 +1014,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const login = async (phone: string, password: string, name?: string) => {
-    try {
-      const res = await authApi.login(phone, password);
-      const userData = { name: res.user.fullName || res.user.name || name || '', phone: res.user.phone };
-      setUser(userData);
-      await AsyncStorage.setItem('@bs_customer_user', JSON.stringify(userData));
-      setIsAuthenticated(true);
-      navigateTo('home');
-    } catch (err: any) {
-      Alert.alert('خطأ في تسجيل الدخول', err.message || 'فشل تسجيل الدخول، تأكد من صحة رقم الهاتف وكلمة المرور');
-      throw err;
-    }
+  const verifyOtp = async (phone: string, otp: string) => {
+    const res = await authApi.verifyOtp(phone, otp);
+    const userData = { name: res.user.fullName || '', phone: res.user.phone };
+    await AsyncStorage.setItem('@bs_customer_user', JSON.stringify(userData));
+    await AsyncStorage.setItem('@bs_customer_profile_pending', res.requiresProfileCompletion ? '1' : '0');
+    setUser(userData);
+    setNeedsProfileCompletion(res.requiresProfileCompletion);
+    setIsAuthenticated(true);
+    navigateTo(res.requiresProfileCompletion ? 'auth' : 'home');
   };
 
-  const register = async (
-    name: string,
-    phone: string,
-    email: string,
-    password = 'Password123!',
-    initialAddress?: Omit<Address, 'id'>
-  ) => {
-    try {
-      const res = await authApi.register(name, phone, password, initialAddress);
-      const userData = { name: res.user?.fullName || res.user?.name || name, phone: res.user?.phone || phone, email };
-      setUser(userData);
-      await AsyncStorage.setItem('@bs_customer_user', JSON.stringify(userData));
-      setIsAuthenticated(true);
-      navigateTo('home');
-    } catch (err: any) {
-      Alert.alert('خطأ في إنشاء الحساب', err.message || 'فشل إنشاء الحساب، يرجى المحاولة برقم هاتف آخر');
-      throw err;
-    }
+  const completeProfile = async (name: string, address: Omit<Address, 'id'>) => {
+    const res = await authApi.completeProfile(name, address);
+    const userData = { name: res.fullName, phone: res.phone };
+    await AsyncStorage.setItem('@bs_customer_user', JSON.stringify(userData));
+    await AsyncStorage.setItem('@bs_customer_profile_pending', '0');
+    setUser(userData);
+    setNeedsProfileCompletion(false);
+    navigateTo('home');
   };
 
   const logout = async () => {
@@ -1048,6 +1041,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await authApi.logout();
     } catch {}
     await AsyncStorage.removeItem('@bs_customer_user');
+    await AsyncStorage.removeItem('@bs_customer_profile_pending');
+    setNeedsProfileCompletion(false);
     await AsyncStorage.removeItem('@bs_customer_orders');
     await AsyncStorage.removeItem('@bs_customer_addresses');
     await api.setToken(null);
@@ -1120,8 +1115,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         placeOrder,
         isAuthenticated,
         isAuthLoading,
-        login,
-        register,
+        verifyOtp,
+        completeProfile,
+        needsProfileCompletion,
         logout,
         user,
         registeredUser,

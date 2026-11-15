@@ -23,6 +23,7 @@ import { AppBackground } from '../components/AppBackground';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { LocationPickerModal } from '../components/LocationPickerModal';
 import { Address } from '../types';
+import { otpDigits } from '../utils/otp';
 
 const emptyAddress = (): Omit<Address, 'id'> => ({
   label: 'أخرى',
@@ -57,18 +58,21 @@ export const ProfileScreen: React.FC = () => {
   } = useApp();
 
   const styles = useMemo(() => createStyles(colors, isDarkMode), [colors, isDarkMode]);
-  const [page, setPage] = useState<'support' | 'about' | 'password' | 'address' | 'governorates' | 'delete-account' | null>(null);
+  const [page, setPage] = useState<'support' | 'about' | 'address' | 'governorates' | 'delete-account' | null>(null);
   const [busy, setBusy] = useState(false);
   const [addressId, setAddressId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Omit<Address, 'id'>>(emptyAddress);
   const [showMap, setShowMap] = useState(false);
   const [governorates, setGovernorates] = useState<{ id: string; name: string }[]>([]);
   const [governorateId, setGovernorateId] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [deletionPassword, setDeletionPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [deletionOtp, setDeletionOtp] = useState('');
+  const [deletionSent, setDeletionSent] = useState(false);
+  const [deletionResendAt, setDeletionResendAt] = useState(0);
+  const [deletionRetry, setDeletionRetry] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setDeletionRetry(Math.max(0, Math.ceil((deletionResendAt - Date.now()) / 1000))), 1000);
+    return () => clearInterval(timer);
+  }, [deletionResendAt]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -199,33 +203,24 @@ export const ProfileScreen: React.FC = () => {
       ]
     );
 
-  const savePassword = async () => {
-    if (!currentPassword || newPassword.length < 8) {
-      Alert.alert('تحقق من كلمة المرور', 'أدخل كلمة المرور الحالية وكلمة جديدة من 8 أحرف على الأقل.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      Alert.alert('تحقق من كلمة المرور', 'تأكيد كلمة المرور لا يطابق الكلمة الجديدة.');
-      return;
-    }
+  const sendDeletionOtp = async () => {
     setBusy(true);
     try {
-      await authApi.changePassword(currentPassword, newPassword);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setPage(null);
-      Alert.alert('تم التغيير', 'تم تغيير كلمة المرور.');
-    } catch (e) {
+      const result = await authApi.requestDeletionOtp();
+      setDeletionSent(true);
+      setDeletionOtp('');
+      setDeletionResendAt(Date.now() + result.resendAfter * 1000);
+      setDeletionRetry(result.resendAfter);
+      Alert.alert('رمز تأكيد الحذف', 'تم قبول طلب الإرسال إلى واتساب على رقم حسابك.');
+    } catch (e: any) {
+      if (e.status === 429) setDeletionResendAt(Date.now() + (e.retryAfterSeconds || 60) * 1000);
       showError(e);
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   };
 
   const confirmAccountDeletion = () => {
-    if (!deletionPassword) {
-      Alert.alert('كلمة المرور مطلوبة', 'أدخل كلمة مرور حسابك لتأكيد ملكيته.');
+    if (!/^[0-9]{6}$/.test(deletionOtp)) {
+      Alert.alert('رمز التحقق مطلوب', 'أدخل رمز تأكيد الحذف الذي أُرسل إلى واتساب.');
       return;
     }
     Alert.alert(
@@ -239,8 +234,8 @@ export const ProfileScreen: React.FC = () => {
           onPress: async () => {
             setBusy(true);
             try {
-              await authApi.deleteAccount(deletionPassword);
-              setDeletionPassword('');
+              await authApi.deleteAccount(deletionOtp);
+              setDeletionOtp('');
               setPage(null);
               await logout();
               Alert.alert(
@@ -274,13 +269,7 @@ export const ProfileScreen: React.FC = () => {
 
   const closePage = () => {
     if (busy) return;
-    if (page === 'password') {
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setPasswordVisible(false);
-    }
-    setDeletionPassword('');
+    setDeletionOtp('');
     setPage(null);
   };
 
@@ -321,8 +310,7 @@ export const ProfileScreen: React.FC = () => {
       ? 'تواصل مع الدعم الفني'
       : page === 'about'
       ? 'حول التطبيق'
-      : page === 'password'
-      ? 'تغيير كلمة المرور'
+
       : page === 'governorates'
       ? 'محافظة التسوق'
       : addressId
@@ -348,12 +336,7 @@ export const ProfileScreen: React.FC = () => {
               </Text>
             </View>
           </View>
-          {isAuthenticated
-            ? button('تغيير كلمة المرور', () => {
-                setPasswordVisible(false);
-                setPage('password');
-              }, 'lock')
-            : button('تسجيل الدخول / إنشاء حساب', () => navigateTo('auth'), 'arrow-right')}
+          {!isAuthenticated && button('تسجيل الدخول / إنشاء حساب', () => navigateTo('auth'), 'arrow-right')}
         </View>
 
         {isAuthenticated && (
@@ -470,7 +453,7 @@ export const ProfileScreen: React.FC = () => {
             {button(
               'حذف الحساب',
               () => {
-                setDeletionPassword('');
+                setDeletionOtp('');
                 setPage('delete-account');
               },
               'trash',
@@ -567,27 +550,13 @@ export const ProfileScreen: React.FC = () => {
                   <Text style={styles.text}>
                     إذا كان لديك طلب قيد التنفيذ، أكمله أو ألغِه أولاً. يمكنك التواصل مع الدعم لطلب المساعدة في الحذف.
                   </Text>
-                  <Text style={styles.label}>كلمة مرور الحساب</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={deletionPassword}
-                    onChangeText={setDeletionPassword}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!busy}
-                    maxLength={128}
-                    placeholder="أدخل كلمة المرور للتأكيد"
-                    placeholderTextColor={isDarkMode ? '#64748B' : '#94A3B8'}
-                    accessibilityLabel="كلمة مرور الحساب لتأكيد الحذف"
-                  />
-                  {button(
-                    'حذف الحساب عبر الموقع',
-                    () => {
-                      void Linking.openURL('https://ammar-zuhair.github.io/BS-Store-Delete/').catch(showError);
-                    },
-                    'info'
-                  )}
+                  <Text style={styles.text}>لتأكيد ملكيتك للحساب، اطلب رمز حذف مخصصاً عبر واتساب على رقمك {user?.phone}.</Text>
+                  {button(deletionRetry ? `إعادة الإرسال بعد ${deletionRetry} ثانية` : 'إرسال رمز تأكيد الحذف', () => { if (!busy && !deletionRetry) void sendDeletionOtp(); }, 'message')}
+                  {deletionSent && <>
+                    <Text style={styles.label}>رمز تأكيد الحذف</Text>
+                    <TextInput style={styles.input} value={deletionOtp} onChangeText={v => setDeletionOtp(otpDigits(v).replace(/[^0-9]/g, '').slice(0, 6))}
+                      keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="one-time-code" maxLength={6} editable={!busy} accessibilityLabel="رمز تأكيد حذف الحساب" />
+                  </>}
                   <TouchableOpacity
                     style={[styles.primary, { backgroundColor: colors.error }]}
                     onPress={confirmAccountDeletion}
@@ -601,53 +570,6 @@ export const ProfileScreen: React.FC = () => {
                     )}
                   </TouchableOpacity>
                   {button('طلب مساعدة من الدعم', () => void openWhatsApp(SUPPORT_PHONE), 'message')}
-                </View>
-              )}
-
-              {page === 'password' && (
-                <View style={styles.card}>
-                  {[
-                    ['كلمة المرور الحالية', currentPassword, setCurrentPassword],
-                    ['كلمة المرور الجديدة (8 أحرف على الأقل)', newPassword, setNewPassword],
-                    ['تأكيد كلمة المرور الجديدة', confirmPassword, setConfirmPassword],
-                  ].map(([label, value, setter], index) => (
-                    <View key={index}>
-                      <Text style={styles.label}>{label as string}</Text>
-                      <TextInput
-                        style={styles.input}
-                        value={value as string}
-                        onChangeText={setter as (v: string) => void}
-                        secureTextEntry={!passwordVisible}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        editable={!busy}
-                        placeholder={label as string}
-                        placeholderTextColor={isDarkMode ? '#64748B' : '#94A3B8'}
-                        textContentType={index === 0 ? 'password' : 'newPassword'}
-                        accessibilityLabel={label as string}
-                      />
-                    </View>
-                  ))}
-                  {button(
-                    passwordVisible ? 'إخفاء كلمات المرور' : 'إظهار كلمات المرور',
-                    () => setPasswordVisible((v) => !v),
-                    passwordVisible ? 'eye-off' : 'eye',
-                    false,
-                    false,
-                    undefined,
-                    false
-                  )}
-                  <TouchableOpacity
-                    style={styles.primary}
-                    onPress={() => void savePassword()}
-                    disabled={busy}
-                  >
-                    {busy ? (
-                      <ActivityIndicator color={colors.onPrimary} />
-                    ) : (
-                      <Text style={styles.primaryText}>حفظ كلمة المرور</Text>
-                    )}
-                  </TouchableOpacity>
                 </View>
               )}
 
