@@ -71,6 +71,7 @@ async function main() {
   const source = path.join(root, 'customer-app/src');
   const { AppProvider, useApp } = load(path.join(source, 'context/AppContext.tsx'));
   const { OffersDealsSection } = load(path.join(source, 'components/OffersDealsSection.tsx'));
+  const { DealDetailsModal } = load(path.join(source, 'components/DealDetailsModal.tsx'));
   const { StoreDetailScreen } = load(path.join(source, 'screens/StoreDetailScreen.tsx'));
   let app, tree;
   function Harness() {
@@ -127,6 +128,17 @@ async function main() {
     await click('فتح العرض باقة متجر غير متاح');
     await click('استعراض متجر ');
     assert.equal(alerts.at(-1)[0], 'المتجر غير متاح'); assert.equal(app.currentScreen, 'home');
+    let searchClosed = 0;
+    function SearchDetailHarness() {
+      app = useApp();
+      return React.createElement(DealDetailsModal, { visible: true, deal: { ...offers.find(d => d.id === 'bundle'), dealType: 'BUNDLE' }, onClose() {}, onNavigate: () => searchClosed++ });
+    }
+    await act(async () => { tree.update(React.createElement(AppProvider, null, React.createElement(SearchDetailHarness))); });
+    await click(`استعراض متجر ${store.name}`);
+    assert.equal(searchClosed, 1, 'bundle navigation closes its parent search, including same-store navigation');
+    await act(async () => { app.activateProductDiscountDeal('fresh-search-offer', { ...offers.find(d => d.id === 'order-discount'), id: 'fresh-search-offer', dealType: 'PRODUCT_DISCOUNT', discountPercent: 25 }); });
+    assert.equal(app.activeOrderDiscountDeal.id, 'fresh-search-offer', 'fresh search offers work without depending on an older loaded catalog snapshot');
+    assert.equal(app.cartDiscount, 300);
     console.log('PASS coupon loading/success/failure/single request, valid discount totals, delivery/free/order activation, replacement/clear/reopen state, bundle details and selected-offer store navigation, missing-store feedback');
   } finally { if (tree) await act(async () => { tree.unmount(); }); }
 }

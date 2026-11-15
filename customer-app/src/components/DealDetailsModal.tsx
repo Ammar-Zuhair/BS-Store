@@ -56,6 +56,7 @@ interface DealDetailsModalProps {
   visible: boolean;
   onClose: () => void;
   onConfigure?: () => void;
+  onNavigate?: () => void;
   deal: DealItem | null;
 }
 
@@ -63,6 +64,7 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
   visible,
   onClose,
   onConfigure,
+  onNavigate,
   deal,
 }) => {
   const {
@@ -86,6 +88,7 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
       Alert.alert('المتجر غير متاح', 'تعذر العثور على متجر العرض. حدّث الصفحة وحاول مجدداً.');
       return;
     }
+    onNavigate?.();
     setSelectedStore(store);
     navigateTo('store_detail', { dealId: deal.id });
     onClose();

@@ -134,7 +134,7 @@ export function CatalogSearchModal({ scope, onClose }: { scope: SearchScope; onC
       </KeyboardAvoidingView>
     </SafeAreaView>
     <ProductDetailsModal product={product} onClose={() => setProduct(null)} />
-    <DealDetailsModal visible={!!deal} deal={deal} onClose={() => setDeal(null)} onConfigure={close} />
+    <DealDetailsModal visible={!!deal} deal={deal} onClose={() => setDeal(null)} onConfigure={close} onNavigate={close} />
     <Modal visible={!!offer} transparent animationType="none" onRequestClose={() => { if (!activating) setOffer(null); }}>
       <View style={s.scrim}><View style={[s.offer, { backgroundColor: c.surfaceContainerLowest }]}>
         <AppIcon name="gift" color={c.primary} size={40} /><Text style={[s.title, textStyle]}>{offer?.title}</Text><Text style={[s.copy, { color: c.onSurfaceVariant }]}>{offer?.description}</Text>
