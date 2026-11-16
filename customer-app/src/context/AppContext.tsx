@@ -103,6 +103,7 @@ interface AppContextType {
   deals: DealItem[];
   setDeals: React.Dispatch<React.SetStateAction<DealItem[]>>;
   isDarkMode: boolean;
+  isThemeReady: boolean;
   toggleTheme: () => Promise<void>;
   colors: ThemeColors;
 }
@@ -155,6 +156,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [deals, setDeals] = useState<DealItem[]>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState<boolean>(true);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [isThemeReady, setIsThemeReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    // Restore appearance independently of network/session work so the correct intro plays first.
+    AsyncStorage.getItem('@bs_theme_mode').then(saved => {
+      if (!active) return;
+      const dark = saved === 'dark';
+      setIsDarkMode(dark);
+      setGlobalThemeMode(dark ? 'dark' : 'light');
+    }).catch(() => {}).finally(() => { if (active) setIsThemeReady(true); });
+    return () => { active = false; };
+  }, []);
+
 
   const toggleTheme = async () => {
     const next = !isDarkMode;
@@ -432,14 +446,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Discard legacy local snapshots: addresses and orders must come from the API.
         await AsyncStorage.multiRemove(['@bs_customer_addresses', '@bs_customer_orders']);
 
-        const savedTheme = await AsyncStorage.getItem('@bs_theme_mode');
-        if (savedTheme === 'dark') {
-          setIsDarkMode(true);
-          setGlobalThemeMode('dark');
-        } else {
-          setIsDarkMode(false);
-          setGlobalThemeMode('light');
-        }
       } catch (err) {
         console.warn('Failed to restore session:', err);
       } finally {
@@ -1133,6 +1139,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deals,
         setDeals,
         isDarkMode,
+        isThemeReady,
         toggleTheme,
         colors: isDarkMode ? darkColors : lightColors,
       }}

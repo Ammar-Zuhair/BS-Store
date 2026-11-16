@@ -1,3 +1,4 @@
+import { StartupIntro } from '../startup/StartupIntro';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Alert, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,13 +28,18 @@ export const SystemGate: React.FC<{
   appType: 'customer' | 'admin' | 'courier';
   palette: Palette;
   showMaintenance?: boolean;
-}> = ({ children, appType, palette, showMaintenance = true }) => {
+  startupReady?: boolean;
+  themeReady?: boolean;
+  isDarkMode?: boolean;
+}> = ({ children, appType, palette, showMaintenance = true, startupReady = true, themeReady = true, isDarkMode = false }) => {
   const insets = useSafeAreaInsets();
   const safeTopInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const [maintenance, setMaintenance] = useState<MaintenanceStatus | null>(null);
   const [versionStatus, setVersionStatus] = useState<VersionStatus | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [initialCheckComplete, setInitialCheckComplete] = useState(false);
+  const [introFinished, setIntroFinished] = useState(false);
+  const finishIntro = useCallback(() => setIntroFinished(true), []);
   const refreshStatus = useCallback(async () => {
     const result = await Promise.allSettled([withTimeout(api.get<MaintenanceStatus>('/system/status'))]);
     if (result[0].status === 'fulfilled' && result[0].value) setMaintenance(result[0].value);
@@ -77,13 +83,8 @@ export const SystemGate: React.FC<{
     catch { Alert.alert('تعذر فتح التحديث', 'تحقق من اتصال الإنترنت وحاول مرة أخرى.'); }
   };
 
-  if (!initialCheckComplete) {
-    return (
-      <View style={[styles.startup, { backgroundColor: palette.surfaceDim }]}>
-        <ActivityIndicator size="large" color={palette.primary} />
-        <Text style={[styles.startupText, { color: palette.onSurfaceVariant }]}>جارٍ التحقق من حالة النظام وإصدار التطبيق…</Text>
-      </View>
-    );
+  if (!introFinished || !initialCheckComplete || !startupReady || !themeReady) {
+    return <StartupIntro dark={isDarkMode} themeReady={themeReady} finished={introFinished} onFinished={finishIntro} />;
   }
 
   if (showMaintenance && maintenance?.maintenance) {
@@ -152,8 +153,6 @@ function withTimeout<T>(promise: Promise<T>): Promise<T> {
 }
 
 const styles = StyleSheet.create({
-  startup: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  startupText: { fontFamily: typography.fontFamily.regular, fontSize: 14, marginTop: 14, textAlign: 'center', writingDirection: 'rtl' },
   gateScreen: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 28, paddingTop: 48, paddingBottom: 48 },
   illustration: { width: 120, height: 120, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
   illustrationIcon: { fontSize: 52 },

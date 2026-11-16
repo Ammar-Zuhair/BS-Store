@@ -10,7 +10,6 @@ import {
   StyleSheet,
   View,
   BackHandler,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -36,7 +35,6 @@ import { CategoryScreen } from './src/screens/CategoryScreen';
 import { FloatingCartBar } from './src/components/FloatingCartBar';
 import { BottomNav } from './src/components/BottomNav';
 import { AppBackground } from './src/components/AppBackground';
-import { colors } from './src/theme';
 import { usePushNotifications } from './src/notifications';
 import { api } from './src/api';
 import { SystemGate } from './src/system/SystemGate';
@@ -60,7 +58,6 @@ const MainNavigator: React.FC = () => {
     currentScreen,
     navigateTo,
     isAuthenticated,
-    isAuthLoading,
     needsProfileCompletion,
     isDarkMode,
     colors: themeColors,
@@ -96,16 +93,6 @@ const MainNavigator: React.FC = () => {
     return () => backHandler.remove();
   }, [currentScreen, navigateTo, isAuthenticated]);
 
-  if (isAuthLoading) {
-    return (
-      <SystemGate palette={themeColors} appType="customer">
-        <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
-          <ActivityIndicator size="large" color={themeColors.primary} />
-        </View>
-      </SystemGate>
-    );
-  }
-
   const renderScreen = () => {
     switch (currentScreen) {
       case 'home':
@@ -138,10 +125,7 @@ const MainNavigator: React.FC = () => {
   const resolvedScreen = needsProfileCompletion || (!isAuthenticated && currentScreen !== 'auth') ? <AuthScreen /> : renderScreen();
 
   return (
-    <SystemGate
-      palette={themeColors}
-      appType="customer"
-    >
+    <>
       <SafeAreaView
         style={[
           styles.safeArea,
@@ -171,12 +155,22 @@ const MainNavigator: React.FC = () => {
           {showNav && <BottomNav />}
         </View>
       </SafeAreaView>
-    </SystemGate>
+    </>
   );
 };
 
+function AppStartup({ fontsReady }: { fontsReady: boolean }) {
+  const { colors, isDarkMode, isThemeReady, isAuthLoading } = useApp();
+  return <>
+    <SilentUpdates />
+    <SystemGate palette={colors} appType="customer" isDarkMode={isDarkMode} themeReady={isThemeReady} startupReady={fontsReady && !isAuthLoading}>
+      <MainNavigator />
+    </SystemGate>
+  </>;
+}
+
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Tajawal_400Regular,
     Tajawal_500Medium,
     Tajawal_700Bold,
@@ -184,20 +178,11 @@ export default function App() {
     Tajawal_900Black,
   });
 
-  if (!fontsLoaded) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaProvider>
       <AppProvider>
         <BoosthisRuntime>
-          <SilentUpdates />
-          <MainNavigator />
+          <AppStartup fontsReady={fontsLoaded || !!fontError} />
         </BoosthisRuntime>
       </AppProvider>
     </SafeAreaProvider>
@@ -214,10 +199,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     position: 'relative',
   },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#080A0E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
 });

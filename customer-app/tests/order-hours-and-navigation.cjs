@@ -13,11 +13,12 @@ const cache = new Map();
 const appStateListeners = new Set();
 const alerts = [];
 const sourceRoot = path.resolve(__dirname, '../src');
+let restoredTheme = null;
 let serverOrders = [{ id: 'order-1', orderNumber: '101', status: 9, subOrders: [], createdAt: '2026-10-06T06:00:00Z' }];
 const serverHours = { isEnabled: true, openingTime: '09:00', closingTime: '23:00', serverTime: '2026-10-06T06:00:00Z', timeZone: 'Asia/Aden' };
 const serverStore = { id: 'store-1', name: 'متجر الاختبار', phone: '', address: 'صنعاء', isActive: true, openingTime: '09:00', closingTime: '23:00', is24Hours: false };
 const storage = {
-  getItem: async (key) => key === '@bs_customer_user' ? JSON.stringify({ name: 'عميل الاختبار', phone: '0000000' }) : key === 'auth_token' ? 'test-token' : null,
+  getItem: async (key) => key === '@bs_theme_mode' ? restoredTheme : key === '@bs_customer_user' ? JSON.stringify({ name: 'عميل الاختبار', phone: '0000000' }) : key === 'auth_token' ? 'test-token' : null,
   setItem: async () => {},
   removeItem: async () => {},
   multiRemove: async () => {},
@@ -168,6 +169,18 @@ async function main() {
     await act(async () => { await app.deleteSavedAddress('address-replacement'); });
     assert.equal(app.addresses.length, 0, 'confirmed deletion must immediately remove the address even if refresh fails');
     assert.equal(app.selectedAddress, null);
+    // Theme restoration must not wait for a slow refresh-token request during startup.
+    await act(async () => tree.unmount());
+    restoredTheme = 'dark';
+    let resumeSession;
+    apiMock.api.refreshSession = () => new Promise(resolve => { resumeSession = resolve; });
+    function ThemeHarness() { app = useApp(); return null; }
+    await act(async () => { tree = create(React.createElement(AppProvider, null, React.createElement(ThemeHarness))); });
+    assert.equal(app.isThemeReady, true);
+    assert.equal(app.isDarkMode, true);
+    assert.equal(app.isAuthLoading, true, 'correct intro theme is available while session restoration is still pending');
+    await act(async () => resumeSession(true));
+    assert.equal(app.isAuthLoading, false);
     console.log('PASS opening/closing boundaries, overnight hours, 24-hour and unknown schedules, Arabic times, order navigation, live hours banner, store details, foreground/manual refresh, confirmed address mutations and stale response protection');
   } finally {
     if (tree) await act(async () => { tree.unmount(); });

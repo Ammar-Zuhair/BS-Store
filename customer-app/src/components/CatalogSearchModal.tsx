@@ -1,5 +1,6 @@
+import { SearchTypeChooser } from '../search/SearchTypeChooser';
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, TextInput, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, TextInput, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, governorateApi } from '../api';
 import { useApp } from '../context/AppContext';
@@ -95,13 +96,10 @@ export function CatalogSearchModal({ scope, onClose }: { scope: SearchScope; onC
           <View style={{ flex: 1 }}><Text accessibilityRole="header" style={[s.title, textStyle]}>ابحث واكتشف</Text><Text style={[s.caption, { color: c.onSurfaceVariant }]}>{scope.title || 'المتاجر والمنتجات في محافظتك'}</Text></View>
           <AppIcon name="search" color={c.primary} size={26} />
         </View>
-        {!scope.storeId && <View style={s.tabs}>{(['store', 'product'] as const).map(value => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: type === value }} onPress={() => changeType(value)} style={[s.tab, { backgroundColor: type === value ? c.primary : c.surfaceContainerLow }]}>
-          <AppIcon name={value === 'store' ? 'store' : 'shopping-bag'} color={type === value ? c.onPrimary : c.onSurfaceVariant} />
-          <Text style={[s.buttonText, { color: type === value ? c.onPrimary : c.onSurface }]}>{value === 'store' ? 'متاجر' : 'منتجات وعروض'}</Text>
-        </Pressable>)}</View>}
         {type ? <>
+          {!scope.storeId && <SearchTypeChooser value={type} onChange={changeType} colors={c} />}
           <View style={s.searchRow}>
-            <TextInput accessibilityLabel="كلمة البحث" value={query} onChangeText={value => { setQuery(value); session.current?.change(value); }}
+            <TextInput autoFocus accessibilityLabel="كلمة البحث" value={query} onChangeText={value => { setQuery(value); session.current?.change(value); }}
               placeholder={type === 'store' ? 'ما المتجر الذي تبحث عنه؟' : 'ما المنتج الذي تبحث عنه؟'} placeholderTextColor={c.onSurfaceVariant}
               maxLength={100} returnKeyType="search" onSubmitEditing={() => session.current?.submit()} autoCorrect={false}
               style={[s.input, { color: c.onSurface, backgroundColor: c.surfaceContainerLowest, borderColor: c.outlineVariant }]} />
@@ -130,7 +128,15 @@ export function CatalogSearchModal({ scope, onClose }: { scope: SearchScope; onC
             </View>}
             ListFooterComponent={state.items.length ? <View style={s.footer}>{state.loading ? <ActivityIndicator color={c.primary} /> : state.error ? <><Text style={[s.copy, { color: c.onSurfaceVariant }]}>{state.error}</Text>{button('إعادة المحاولة', () => session.current?.retry())}</> : state.hasMore ? button('عرض المزيد', () => session.current?.more()) : <Text style={[s.caption, { color: c.onSurfaceVariant }]}>هذه أقرب النتائج لبحثك</Text>}</View> : null}
           />}
-        </> : <View style={s.empty}><View style={[s.discover, { backgroundColor: c.surfaceContainerLow }]}><AppIcon name="search" size={48} color={c.primary} /></View><Text style={[s.title, textStyle]}>عمّ تبحث اليوم؟</Text><Text style={[s.copy, { color: c.onSurfaceVariant }]}>اختر المتاجر أو المنتجات والعروض للبدء.</Text></View>}
+        </> : <ScrollView contentContainerStyle={s.initialContent}>
+          <SearchTypeChooser value={type} onChange={changeType} colors={c} />
+          <View style={s.choiceHint}>
+            <AppIcon name="edit" size={28} color={c.onSurfaceVariant} />
+            <Text style={[s.resultTitle, textStyle]}>٢. ثم اكتب ما تبحث عنه</Text>
+            <Text style={[s.copy, { color: c.onSurfaceVariant }]}>بعد الضغط على أحد الزرين في الأعلى، سيظهر حقل الكتابة وتبدأ النتائج بالظهور أثناء بحثك.</Text>
+          </View>
+        </ScrollView>}
+
       </KeyboardAvoidingView>
     </SafeAreaView>
     <ProductDetailsModal product={product} onClose={() => setProduct(null)} />
@@ -150,7 +156,6 @@ const s = StyleSheet.create({
   iconButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: typography.fontFamily.bold, fontSize: 23, textAlign: 'right' },
   caption: { fontFamily: typography.fontFamily.regular, fontSize: 14, textAlign: 'right', writingDirection: 'rtl' },
-  tabs: { flexDirection: 'row-reverse', padding: 16, gap: 12 }, tab: { flex: 1, minHeight: 52, padding: 12, borderRadius: 16, flexDirection: 'row-reverse', justifyContent: 'center', alignItems: 'center', gap: 8 },
   searchRow: { flexDirection: 'row-reverse', paddingHorizontal: 16, gap: 8, paddingTop: 12 },
   input: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: 14, padding: 12, fontSize: 16, textAlign: 'right', fontFamily: typography.fontFamily.regular },
   button: { minHeight: 48, padding: 12, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
@@ -161,7 +166,8 @@ const s = StyleSheet.create({
   image: { width: 64, height: 72, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   resultTitle: { fontSize: 17, textAlign: 'right', writingDirection: 'rtl' },
   empty: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
-  discover: { width: 112, height: 112, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
+  initialContent: { flexGrow: 1, paddingBottom: 24 },
+  choiceHint: { width: '100%', maxWidth: 600, alignSelf: 'center', alignItems: 'center', gap: 12, padding: 24 },
   copy: { fontFamily: typography.fontFamily.regular, fontSize: 16, lineHeight: 25, textAlign: 'center', writingDirection: 'rtl' },
   footer: { padding: 16, alignItems: 'center', gap: 12 },
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 24 },

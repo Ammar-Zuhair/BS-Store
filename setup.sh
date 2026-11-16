@@ -48,3 +48,9 @@ fi
 if [ -f /workspace/Ammar_Profile/package-lock.json ]; then
   (cd /workspace/Ammar_Profile && npm ci && npx playwright install chromium)
 fi
+
+# Inspect startup video metadata and extract fallback frames for customer UI QA.
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y ffmpeg
+fi
