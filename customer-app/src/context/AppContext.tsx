@@ -87,7 +87,7 @@ interface AppContextType {
   }) => Promise<Order>;
   isAuthenticated: boolean;
   isAuthLoading: boolean;
-  verifyOtp: (phone: string, otp: string) => Promise<void>;
+  verifyOtp: (phone: string, otp: string, onVerified?: () => Promise<void>) => Promise<void>;
   completeProfile: (name: string, address: Omit<Address, 'id'>) => Promise<void>;
   needsProfileCompletion: boolean;
   logout: () => Promise<void>;
@@ -1023,11 +1023,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const verifyOtp = async (phone: string, otp: string) => {
+  const verifyOtp = async (phone: string, otp: string, onVerified?: () => Promise<void>) => {
     const res = await authApi.verifyOtp(phone, otp);
     const userData = { name: res.user.fullName || '', phone: res.user.phone };
     await AsyncStorage.setItem('@bs_customer_user', JSON.stringify(userData));
     await AsyncStorage.setItem('@bs_customer_profile_pending', res.requiresProfileCompletion ? '1' : '0');
+    // The server has verified the code and the existing session is saved.
+    // A presentation callback may acknowledge success before navigation.
+    try { await onVerified?.(); } catch { /* Presentation cannot discard a verified session. */ }
     setUser(userData);
     setNeedsProfileCompletion(res.requiresProfileCompletion);
     setIsAuthenticated(true);

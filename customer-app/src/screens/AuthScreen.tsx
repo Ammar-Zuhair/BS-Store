@@ -8,7 +8,8 @@ import { ThemeColors, typography } from '../theme';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
 import { TermsModal } from '../components/TermsModal';
-import { normalizeYemenPhone, otpDigits } from '../utils/otp';
+import { normalizeYemenPhone } from '../utils/otp';
+import { OtpCodeInput, OtpStatus } from '../components/OtpCodeInput';
 
 export const AuthScreen: React.FC = () => {
   const { verifyOtp, completeProfile, needsProfileCompletion, user, logout, colors } = useApp();
@@ -18,6 +19,8 @@ export const AuthScreen: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [sentPhone, setSentPhone] = useState('');
   const [otp, setOtp] = useState('');
+  const [otpStatus, setOtpStatus] = useState<OtpStatus>('idle');
+  const [otpRequest, setOtpRequest] = useState(0);
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
   const [error, setError] = useState('');
@@ -34,7 +37,6 @@ export const AuthScreen: React.FC = () => {
   const [showMap, setShowMap] = useState(false);
   const [terms, setTerms] = useState(false);
   const [accepted, setAccepted] = useState(false);
-  const otpInput = useRef<TextInput>(null);
 
   useEffect(() => {
     if (needsProfileCompletion) governorateApi.list().then(setGovernorates).catch(() => setError('تعذر تحميل المحافظات. أعد المحاولة.'));
@@ -70,14 +72,26 @@ export const AuthScreen: React.FC = () => {
     if (!normalized) { setError('أدخل رقم هاتف جوال يمني صحيحاً.'); return; }
     void run(async () => {
       const result = await authApi.requestOtp(normalized);
-      setSentPhone(result.phone); setOtp(''); setStep('otp');
+      setSentPhone(result.phone); setOtp(''); setOtpStatus('idle'); setOtpRequest(value => value + 1); setStep('otp');
       setResendAt(Date.now() + result.resendAfter * 1000);
-      setTimeout(() => otpInput.current?.focus(), 100);
     });
   };
-  const verify = () => {
-    if (!/^[0-9]{6}$/.test(otp)) { setError('أدخل رمز التحقق المكوّن من 6 أرقام.'); return; }
-    void run(async () => { await verifyOtp(sentPhone, otp); setOtp(''); });
+  const verify = (code = otp) => {
+    if (!/^[0-9]{6}$/.test(code)) { setError('أدخل رمز التحقق المكوّن من 6 أرقام.'); return; }
+    void run(async () => {
+      setOtpStatus('verifying');
+      try {
+        await verifyOtp(sentPhone, code, async () => {
+          setOtpStatus('success');
+          // A short acknowledgement after server verification, before navigation.
+          await new Promise<void>(resolve => setTimeout(resolve, 750));
+        });
+        setOtp('');
+      } catch (error: any) {
+        setOtpStatus(error?.status && error.status < 500 ? 'error' : 'idle');
+        throw error;
+      }
+    });
   };
   const save = () => {
     if (name.trim().length < 2 || !governorateId || !city.trim() || !district.trim() || !street.trim() || !location || !accepted) {
@@ -89,7 +103,7 @@ export const AuthScreen: React.FC = () => {
     }));
   };
   const action = (label: string, onPress: () => void, secondary = false, disabled = false) => (
-    <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: busy || disabled, busy }}
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: busy || disabled, busy }}
       disabled={busy || disabled} onPress={onPress} activeOpacity={0.75}
       style={[styles.button, secondary ? styles.secondary : styles.primary, (busy || disabled) && styles.disabled]}>
       {busy && !secondary ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={[styles.buttonText, { color: secondary ? colors.primary : colors.onPrimary }]}>{label}</Text>}
@@ -131,13 +145,13 @@ export const AuthScreen: React.FC = () => {
             <Text style={styles.description}>أدخل رمز التحقق المكوّن من 6 أرقام المرسل عبر واتساب إلى:</Text>
             <Text style={[styles.phone, styles.ltr]}>{sentPhone}</Text>
             <Text style={styles.label}>رمز التحقق</Text>
-            <TextInput ref={otpInput} accessibilityLabel="رمز التحقق المكون من ستة أرقام" style={[styles.input, styles.otp]} keyboardType="number-pad"
-              textContentType="oneTimeCode" autoComplete="one-time-code" importantForAutofill="yes" autoCorrect={false} maxLength={6}
-              value={otp} onChangeText={v => setOtp(otpDigits(v).replace(/[^0-9]/g, '').slice(0, 6))} editable={!busy} onSubmitEditing={verify} />
+            <OtpCodeInput key={otpRequest} colors={colors} status={otpStatus} disabled={busy}
+              onChange={code => { setOtp(code); setOtpStatus('idle'); setError(''); }} onComplete={verify} />
+            <Text style={styles.hint}>يتم التحقق تلقائياً بعد إدخال الرقم السادس.</Text>
             <Text style={styles.hint}>الرمز صالح لمدة 5 دقائق. لم يصلك؟ انتظر انتهاء المهلة ثم أعد الإرسال.</Text>
           </>}
           {!!error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>}
-          {action(needsProfileCompletion ? 'حفظ البيانات والبدء بالتسوق' : step === 'phone' ? (retrySeconds ? `متابعة بعد ${retrySeconds} ثانية` : 'متابعة') : 'تأكيد الرمز', needsProfileCompletion ? save : step === 'phone' ? send : verify, false, !needsProfileCompletion && step === 'phone' && retrySeconds > 0)}
+          {action(needsProfileCompletion ? 'حفظ البيانات والبدء بالتسوق' : step === 'phone' ? (retrySeconds ? `متابعة بعد ${retrySeconds} ثانية` : 'متابعة') : 'تأكيد الرمز', needsProfileCompletion ? save : step === 'phone' ? send : () => verify(), false, !needsProfileCompletion && step === 'phone' && retrySeconds > 0)}
           {!needsProfileCompletion && step === 'otp' && <>
             {action(retrySeconds ? `إعادة إرسال الرمز بعد ${retrySeconds} ثانية` : 'إعادة إرسال الرمز', send, true, retrySeconds > 0)}
             {action('تعديل رقم الهاتف', () => { setStep('phone'); setOtp(''); setError(''); }, true)}
@@ -160,16 +174,15 @@ export const AuthScreen: React.FC = () => {
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  content: { flexGrow: 1, justifyContent: 'center', padding: 16 },
   logo: { width: 104, height: 104, alignSelf: 'center', marginBottom: 24, borderRadius: 24 },
-  card: { width: '100%', maxWidth: 480, alignSelf: 'center', padding: 24, borderRadius: 24, backgroundColor: colors.surfaceContainerLowest, borderWidth: 1, borderColor: colors.outlineVariant },
+  card: { width: '100%', maxWidth: 480, alignSelf: 'center', padding: 16, borderRadius: 24, backgroundColor: colors.surfaceContainerLowest, borderWidth: 1, borderColor: colors.outlineVariant },
   title: { fontFamily: typography.fontFamily.bold, fontSize: 24, lineHeight: 36, textAlign: 'right', color: colors.onSurface, marginBottom: 12 },
   description: { fontFamily: typography.fontFamily.regular, fontSize: 16, lineHeight: 26, textAlign: 'right', color: colors.onSurfaceVariant, marginBottom: 16 },
   group: { marginTop: 12 },
   label: { fontFamily: typography.fontFamily.bold, fontSize: 16, textAlign: 'right', color: colors.onSurface, marginBottom: 8 },
   input: { minHeight: 56, borderWidth: 1, borderColor: colors.outline, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontFamily: typography.fontFamily.medium, fontSize: 18, color: colors.onSurface, backgroundColor: colors.surfaceContainerLow, textAlign: 'right' },
   ltr: { writingDirection: 'ltr', textAlign: 'left' },
-  otp: { textAlign: 'center', writingDirection: 'ltr', letterSpacing: 10, fontSize: 28 },
   phone: { fontSize: 20, fontFamily: typography.fontFamily.bold, color: colors.onSurface, marginBottom: 20, textAlign: 'center' },
   hint: { fontSize: 14, fontFamily: typography.fontFamily.regular, color: colors.onSurfaceVariant, textAlign: 'right', lineHeight: 24, marginVertical: 12 },
   button: { minHeight: 52, justifyContent: 'center', alignItems: 'center', borderRadius: 12, padding: 12, marginTop: 12 },

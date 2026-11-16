@@ -1,4 +1,4 @@
-import { StartupIntro } from '../startup/StartupIntro';
+import { StartupLogo } from '../startup/StartupLogo';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, Alert, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,8 +38,6 @@ export const SystemGate: React.FC<{
   const [versionStatus, setVersionStatus] = useState<VersionStatus | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [initialCheckComplete, setInitialCheckComplete] = useState(false);
-  const [introFinished, setIntroFinished] = useState(false);
-  const finishIntro = useCallback(() => setIntroFinished(true), []);
   const refreshStatus = useCallback(async () => {
     const result = await Promise.allSettled([withTimeout(api.get<MaintenanceStatus>('/system/status'))]);
     if (result[0].status === 'fulfilled' && result[0].value) setMaintenance(result[0].value);
@@ -83,8 +81,8 @@ export const SystemGate: React.FC<{
     catch { Alert.alert('تعذر فتح التحديث', 'تحقق من اتصال الإنترنت وحاول مرة أخرى.'); }
   };
 
-  if (!introFinished || !initialCheckComplete || !startupReady || !themeReady) {
-    return <StartupIntro dark={isDarkMode} themeReady={themeReady} finished={introFinished} onFinished={finishIntro} />;
+  if (!initialCheckComplete || !startupReady || !themeReady) {
+    return <StartupLogo dark={isDarkMode} background={palette.background} />;
   }
 
   if (showMaintenance && maintenance?.maintenance) {

@@ -178,9 +178,27 @@ async function main() {
     await act(async () => { tree = create(React.createElement(AppProvider, null, React.createElement(ThemeHarness))); });
     assert.equal(app.isThemeReady, true);
     assert.equal(app.isDarkMode, true);
-    assert.equal(app.isAuthLoading, true, 'correct intro theme is available while session restoration is still pending');
+    assert.equal(app.isAuthLoading, true, 'correct logo theme is available while session restoration is still pending');
     await act(async () => resumeSession(true));
     assert.equal(app.isAuthLoading, false);
+    // Real provider keeps the current auth screen until verified-success feedback completes.
+    for (const isNewUser of [false, true]) {
+      await act(async () => app.navigateTo('auth'));
+      apiMock.authApi.verifyOtp = async () => ({ requiresProfileCompletion: isNewUser, user: { fullName: 'عميل موثق', phone: '+967771234567' } });
+      let finishFeedback, login;
+      await act(async () => { login = app.verifyOtp('+967771234567', '123456', () => new Promise(resolve => { finishFeedback = resolve; })); });
+      assert.equal(app.currentScreen, 'auth', 'verified session waits for success acknowledgement');
+      await act(async () => { finishFeedback(); await login; });
+      assert.equal(app.currentScreen, isNewUser ? 'auth' : 'home');
+      assert.equal(app.needsProfileCompletion, isNewUser, 'existing and new accounts keep the correct destination');
+    }
+    let acknowledged = false;
+    apiMock.authApi.verifyOtp = async () => { throw Error('invalid code'); };
+    await act(async () => { await assert.rejects(app.verifyOtp('phone', '000000', async () => { acknowledged = true; }), /invalid code/); });
+    assert.equal(acknowledged, false, 'failed verification cannot trigger success feedback');
+    apiMock.authApi.verifyOtp = async () => ({ requiresProfileCompletion: false, user: { fullName: 'عميل موثق', phone: '+967771234567' } });
+    await act(async () => { await app.verifyOtp('phone', '123456', async () => { throw Error('presentation failure'); }); });
+    assert.equal(app.currentScreen, 'home', 'presentation failure cannot discard a verified session');
     console.log('PASS opening/closing boundaries, overnight hours, 24-hour and unknown schedules, Arabic times, order navigation, live hours banner, store details, foreground/manual refresh, confirmed address mutations and stale response protection');
   } finally {
     if (tree) await act(async () => { tree.unmount(); });
