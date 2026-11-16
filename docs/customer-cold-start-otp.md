@@ -34,6 +34,16 @@ Headless Chromium exercised the actual exported app in both themes, with respons
 
 ## Release
 
-Source and publication results are recorded after the production update finishes. The rollback baseline is update group `c496c3df-3800-498a-a682-443112d1e70d` (the preceding video release).
+Published successfully to **customer production**, branch `production`, for Android and iOS; runtime remains **1.0.2**. No native build was created. Project: `4bddebb7-5c80-4360-b310-dbc00824cd29` (`ultra-horizon/bs-store-customer`).
+
+- Source commit: `4b0fd67f9aacc0322c8845773b1388ed84adb667`, pushed to GitHub main before publication and matched against both published platform records.
+- Update group: `51791a03-66cb-42cb-ba2d-260b18fd45a9`.
+- Android update: `01a1e3a1-6c31-7187-a3b9-f592cf205931`.
+- iOS update: `01a1e3a1-6c31-7b8b-bf13-baff877c98fb`.
+- Message: `تطبيق التحديث عند التشغيل التالي وتحسين إدخال رمز التحقق واستبدال الفيديو بشعار ثابت`.
+
+Verified production channel resolves to this group on both platforms. Both native manifests and launch bundles returned HTTP 200 and the expected update IDs/runtime; manifests contain no video assets. Downloaded launch bundles contain no Quick Connect service key. The unchanged backend returned healthy from the production HTTPS health endpoint.
+
+The rollback baseline is update group `c496c3df-3800-498a-a682-443112d1e70d` (the preceding video release). From `customer-app`, rollback is available with `npx eas-cli@latest update:republish --group c496c3df-3800-498a-a682-443112d1e70d --destination-channel production --message "التراجع إلى الإصدار السابق" --non-interactive`. That baseline restores the previous video and resume-update behavior; use it only if a regression warrants rollback.
 
 A device still running the preceding bundle retains its previous resume behavior until this corrected bundle first loads. After downloading this release, fully close and reopen the app once to activate it. Subsequent downloads follow the new cold-start-only policy.
