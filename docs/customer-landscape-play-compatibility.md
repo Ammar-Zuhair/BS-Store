@@ -34,4 +34,24 @@ Passed TypeScript, customer landscape/OTP/startup/search/features/notification s
 
 Actual exported UI was exercised in headless Chromium in both themes at 390x844, 844x390, 568x320, 1024x768 and 1366x768. Coverage includes home/category/store, search results on a short display, product action reachability, profile/orders, no horizontal overflow and preservation of phone/OTP drafts across rotation. Native device rotation, system keyboard, device cutouts and Play Console device catalog should also be checked on physical hardware/Console; browser checks do not substitute for that.
 
-AAB publication/compiled-manifest results will be recorded when the build finishes. No OTA is being used to claim resolution of this native Play warning.
+## Completed Android artifact
+
+Signed production AAB built successfully **locally**, using the existing EAS `production-aab` profile, production environment and existing remote signing credentials. Source commit: `fc73c588a6920634b80a806af4dfac78b7a395cf` (app sources unchanged after upload/build start).
+
+- Application ID: `com.bsstore.customer`.
+- Version: **1.0.2**, Android **versionCode 20**.
+- File in the workspace: `/workspace/.tools/bsstore-customer-v20-landscape.aab` (55,582,072 bytes, about 53 MiB).
+- SHA-256: `747cf797e4709d7d1468d146f64fd46d5b0ef8a3bd24bc1fe979d64025a570bd`.
+- Native ABIs: `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`.
+
+The final AAB passed `bundletool validate` and Java signature verification. Its compiled manifest was dumped using bundletool and checked with `scripts/verify-android-manifest.py --adaptive-orientation`: target API 36, both screen features explicitly optional, MainActivity `screenOrientation=-1` (Android's compiled value for `unspecified`) and `resizeableActivity=true`. The verifier accepts Android's compiled enum values as well as source XML names. The embedded JavaScript bundle exists and contains no Quick Connect service key.
+
+The initial EAS cloud build (`21f95ff0-3f35-4a2c-a844-72468cb62b90`, reserved versionCode 19) remained queued and was canceled. The completed deliverable is local versionCode **20**, not that canceled cloud job. No Play Console submission or OTA publication was performed; upload this new signed AAB to the intended Play release to replace the previous artifact and have Play reassess availability.
+
+The temporary QA server was stopped, build working files were cleaned by EAS, and the local Gradle/Kotlin build daemons were stopped after completion.
+
+## Existing diagnostic warnings
+
+Expo Doctor reported **19/21** checks passing: it warns about broad ignore patterns for local native module folders and about newer Expo SDK 57 patch versions than those pinned in the lockfile. These existing dependency/ignore warnings were not expanded into an SDK upgrade in this orientation change. The local `bsstore-app-exit` native sources were confirmed present in the build archive and compiled by Gradle; the complete signed release build and final bundle validation passed.
+
+Additional extended browser checks covered cart, checkout and the real map/editor layout in both themes at 568x320, including reachability of the address-save action. Native device rotation/keyboard and the Play Console device catalog still require physical-device/Console confirmation after upload.

@@ -21,7 +21,7 @@ if args.adaptive_orientation:
         if len(features) != 1 or features[0].get(android + 'required') != 'false':
             raise SystemExit(f'ERROR: {name} must be declared optional exactly once.')
     main = next((item for item in root.findall('./application/activity') if item.get(android + 'name', '').endswith('MainActivity')), None)
-    if main is None or main.get(android + 'screenOrientation', 'unspecified') not in ('unspecified', 'fullUser', 'user'):
+    if main is None or main.get(android + 'screenOrientation', 'unspecified') not in ('unspecified', 'fullUser', 'user', '-1', '2', '13'):
         raise SystemExit('ERROR: MainActivity is still locked to an orientation.')
     if main.get(android + 'resizeableActivity') != 'true':
         raise SystemExit('ERROR: MainActivity must allow window resizing.')
