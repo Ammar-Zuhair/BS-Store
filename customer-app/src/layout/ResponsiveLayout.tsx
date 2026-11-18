@@ -10,4 +10,3 @@ export function calculateLayout(width: number, height: number) {
 }
 export const Layout = createContext(calculateLayout(390, 844));
 export const useResponsiveLayout = () => useContext(Layout);
-
