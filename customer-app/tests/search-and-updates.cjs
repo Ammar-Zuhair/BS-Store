@@ -18,6 +18,7 @@ function load(file){if(cache.has(file))return cache.get(file).exports;const modu
  const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true,target:ts.ScriptTarget.ES2022}}).outputText;
  const req=name=>{
   if(name==='react'||name==='react/jsx-runtime')return require(name);
+  if(name==='react-native-safe-area-context')return{SafeAreaView:'View'};
   if(name==='react-native')return native;if(name==='expo-updates')return updates;
   if(name.endsWith('/context/AppContext'))return{useApp:()=>app};
   if(name.endsWith('/AppIcon'))return{AppIcon:'AppIcon'};

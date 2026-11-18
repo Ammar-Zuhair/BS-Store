@@ -26,7 +26,7 @@ function load(file) {
     if (name === 'react-native') return native;
     if (name === 'expo-constants') return { expoConfig: { version: '1.0.2' } };
     if (name === 'expo-application') return { nativeBuildVersion: '8' };
-    if (name === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ top: 0, bottom: 16 }) };
+    if (name === 'react-native-safe-area-context') return { SafeAreaView: 'View', useSafeAreaInsets: () => ({ top: 0, bottom: 16 }) };
     if (name.endsWith('/api')) return { api: { get: url => new Promise(resolve => requests.push({ url, resolve })) } };
     if (name.endsWith('.png')) return 1;
     if (name.endsWith('/AppIcon')) return { AppIcon: 'AppIcon' };

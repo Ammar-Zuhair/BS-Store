@@ -1,3 +1,4 @@
+import { useResponsiveLayout } from '../layout/ResponsiveLayout';
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ export const FloatingCartBar: React.FC = () => {
   } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
+  const { navHeight, compact } = useResponsiveLayout();
 
   if (cart.length === 0 || currentScreen === 'cart' || currentScreen === 'checkout' || currentScreen === 'auth') {
     return null;
@@ -25,9 +27,9 @@ export const FloatingCartBar: React.FC = () => {
   const storeCount = cartSubOrders.length;
 
   return (
-    <View style={[styles.container, { bottom: 74 + insets.bottom }]}>
+    <View style={[styles.container, { bottom: navHeight + 10 + insets.bottom }]}>
       <TouchableOpacity
-        style={styles.floatingBar}
+        style={[styles.floatingBar, compact && { minHeight: 50 }]}
         onPress={() => navigateTo('cart')}
         activeOpacity={0.9}
         accessibilityRole="button"

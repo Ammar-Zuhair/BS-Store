@@ -84,7 +84,7 @@ module.exports = ({ config }) => {
       checkAutomatically: 'NEVER',
       fallbackToCacheTimeout: 0,
     },
-    plugins: Array.from(new Set([...(config.plugins || []), 'expo-secure-store', './plugins/withAndroidApi36', './plugins/withAndroidOptimization'])),
+    plugins: Array.from(new Set([...(config.plugins || []), 'expo-secure-store', './plugins/withAndroidApi36', './plugins/withAndroidOptimization', './plugins/withAdaptiveOrientation'])),
     ios: {
       ...config.ios,
       privacyManifests: {

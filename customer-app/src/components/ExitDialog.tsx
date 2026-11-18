@@ -1,6 +1,7 @@
+import { ResponsiveModal as Modal } from './ResponsiveModal';
 import React, { useEffect } from 'react';
 import { holdUpdates } from '../system/updateSafety';
-import { Modal, View, Text, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { typography } from '../theme';
 import { AppIcon } from './AppIcon';

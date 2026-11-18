@@ -1,3 +1,4 @@
+import { useResponsiveLayout } from '../layout/ResponsiveLayout';
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { AppIcon } from '../components/AppIcon';
@@ -7,7 +8,8 @@ type SearchType = 'store' | 'product';
 export function SearchTypeChooser({ value, onChange, colors: c }: {
   value: SearchType | null; onChange: (type: SearchType) => void; colors: ThemeColors;
 }) {
-  return <View style={s.wrapper}>
+  const { compact } = useResponsiveLayout();
+  return <View style={[s.wrapper, compact && value ? { paddingVertical: 4 } : null]}>
     {!value && <View style={s.guide}>
       <View style={[s.step, { backgroundColor: c.primary }]}><Text style={[s.stepNumber, { color: c.onPrimary }]}>١</Text></View>
       <View style={{ flex: 1 }}>
@@ -21,7 +23,7 @@ export function SearchTypeChooser({ value, onChange, colors: c }: {
         const foreground = selected ? c.onPrimary : c.onSurface;
         return <Pressable key={type} accessibilityRole="tab" accessibilityLabel={type === 'store' ? 'متاجر' : 'منتجات وعروض'}
           accessibilityState={{ selected }} accessibilityHint={type === 'store' ? 'اضغط لإظهار حقل البحث عن المتاجر' : 'اضغط لإظهار حقل البحث عن المنتجات والعروض'}
-          onPress={() => onChange(type)} style={({ pressed }) => [s.choice, !value && s.largeChoice,
+          onPress={() => onChange(type)} style={({ pressed }) => [s.choice, !value && s.largeChoice, compact && value ? { minHeight: 48, padding: 6 } : null,
             { backgroundColor: selected ? c.primary : c.surfaceContainerLowest, borderColor: selected || !value ? c.primary : c.outlineVariant, opacity: pressed ? 0.8 : 1 }]}>
           <View style={[s.choiceTop, value ? s.compact : null]}>
             <AppIcon name={type === 'store' ? 'store' : 'shopping-bag'} size={value ? 22 : 32} color={selected ? c.onPrimary : c.primary} />

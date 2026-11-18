@@ -1,14 +1,15 @@
+import { useResponsiveLayout } from '../layout/ResponsiveLayout';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ResponsiveModal as Modal } from './ResponsiveModal';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   TextInput,
   Platform,
   Alert,
-  Dimensions,
   StatusBar,
   KeyboardAvoidingView,
   ScrollView,
@@ -236,6 +237,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   title = 'تحديد موقع التوصيل',
 }) => {
   const { colors: themeColors, isDarkMode } = useApp();
+  const { landscape, width } = useResponsiveLayout();
+  const split = landscape && width >= 520;
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [sessionKey, setSessionKey] = useState<number>(0);
   const initialCoordsRef = useRef({ lat: initialLat, lng: initialLng });
@@ -488,7 +491,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       transparent={false}
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <StatusBar
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
           backgroundColor={themeColors.surfaceSolidLow}
@@ -514,6 +517,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           <View style={{ width: 40 }} />
         </View>
 
+        <View style={{ flex: 1, flexDirection: split ? 'row' : 'column' }}>
         {/* 2. Interactive Map View */}
         <View style={styles.mapContainer}>
           {Platform.OS === 'web' ? (
@@ -636,7 +640,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         </View>
 
         {/* 3. Bottom Sheet Card with SINGLE Comprehensive Address Input (Requirement 3) */}
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView style={split ? { width: Math.min(360, width * 0.44), flexShrink: 0 } : { maxHeight: '48%' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView
             style={styles.bottomCard}
             contentContainerStyle={styles.bottomCardScroll}
@@ -686,7 +690,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
-      </View>
+        </View>
+      </SafeAreaView>
     </Modal>
   );
 };
@@ -702,7 +707,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 16,
+    paddingTop: 8,
     paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.outlineVariant + '35',
@@ -739,8 +744,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   mapContainer: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    minWidth: 0,
     position: 'relative',
     backgroundColor: colors.surfaceContainer,
     overflow: 'hidden',

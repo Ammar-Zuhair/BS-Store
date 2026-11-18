@@ -1,6 +1,8 @@
+import { useResponsiveLayout } from '../layout/ResponsiveLayout';
+import { ResponsiveModal as Modal } from './ResponsiveModal';
 import { SearchTypeChooser } from '../search/SearchTypeChooser';
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, TextInput, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Pressable, TextInput, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, governorateApi } from '../api';
 import { useApp } from '../context/AppContext';
@@ -17,6 +19,7 @@ import { DealDetailsModal, DealItem } from './DealDetailsModal';
 
 export function CatalogSearchModal({ scope, onClose }: { scope: SearchScope; onClose: () => void }) {
   const { colors: c, setSelectedStore, navigateTo, applyPromoCode, activateProductDiscountDeal, activateDeliveryDeal } = useApp();
+  const { compact } = useResponsiveLayout();
   const [type, setType] = useState<'store' | 'product' | null>(scope.storeId ? 'product' : null);
   const [query, setQuery] = useState('');
   const [governorate, setGovernorate] = useState<string>();
@@ -91,21 +94,21 @@ export function CatalogSearchModal({ scope, onClose }: { scope: SearchScope; onC
   return <Modal visible animationType="none" onRequestClose={close}>
     <SafeAreaView style={[s.container, { backgroundColor: c.surfaceDim }]}>
       <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[s.header, { borderColor: c.outlineVariant }]}>
+        <View style={[s.header, compact && { paddingVertical: 4 }, { borderColor: c.outlineVariant }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="إغلاق البحث" onPress={close} style={s.iconButton}><AppIcon name="arrow-right" color={c.onSurface} /></Pressable>
-          <View style={{ flex: 1 }}><Text accessibilityRole="header" style={[s.title, textStyle]}>ابحث واكتشف</Text><Text style={[s.caption, { color: c.onSurfaceVariant }]}>{scope.title || 'المتاجر والمنتجات في محافظتك'}</Text></View>
+          <View style={{ flex: 1 }}><Text accessibilityRole="header" style={[s.title, textStyle]}>ابحث واكتشف</Text><Text numberOfLines={1} style={[s.caption, { color: c.onSurfaceVariant }]}>{scope.title || 'المتاجر والمنتجات في محافظتك'}</Text></View>
           <AppIcon name="search" color={c.primary} size={26} />
         </View>
         {type ? <>
           {!scope.storeId && <SearchTypeChooser value={type} onChange={changeType} colors={c} />}
-          <View style={s.searchRow}>
+          <View style={[s.searchRow, compact && { paddingTop: 4 }]}>
             <TextInput autoFocus accessibilityLabel="كلمة البحث" value={query} onChangeText={value => { setQuery(value); session.current?.change(value); }}
               placeholder={type === 'store' ? 'ما المتجر الذي تبحث عنه؟' : 'ما المنتج الذي تبحث عنه؟'} placeholderTextColor={c.onSurfaceVariant}
               maxLength={100} returnKeyType="search" onSubmitEditing={() => session.current?.submit()} autoCorrect={false}
               style={[s.input, { color: c.onSurface, backgroundColor: c.surfaceContainerLowest, borderColor: c.outlineVariant }]} />
             {button('بحث', () => session.current?.submit(), true, !query.trim() || governorate === undefined)}
           </View>
-          <Text style={[s.hint, { color: c.onSurfaceVariant }]}>نبحث عن أقرب تطابق، حتى مع اختلاف بسيط في الكتابة.</Text>
+          {!compact && <Text style={[s.hint, { color: c.onSurfaceVariant }]}>نبحث عن أقرب تطابق، حتى مع اختلاف بسيط في الكتابة.</Text>}
           {contextError ? <View style={s.empty}><Text style={[s.copy, { color: c.onSurfaceVariant }]}>{contextError}</Text>{button('إعادة المحاولة', () => setContextAttempt(n => n + 1))}</View> :
           <FlatList data={state.items} keyExtractor={item => `${item.kind}:${item.id}`} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={s.results}
             renderItem={({ item }) => {
@@ -142,12 +145,12 @@ export function CatalogSearchModal({ scope, onClose }: { scope: SearchScope; onC
     <ProductDetailsModal product={product} onClose={() => setProduct(null)} />
     <DealDetailsModal visible={!!deal} deal={deal} onClose={() => setDeal(null)} onConfigure={close} onNavigate={close} />
     <Modal visible={!!offer} transparent animationType="none" onRequestClose={() => { if (!activating) setOffer(null); }}>
-      <View style={s.scrim}><View style={[s.offer, { backgroundColor: c.surfaceContainerLowest }]}>
+      <View style={s.scrim}><ScrollView contentContainerStyle={{ gap: 16 }} style={[s.offer, { maxHeight: '100%', backgroundColor: c.surfaceContainerLowest }]}>
         <AppIcon name="gift" color={c.primary} size={40} /><Text style={[s.title, textStyle]}>{offer?.title}</Text><Text style={[s.copy, { color: c.onSurfaceVariant }]}>{offer?.description}</Text>
         {!!offerError && <Text accessibilityRole="alert" style={[s.copy, { color: c.error }]}>{offerError}</Text>}
         {button(activating ? 'جارٍ التفعيل…' : 'تفعيل العرض', () => { void activate(); }, true, activating)}
         {button('إغلاق', () => setOffer(null), false, activating)}
-      </View></View>
+      </ScrollView></View>
     </Modal>
   </Modal>;
 }

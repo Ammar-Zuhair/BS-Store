@@ -1,8 +1,10 @@
+import { useResponsiveLayout } from '../layout/ResponsiveLayout';
+import { ResponsiveModal as Modal } from './ResponsiveModal';
 import { catalogApi } from '../api';
 import { OptionSelector } from './OptionSelector';
 import { OptionsDefinition, VariantChoice } from '../options/model';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
 import { CachedImage } from './CachedImage';
 import { Product } from '../types';
 import { borderRadius, spacing, ThemeColors, typography } from '../theme';
@@ -14,6 +16,7 @@ interface Props { product: Product | null; onClose: () => void }
 
 export const ProductDetailsModal: React.FC<Props> = ({ product, onClose }) => {
   const { addToCart, colors } = useApp();
+  const { compact, height } = useResponsiveLayout();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [definition, setDefinition] = useState<OptionsDefinition | null>(null);
   const [choice, setChoice] = useState<VariantChoice | null>(null);
@@ -52,7 +55,7 @@ export const ProductDetailsModal: React.FC<Props> = ({ product, onClose }) => {
             <Text style={styles.headerTitle}>تفاصيل المنتج</Text>
           </View>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
-            <CachedImage source={{ uri: previewImage || images[imageIndex] || product.imageUrl }} style={styles.hero} resizeMode="contain" accessibilityLabel={'صورة ' + product.name} />
+            <CachedImage source={{ uri: previewImage || images[imageIndex] || product.imageUrl }} style={[styles.hero, { height: compact ? Math.max(96, Math.min(160, height * 0.4)) : 280 }]} resizeMode="contain" accessibilityLabel={'صورة ' + product.name} />
             {images.length > 1 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbnails}>
               {images.map((uri, index) => <TouchableOpacity key={`${uri}-${index}`} onPress={() => { setPreviewImage(''); setImageIndex(index); }} style={[styles.thumbWrap, index === imageIndex && styles.thumbSelected]} accessibilityRole="button" accessibilityLabel={`عرض الصورة ${index + 1} من ${images.length}`} accessibilityState={{ selected: index === imageIndex }}>
                 <CachedImage source={{ uri }} style={styles.thumb} resizeMode="cover" />
@@ -88,7 +91,7 @@ export const ProductDetailsModal: React.FC<Props> = ({ product, onClose }) => {
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.72)' },
-  sheet: {
+  sheet: { width: '100%', maxWidth: 760, alignSelf: 'center',
     maxHeight: '92%',
     backgroundColor: colors.sheetBackground,
     borderTopLeftRadius: 26,

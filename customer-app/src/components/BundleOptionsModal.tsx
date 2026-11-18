@@ -1,5 +1,6 @@
+import { ResponsiveModal as Modal } from './ResponsiveModal';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { catalogApi } from '../api';
 import { BundlePiece, Product } from '../types';
@@ -59,7 +60,7 @@ export function BundleOptionsModal({ product, onClose }: { product: Product | nu
 }
 const s = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.72)' },
-  sheet: { maxHeight: '92%', borderTopLeftRadius: 26, borderTopRightRadius: 26, borderTopWidth: 1.5, borderLeftWidth: 1, borderRightWidth: 1, padding: 18, gap: 14 },
+  sheet: { width: '100%', maxWidth: 760, alignSelf: 'center', maxHeight: '92%', borderTopLeftRadius: 26, borderTopRightRadius: 26, borderTopWidth: 1.5, borderLeftWidth: 1, borderRightWidth: 1, padding: 18, gap: 14 },
   row: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 10, alignItems: 'center' },
   title: { fontWeight: '700', fontSize: 17, textAlign: 'right' },
   close: { padding: 8, fontWeight: '600' },

@@ -1,3 +1,4 @@
+import { ResponsiveLayoutProvider } from './src/layout/ResponsiveLayoutProvider';
 import { handleScreenBack } from './src/utils/screenBackAction';
 import { SilentUpdates } from './src/system/SilentUpdates';
 import { ExitDialog } from './src/components/ExitDialog';
@@ -181,9 +182,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <BoosthisRuntime>
-          <AppStartup fontsReady={fontsLoaded || !!fontError} />
-        </BoosthisRuntime>
+        <ResponsiveLayoutProvider>
+          <BoosthisRuntime>
+            <AppStartup fontsReady={fontsLoaded || !!fontError} />
+          </BoosthisRuntime>
+        </ResponsiveLayoutProvider>
       </AppProvider>
     </SafeAreaProvider>
   );
@@ -196,6 +199,7 @@ const styles = StyleSheet.create({
   },
   appContainer: {
     flex: 1,
+    width: '100%', maxWidth: 1120, alignSelf: 'center',
     backgroundColor: 'transparent',
     position: 'relative',
   },

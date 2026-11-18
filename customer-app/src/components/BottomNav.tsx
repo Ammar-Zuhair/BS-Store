@@ -1,3 +1,4 @@
+import { useResponsiveLayout } from '../layout/ResponsiveLayout';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +9,7 @@ import { AppIcon, AppIconName } from './AppIcon';
 export const BottomNav: React.FC = () => {
   const { currentScreen, navigateTo, colors: themeColors } = useApp();
   const insets = useSafeAreaInsets();
+  const { compact, navHeight } = useResponsiveLayout();
 
   const tabs: { id: ScreenName; label: string; icon: AppIconName }[] = [
     { id: 'home', label: 'الرئيسية', icon: 'home' },
@@ -26,13 +28,13 @@ export const BottomNav: React.FC = () => {
         },
       ]}
     >
-      <View style={styles.bar}>
+      <View style={[styles.bar, { minHeight: navHeight, paddingTop: compact ? 0 : 4 }]}>
         {tabs.map((tab) => {
           const isActive = currentScreen === tab.id;
           return (
             <TouchableOpacity
               key={tab.id}
-              style={styles.tab}
+              style={[styles.tab, compact && { flexDirection: 'row-reverse', gap: 8, minHeight: 48 }]}
               onPress={() => navigateTo(tab.id)}
               activeOpacity={0.78}
               accessibilityRole="tab"
@@ -75,10 +77,7 @@ export const BottomNav: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    flexShrink: 0,
     borderTopWidth: StyleSheet.hairlineWidth,
     ...shadows.header,
     zIndex: 80,

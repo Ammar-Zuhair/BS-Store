@@ -55,6 +55,7 @@ function load(file) {
   const localRequire = spec => {
     if (spec === 'react' || spec === 'react/jsx-runtime') return require(path.join(root, 'customer-app/node_modules', spec));
     if (spec === 'react-native') return native;
+    if (spec === 'react-native-safe-area-context') return { SafeAreaView: 'View', useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
     if (spec === '@react-native-async-storage/async-storage') return storage;
     if (spec.endsWith('/api')) return api;
     if (spec.endsWith('/notifications')) return { unregisterPushDevice: async () => {} };

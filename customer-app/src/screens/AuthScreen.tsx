@@ -1,6 +1,7 @@
+import { ResponsiveModal as Modal } from '../components/ResponsiveModal';
 import { registerScreenBackAction } from '../utils/screenBackAction';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { authApi, governorateApi } from '../api';
@@ -193,5 +194,5 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   error: { color: colors.error, fontSize: 15, lineHeight: 24, textAlign: 'right', fontFamily: typography.fontFamily.medium, marginTop: 16 },
   checkRow: { minHeight: 48, justifyContent: 'center', marginTop: 16 },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modal: { backgroundColor: colors.surfaceContainerLowest, padding: 24, maxHeight: '75%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  modal: { width: '100%', maxWidth: 480, alignSelf: 'center', backgroundColor: colors.surfaceContainerLowest, padding: 24, maxHeight: '75%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
 });

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
@@ -12,6 +12,9 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryPress }) =
   const { categories, setSelectedCategory, navigateTo, colors: themeColors } = useApp();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
+  const [gridWidth, setGridWidth] = useState(0);
+  const columns = gridWidth >= 960 ? 4 : gridWidth >= 600 ? 3 : 2;
+  const cardWidth = gridWidth ? (gridWidth - 12 * (columns - 1)) / columns : undefined;
   const allCategories = categories;
   // Exclude 'cat-all' from the grid so grid shows real categories in pairs
   const displayCats = allCategories.filter((c) => c.id !== 'cat-all');
@@ -37,11 +40,11 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryPress }) =
         </View>
       </View>
 
-      <View style={styles.gridContainer}>
+      <View style={styles.gridContainer} onLayout={event => setGridWidth(event.nativeEvent.layout.width)}>
         {displayCats.map((cat) => (
           <TouchableOpacity
             key={cat.id}
-            style={styles.gridItem}
+            style={[styles.gridItem, cardWidth !== undefined && { width: cardWidth }]}
             activeOpacity={0.85}
             onPress={() => handlePress(cat)}
             accessibilityRole="button"
@@ -83,6 +86,7 @@ const createStyles = (colors: ThemeColors) =>
     marginBottom: spacing.baseMd,
   },
   titleWrap: {
+    flex: 1, marginStart: 8,
     alignItems: 'flex-end',
   },
   sectionTitle: {

@@ -1,3 +1,4 @@
+import { ResponsiveModal as Modal } from '../components/ResponsiveModal';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
@@ -7,7 +8,6 @@ import {
   TextInput,
   Alert,
   Switch,
-  Modal,
   Linking,
   ActivityIndicator,
   Platform,

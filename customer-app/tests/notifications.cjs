@@ -34,7 +34,7 @@ const native = {
     listeners.add(callback); return { remove: () => listeners.delete(callback) };
   } },
   Alert: { alert: () => {} },
-  ...Object.fromEntries(['View', 'Text', 'TouchableOpacity', 'Image', 'Modal', 'ActivityIndicator', 'RefreshControl'].map(name => [name, name])),
+  ...Object.fromEntries(['View', 'Text', 'TouchableOpacity', 'Image', 'Modal', 'ActivityIndicator', 'ScrollView', 'RefreshControl'].map(name => [name, name])),
 };
 function load(file) {
   if (cache.has(file)) return cache.get(file).exports;
@@ -46,7 +46,7 @@ function load(file) {
   const localRequire = specifier => {
     if (specifier === 'react-native') return native;
     if (specifier === 'react' || specifier === 'react/jsx-runtime') return require(specifier);
-    if (specifier === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ bottom: 12 }) };
+    if (specifier === 'react-native-safe-area-context') return { SafeAreaView: 'View', useSafeAreaInsets: () => ({ bottom: 12 }) };
     if (specifier.endsWith('/context/AppContext')) return { useApp: () => app };
     if (specifier === './client') return { api };
     if (specifier.endsWith('/CatalogSearchModal')) return { CatalogSearchModal: () => null };

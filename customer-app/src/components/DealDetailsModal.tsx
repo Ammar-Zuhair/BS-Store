@@ -1,3 +1,4 @@
+import { ResponsiveModal as Modal } from './ResponsiveModal';
 import { holdUpdates } from '../system/updateSafety';
 import type { OptionsDefinition } from '../options/model';
 import React, { useMemo, useEffect } from 'react';
@@ -5,7 +6,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   ScrollView,
   TouchableOpacity,
   Alert,
@@ -264,8 +264,6 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
                 })}
               </View>
             )}
-          </ScrollView>
-
           {/* Footer with Total and Add Whole Deal Button */}
           <View style={styles.footer}>
             <View style={styles.totalRow}>
@@ -307,6 +305,7 @@ export const DealDetailsModal: React.FC<DealDetailsModalProps> = ({
               <AppIcon name="chevron-left" size={18} color={themeColors.primary} />
             </TouchableOpacity>}
           </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -320,7 +319,7 @@ const createStyles = (colors: ThemeColors) =>
     backgroundColor: 'rgba(0, 0, 0, 0.72)',
     justifyContent: 'flex-end',
   },
-  sheet: {
+  sheet: { width: '100%', maxWidth: 760, alignSelf: 'center',
     backgroundColor: colors.sheetBackground,
     borderTopLeftRadius: borderRadius.xxl,
     borderTopRightRadius: borderRadius.xxl,

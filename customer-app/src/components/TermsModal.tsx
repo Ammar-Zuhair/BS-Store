@@ -1,6 +1,6 @@
+import { ResponsiveModal as Modal } from './ResponsiveModal';
 import React, { useMemo } from 'react';
 import {
-  Modal,
   View,
   Text,
   StyleSheet,
@@ -142,7 +142,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
     justifyContent: 'flex-end',
   },
-  sheetContainer: {
+  sheetContainer: { width: '100%', maxWidth: 760, alignSelf: 'center',
     backgroundColor: colors.surfaceContainerLowest,
     borderTopLeftRadius: borderRadius.xxl,
     borderTopRightRadius: borderRadius.xxl,

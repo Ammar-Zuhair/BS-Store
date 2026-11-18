@@ -47,7 +47,7 @@ function load(file) {
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     if (name === '@react-native-async-storage/async-storage') return { getItem: async k => storage.get(k), setItem: async (k, v) => storage.set(k, v) };
     if (name === 'expo-crypto') return { randomUUID: () => 'test-device-uuid-123456' };
-    if (name === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ top: 0, bottom: 16 }) };
+    if (name === 'react-native-safe-area-context') return { SafeAreaView: 'View', useSafeAreaInsets: () => ({ top: 0, bottom: 16 }) };
     if (name.endsWith('/context/AppContext')) return { useApp: () => app };
     if (name === '../api') return { authApi, governorateApi };
     if (name.endsWith('/KeyboardAwareScrollView')) return { KeyboardAwareScrollView: 'ScrollView' };

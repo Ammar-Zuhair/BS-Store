@@ -1,8 +1,9 @@
+import { ResponsiveModal as Modal } from './ResponsiveModal';
 import { CatalogSearchModal } from './CatalogSearchModal';
 import { SearchScope } from '../search/catalog';
 import { holdUpdates } from '../system/updateSafety';
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { useApp } from '../context/AppContext';
 import { LocationPickerModal, LocationResult } from './LocationPickerModal';
@@ -158,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({ searchScope, title, showBack = f
         onRequestClose={() => setAddressModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <ScrollView style={styles.modalCard} contentContainerStyle={{ paddingBottom: 12 }}>
             <Text style={styles.modalTitle}>اختر عنوان التوصيل</Text>
             <Text style={styles.modalSubtitle}>حدد موقعك الحالي لتسريع وصول طلباتك</Text>
 
@@ -220,7 +221,7 @@ export const Header: React.FC<HeaderProps> = ({ searchScope, title, showBack = f
             >
               <Text style={styles.closeBtnText}>إغلاق</Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
 
@@ -412,6 +413,7 @@ const createStyles = (colors: ThemeColors) =>
     justifyContent: 'flex-end',
   },
   modalCard: {
+    width: '100%', maxWidth: 720, maxHeight: '90%', alignSelf: 'center',
     backgroundColor: colors.surfaceContainerLowest,
     borderTopLeftRadius: borderRadius.xxl,
     borderTopRightRadius: borderRadius.xxl,

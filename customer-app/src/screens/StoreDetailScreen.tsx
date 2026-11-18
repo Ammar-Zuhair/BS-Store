@@ -1,3 +1,4 @@
+import { ResponsiveModal as Modal } from '../components/ResponsiveModal';
 import { holdUpdates } from '../system/updateSafety';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
@@ -6,7 +7,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Modal,
 } from 'react-native';
 import { CachedImage } from '../components/CachedImage';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
@@ -886,6 +886,7 @@ const createStyles = (colors: ThemeColors) =>
     justifyContent: 'flex-end',
   },
   modalContentCard: {
+    width: '100%', maxWidth: 760, alignSelf: 'center',
     backgroundColor: colors.sheetBackground,
     borderTopLeftRadius: borderRadius.xxl,
     borderTopRightRadius: borderRadius.xxl,
