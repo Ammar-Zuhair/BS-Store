@@ -74,8 +74,8 @@ export const driverApi = {
   confirmStorePurchase: (orderId: string, subOrderId: string) =>
     api.post<any>(`/driver/orders/${orderId}/confirm-purchase`, { subOrderId }),
 
-  confirmDelivered: (orderId: string, cashAdjustmentSettled: boolean) =>
-    api.put<any>(`/driver/orders/${orderId}/delivered`, { cashAdjustmentSettled }),
+  confirmDelivered: (orderId: string, cashAdjustmentSettled: boolean, cashReceived?: number, creditChangeToWallet = false) =>
+    api.put<any>(`/driver/orders/${orderId}/delivered`, { cashAdjustmentSettled, cashReceived, creditChangeToWallet }),
 
   getFinancialSummary: () =>
     api.get<{
@@ -84,6 +84,9 @@ export const driverApi = {
       totalCompanySettlements: number;
       totalDriverFunding: number;
       outstandingCustodyBalance: number;
+      walletChangeCreditedToday: number;
+      totalWalletChangeCredited: number;
+      totalWalletChangeReversed: number;
     }>('/driver/financial/summary'),
 
   getFinancialTransactions: () =>

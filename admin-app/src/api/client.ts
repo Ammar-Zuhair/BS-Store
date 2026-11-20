@@ -149,7 +149,7 @@ class ApiClient {
   async getReceiptImage(url: string): Promise<string> {
     const base = new URL(API_BASE_URL);
     const resolved = new URL(url, `${API_BASE_URL}/`);
-    if (resolved.origin !== base.origin || !resolved.pathname.startsWith(`${base.pathname}/payments/receipts/`)) {
+    if (resolved.origin !== base.origin || (!resolved.pathname.startsWith(`${base.pathname}/payments/receipts/`) && !resolved.pathname.startsWith(`${base.pathname}/wallet/receipts/`))) {
       throw new Error('رابط الإيصال غير صالح. حدّث قائمة الحوالات.');
     }
     const endpoint = resolved.pathname.slice(base.pathname.length);

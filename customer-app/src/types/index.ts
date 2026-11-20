@@ -131,6 +131,9 @@ export interface Order {
   deliveryFee: number;
   discount: number;
   totalAmount: number;
+  walletPaidAmount?: number;
+  walletRefundedAmount?: number;
+  cashDueAtDelivery?: number;
   address: Address;
   paymentMethod: PaymentMethodType;
   paymentStatus: PaymentStatusType;

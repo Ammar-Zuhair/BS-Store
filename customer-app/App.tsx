@@ -30,6 +30,7 @@ import { CheckoutScreen } from './src/screens/CheckoutScreen';
 import { TrackingScreen } from './src/screens/TrackingScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { notificationDestination } from './src/utils/notificationInbox';
+import { WalletScreen } from './src/screens/WalletScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { CategoryScreen } from './src/screens/CategoryScreen';
@@ -51,6 +52,7 @@ const BOOSTHIS_SCREEN_NAMES: Record<ScreenName, string> = {
   tracking: 'Orders',
   notifications: 'Notifications',
   profile: 'Profile',
+  wallet: 'Wallet',
   auth: 'Authentication',
 };
 
@@ -77,6 +79,9 @@ const MainNavigator: React.FC = () => {
       if (handleScreenBack()) return true;
       if (currentScreen === 'home' || (!isAuthenticated && currentScreen === 'auth')) {
         setExitVisible(true);
+        return true;
+      } else if (currentScreen === 'wallet') {
+        navigateTo('profile');
         return true;
       } else if (currentScreen === 'store_detail') {
         navigateTo('category_stores');
@@ -112,6 +117,8 @@ const MainNavigator: React.FC = () => {
         return <TrackingScreen />;
       case 'notifications':
         return <NotificationsScreen />;
+      case 'wallet':
+        return <WalletScreen />;
       case 'profile':
         return <ProfileScreen />;
       case 'auth':

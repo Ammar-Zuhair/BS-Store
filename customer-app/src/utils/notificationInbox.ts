@@ -11,6 +11,7 @@ export interface InboxNotification {
 }
 
 export const notificationLabels: Record<string, string> = {
+  wallet_transaction: 'حركة رصيد', wallet_topup_approved: 'شحن معتمد', wallet_topup_rejected: 'شحن مرفوض',
   promotion: 'عرض ترويجي', offer: 'عرض', announcement: 'إعلان',
   update: 'تحديث التطبيق', maintenance: 'صيانة', alert: 'تنبيه',
 };
@@ -20,7 +21,7 @@ export function isInboxNotification(notification: Pick<InboxNotification, 'type'
 }
 
 export function notificationDestination(type: string): ScreenName {
-  return type === 'order_status' ? 'tracking' : 'notifications';
+  return type.startsWith('wallet_') ? 'wallet' : type === 'order_status' ? 'tracking' : 'notifications';
 }
 
 export function formatNotificationDate(value: string): string {

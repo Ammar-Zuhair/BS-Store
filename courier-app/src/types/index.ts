@@ -44,6 +44,7 @@ export interface TaskPurchasedItem {
 }
 
 export interface ActiveDeliveryTask {
+  walletPaidAmount?: number;
   id: string;
   orderNumber: string;
   customerName: string;
@@ -81,6 +82,9 @@ export interface DriverTransaction {
 }
 
 export interface DriverWalletSummary {
+  walletChangeCreditedToday?: number;
+  totalWalletChangeCredited?: number;
+  totalWalletChangeReversed?: number;
   currentCashCustody: number; // العهدة النقدية المتوقعة بحوزة الكابتن
   todayEarnings: number; // أرباح الكابتن المستحقة اليوم
   profitSharePercent: number;

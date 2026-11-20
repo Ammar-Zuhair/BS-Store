@@ -25,6 +25,7 @@ export type AdminScreenName =
   | 'dashboard'
   | 'orders'
   | 'payments'
+  | 'wallet'
   | 'inventory'
   | 'add_product'
   | 'categories'

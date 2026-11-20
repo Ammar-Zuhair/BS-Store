@@ -549,6 +549,10 @@ export const TrackingScreen: React.FC = () => {
               </Text>
               <Text style={styles.detailLbl}>طريقة الدفع:</Text>
             </View>
+            {!!selectedOrder.walletPaidAmount && <View style={styles.transferCard}>
+              <Text style={{ color: themeColors.onSurface, fontFamily: 'Tajawal_500Medium', textAlign: 'right', fontSize: 16 }}>المدفوع من الرصيد: {selectedOrder.walletPaidAmount.toLocaleString()} ر.ي</Text>
+              <Text style={{ color: themeColors.onSurface, fontFamily: 'Tajawal_500Medium', textAlign: 'right', fontSize: 16 }}>المسترد للمحفظة: {(selectedOrder.walletRefundedAmount || 0).toLocaleString()} ر.ي · المتبقي نقداً: {(selectedOrder.cashDueAtDelivery || 0).toLocaleString()} ر.ي</Text>
+            </View>}
             {selectedOrder.paymentMethod === 'MANUAL_TRANSFER' && <View style={styles.transferCard}>
               <Text style={styles.transferTitle}>تفاصيل التحويل</Text>
               {isLoadingTransferInfo && <ActivityIndicator size="small" color={themeColors.primary} />}

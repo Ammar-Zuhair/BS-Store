@@ -232,6 +232,7 @@ export const ordersApi = {
   placeOrder: (req: {
     addressId?: string;
     newAddress?: any;
+    useWallet?: boolean;
     paymentMethod: number; // 0: COD, 1: ManualTransfer
     notes?: string;
     idempotencyKey?: string;
@@ -279,6 +280,18 @@ export const paymentsApi = {
       method: 'POST',
       headers: { 'Content-Type': upload.contentType },
       body: upload.body,
+    });
+  },
+};
+
+export const walletApi = {
+  balance: () => api.get<{ balance: number }>('/wallet/balance'),
+  get: (page = 0) => api.get<import('../types/wallet').WalletSummary>(`/wallet?page=${page}`),
+  methods: () => api.get<import('../types/wallet').WalletMethod[]>('/wallet/methods'),
+  topUp: async (receipt: { uri: string; fileName: string; mimeType: string }, fields: Record<string, string>) => {
+    const upload = await prepareReceiptUpload(receipt.uri, receipt.fileName, receipt.mimeType, fields);
+    return api.request<{ id: string; status: string }>('/wallet/topups', {
+      method: 'POST', headers: { 'Content-Type': upload.contentType }, body: upload.body,
     });
   },
 };

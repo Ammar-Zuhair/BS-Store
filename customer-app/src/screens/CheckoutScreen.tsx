@@ -1,10 +1,10 @@
 import { optionsLabel } from '../options/model';
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Switch } from 'react-native';
 import { typography, spacing, borderRadius, shadows, ThemeColors } from '../theme';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
-import { governorateApi } from '../api';
+import { governorateApi, walletApi } from '../api';
 import { PaymentMethodType, TransferProviderType } from '../types';
 import { LocationPickerModal, LocationResult } from '../components/LocationPickerModal';
 import { AppIcon } from '../components/AppIcon';
@@ -63,6 +63,9 @@ export const CheckoutScreen: React.FC = () => {
   const closureMessage = ordersClosed ? 'استقبال الطلبات مغلق الآن. راجع المواعيد أعلى الصفحة الرئيسية.'
     : closedStore ? `المتجر ${closedStore.name} مغلق الآن. راجع مواعيده في تفاصيل المتجر.` : null;
 
+  const [useWallet, setUseWallet] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  useEffect(() => { let active = true; walletApi.balance().then(v => { if (active) setWalletBalance(Number(v.balance)); }).catch(() => { if (active) setWalletBalance(null); }); return () => { active = false; }; }, []);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('CASH_ON_DELIVERY');
   const [transferProvider, setTransferProvider] = useState<TransferProviderType | null>(null);
   const [transferReceipt, setTransferReceipt] = useState<TransferReceiptImage | null>(null);
@@ -176,6 +179,7 @@ export const CheckoutScreen: React.FC = () => {
       await placeOrder(
         paymentMethod,
         {
+          useWallet: paymentMethod === 'CASH_ON_DELIVERY' && useWallet,
           receiptUri: transferReceipt?.uri,
           receiptFileName: transferReceipt?.fileName,
           receiptMimeType: transferReceipt?.mimeType,
@@ -282,6 +286,19 @@ export const CheckoutScreen: React.FC = () => {
             </View>
           </View>
 
+          <View style={{ paddingVertical: 12, gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Switch value={useWallet && paymentMethod === 'CASH_ON_DELIVERY'} disabled={walletBalance === null || isSubmitting}
+                accessibilityLabel="استخدام رصيد المحفظة واستكمال المتبقي نقداً"
+                onValueChange={v => { setUseWallet(v); if (v) setPaymentMethod('CASH_ON_DELIVERY'); }} />
+              <CheckoutText style={{ flex: 1, textAlign: 'right', color: themeColors.onSurface, fontSize: 16 }}>استخدام الرصيد · {walletBalance === null ? 'تعذر تحديثه' : walletBalance.toLocaleString() + ' ر.ي'}</CheckoutText>
+            </View>
+            <TouchableOpacity accessibilityRole="button" onPress={() => navigateTo('wallet')} style={{ minHeight: 44, justifyContent: 'center' }}><CheckoutText style={{ textAlign: 'right', color: themeColors.primary }}>شحن الرصيد وعرض المحفظة</CheckoutText></TouchableOpacity>
+            {useWallet && paymentMethod === 'CASH_ON_DELIVERY' && walletBalance !== null && <>
+              <CheckoutText style={{ textAlign: 'right', color: themeColors.onSurface }}>من المحفظة: {Math.min(walletBalance, cartTotal).toLocaleString()} ر.ي · المتبقي نقداً: {Math.max(0, cartTotal - walletBalance).toLocaleString()} ر.ي</CheckoutText>
+              <CheckoutText style={{ textAlign: 'right', color: themeColors.onSurfaceVariant }}>يتحقق الخادم من الرصيد عند التأكيد. أي زيادة لاحقة في السعر تُحصّل نقداً.</CheckoutText>
+            </>}
+          </View>
           {/* Option 1: Cash on Delivery */}
           <TouchableOpacity
             style={[

@@ -54,3 +54,18 @@ if ! command -v ffmpeg >/dev/null 2>&1; then
   apt-get update
   apt-get install -y ffmpeg
 fi
+
+# PostgreSQL 17 production backups require the matching client (the base image has 16).
+if [ ! -x /usr/lib/postgresql/17/bin/pg_dump ]; then
+  install -d /usr/share/postgresql-common/pgdg
+  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+  . /etc/os-release
+  printf 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt %s-pgdg main\n' "$VERSION_CODENAME" > /etc/apt/sources.list.d/pgdg.list
+  apt-get update
+  apt-get install -y postgresql-client-17
+fi
+
+# Keep the release CLI in persistent project tooling.
+if [ ! -x /workspace/.tools/eas-cli/node_modules/.bin/eas ]; then
+  npm install --prefix /workspace/.tools/eas-cli --no-audit --no-fund eas-cli@27.11.0
+fi

@@ -12,7 +12,7 @@ import { colors, lightColors, darkColors, ThemeColors, setGlobalThemeMode } from
 import { OrderHours } from '../utils/openingHours';
 import { unregisterPushDevice } from '../notifications';
 
-export type ScreenName = 'home' | 'category' | 'category_stores' | 'store_detail' | 'cart' | 'checkout' | 'tracking' | 'notifications' | 'profile' | 'auth';
+export type ScreenName = 'home' | 'category' | 'category_stores' | 'store_detail' | 'cart' | 'checkout' | 'tracking' | 'notifications' | 'profile' | 'wallet' | 'auth';
 
 const ICON_MAP: Record<string, string> = {
   'silverware-fork-knife': '🍔',
@@ -78,6 +78,7 @@ interface AppContextType {
   currentOrder: Order | null;
   setCurrentOrder: React.Dispatch<React.SetStateAction<Order | null>>;
   placeOrder: (paymentMethod: PaymentMethodType, options?: {
+    useWallet?: boolean;
     receiptUri?: string;
     receiptFileName?: string;
     receiptMimeType?: string;
@@ -540,6 +541,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deliveryFee: o.deliveryFee || 0,
         discount: o.discount || 0,
         totalAmount: o.totalAmount || 0,
+        walletPaidAmount: Number(o.walletPaidAmount) || 0,
+        walletRefundedAmount: Number(o.walletRefundedAmount) || 0,
+        cashDueAtDelivery: Number(o.cashDueAtDelivery ?? o.totalAmount) || 0,
         address: {
           id: '',
           label: '',
@@ -875,9 +879,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await Promise.all(jobs);
   };
 
+  const orderAttempt = useRef<{ signature: string; key: string } | null>(null);
   const placeOrder = async (
     paymentMethod: PaymentMethodType,
     options?: {
+      useWallet?: boolean;
       receiptUri?: string;
       receiptFileName?: string;
       receiptMimeType?: string;
@@ -907,6 +913,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
+      const signature = JSON.stringify({ cart, selectedAddress, paymentMethod, options, deliveryPromoDealId, promoCode, productDiscountDealId });
+      if (orderAttempt.current?.signature !== signature) orderAttempt.current = { signature, key: `${Date.now()}-${Math.random()}` };
       // Backend recalculates prices, promotions, store separation, and invoice totals.
       const res = await ordersApi.placeOrder({
         newAddress: {
@@ -918,13 +926,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           longitude: selectedAddress.longitude,
         },
         paymentMethod: isManual ? 1 : 0,
+        useWallet: !isManual && Boolean(options?.useWallet),
         notes,
         deliveryDealId: deliveryPromoDealId || undefined,
         couponCode: promoCode || undefined,
         productDiscountDealId: productDiscountDealId || undefined,
         transferProvider: isManual ? options?.transferProvider : undefined,
         transferReference: isManual ? options?.transferReference?.trim() || undefined : undefined,
-        idempotencyKey: `${Date.now()}-${Math.random()}`,
+        idempotencyKey: orderAttempt.current.key,
         items: cart.map((c) => ({
           productId: c.product.dealId ? undefined : c.product.id,
           dealId: c.product.dealId,
@@ -968,6 +977,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deliveryFee: res.deliveryFee,
         discount: res.discount,
         totalAmount: res.totalAmount,
+        walletPaidAmount: Number(res.walletPaidAmount) || 0,
+        walletRefundedAmount: Number(res.walletRefundedAmount) || 0,
+        cashDueAtDelivery: Number(res.cashDueAtDelivery ?? res.totalAmount) || 0,
         address: selectedAddress,
         paymentMethod,
         paymentStatus: (isManual && receiptUploaded ? 'PENDING_VERIFICATION' : 'PENDING') as PaymentStatusType,
@@ -1013,6 +1025,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ]
         );
       }
+      orderAttempt.current = null;
       return newOrder;
     } catch (err: any) {
       Alert.alert(

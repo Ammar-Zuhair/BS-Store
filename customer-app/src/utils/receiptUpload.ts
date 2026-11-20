@@ -72,7 +72,7 @@ async function readReceipt(uri: string): Promise<Uint8Array<ArrayBuffer>> {
 
 /** Send bytes, as the admin image uploader does, instead of relying on fetch
  * to open a native URI inside FormData. The API still owns private storage. */
-export async function prepareReceiptUpload(uri: string, fileName: string, mimeType: string) {
+export async function prepareReceiptUpload(uri: string, fileName: string, mimeType: string, fields: Record<string, string> = {}) {
   const extension = extensions[mimeType];
   if (!extension) throw new Error('نوع الإيصال غير مسموح. اختر صورة JPG أو PNG أو ملف PDF.');
   const bytes = await readReceipt(uri);
@@ -80,11 +80,27 @@ export async function prepareReceiptUpload(uri: string, fileName: string, mimeTy
   const boundary = `BSStoreReceipt_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   // ASCII-only headers also work in Hermes without a TextEncoder polyfill.
   const ascii = (value: string) => Uint8Array.from(value, char => char.charCodeAt(0));
+  const utf8 = (value: string) => {
+    const bytes: number[] = [];
+    for (const char of value) {
+      const n = char.codePointAt(0)!;
+      if (n < 128) bytes.push(n);
+      else if (n < 2048) bytes.push(192 | n >> 6, 128 | n & 63);
+      else if (n < 65536) bytes.push(224 | n >> 12, 128 | n >> 6 & 63, 128 | n & 63);
+      else bytes.push(240 | n >> 18, 128 | n >> 12 & 63, 128 | n >> 6 & 63, 128 | n & 63);
+    }
+    return Uint8Array.from(bytes);
+  };
+  const metadata = utf8(Object.entries(fields).map(([name, value]) => {
+    if (!/^[A-Za-z][A-Za-z0-9]*$/.test(name)) throw new Error('اسم حقل غير صالح');
+    return `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`;
+  }).join(''));
   const prefix = ascii(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${baseName}.${extension}"\r\nContent-Type: ${mimeType}\r\n\r\n`);
   const suffix = ascii(`\r\n--${boundary}--\r\n`);
-  const body = new Uint8Array(prefix.length + bytes.length + suffix.length);
-  body.set(prefix);
-  body.set(bytes, prefix.length);
-  body.set(suffix, prefix.length + bytes.length);
+  const body = new Uint8Array(metadata.length + prefix.length + bytes.length + suffix.length);
+  body.set(metadata);
+  body.set(prefix, metadata.length);
+  body.set(bytes, metadata.length + prefix.length);
+  body.set(suffix, metadata.length + prefix.length + bytes.length);
   return { body: body.buffer, contentType: `multipart/form-data; boundary=${boundary}` };
 }

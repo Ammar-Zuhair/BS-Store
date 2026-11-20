@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, Platform, RefreshControl, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, Platform, RefreshControl, ActivityIndicator, TextInput, Switch } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { DriverHeader } from '../components/DriverHeader';
 import { useDriver } from '../context/DriverContext';
@@ -15,12 +15,18 @@ export const ActiveTaskRouteScreen: React.FC = () => {
     refreshData,
     isRefreshing,
   } = useDriver();
+  const [cashReceived, setCashReceived] = useState('');
+  const [creditChange, setCreditChange] = useState(false);
+  const [confirmCash, setConfirmCash] = useState(false);
+  useEffect(() => { setCashReceived(String(activeTask?.amountToCollect ?? 0)); setCreditChange(false); setConfirmCash(false); }, [activeTask?.id, activeTask?.amountToCollect]);
+  const receivedValue = Number(cashReceived.replace(/[٠-٩۰-۹]/g, c => String('٠١٢٣٤٥٦٧٨٩'.includes(c) ? '٠١٢٣٤٥٦٧٨٩'.indexOf(c) : '۰۱۲۳۴۵۶۷۸۹'.indexOf(c))).replace('٫', '.'));
+  const change = receivedValue - (activeTask?.amountToCollect || 0);
   const [isCompletingDelivery, setIsCompletingDelivery] = useState(false);
   const [isOpeningPurchase, setIsOpeningPurchase] = useState(false);
   const submitDelivery = async (cashAdjustmentSettled: boolean) => {
     if (!activeTask || isCompletingDelivery) return;
     setIsCompletingDelivery(true);
-    try { await completeDeliveryAndCollect(cashAdjustmentSettled); }
+    try { await completeDeliveryAndCollect(cashAdjustmentSettled, activeTask.paymentMethod === 'CASH_ON_DELIVERY' ? receivedValue : undefined, creditChange); }
     catch (error: any) { Alert.alert('تعذر إتمام التسليم', error?.message || 'حاول مرة أخرى'); }
     finally { setIsCompletingDelivery(false); }
   };
@@ -52,6 +58,12 @@ export const ActiveTaskRouteScreen: React.FC = () => {
         ]
       );
       return;
+    }
+    if (activeTask.paymentMethod === 'CASH_ON_DELIVERY') {
+      if (!Number.isFinite(receivedValue) || receivedValue < activeTask.amountToCollect || Math.abs(Math.round(receivedValue * 100) - receivedValue * 100) > 0.000001 || (creditChange && (change <= 0 || change > 1000))) {
+        Alert.alert('راجع التحصيل', 'أدخل النقد المستلم بشكل صحيح. الباقي المضاف للمحفظة يجب أن يكون أكبر من صفر وحتى ١٠٠٠ ريال.'); return;
+      }
+      setConfirmCash(true); return;
     }
     void submitDelivery(false);
   };
@@ -281,6 +293,23 @@ export const ActiveTaskRouteScreen: React.FC = () => {
                   </TouchableOpacity>
                 )}
 
+                {stop.type === 'DELIVERY_CUSTOMER' && !isCompleted && activeTask.paymentMethod === 'CASH_ON_DELIVERY' && <View style={{ gap: 12, paddingVertical: 16 }}>
+                  {!!activeTask.walletPaidAmount && <Text style={{ color: colors.onSurface, textAlign: 'right', fontFamily: 'Tajawal_500Medium', fontSize: 16 }}>مدفوع من رصيد العميل: {activeTask.walletPaidAmount.toLocaleString()} ر.ي</Text>}
+                  <Text style={{ color: colors.onSurface, textAlign: 'right', fontFamily: 'Tajawal_700Bold', fontSize: 17 }}>المستحق نقداً: {activeTask.amountToCollect.toLocaleString()} ر.ي</Text>
+                  {activeTask.amountToCollect > 0 && <>
+                    <Text style={{ color: colors.onSurface, textAlign: 'right', fontFamily: 'Tajawal_500Medium', fontSize: 16 }}>النقد المستلم من العميل</Text>
+                    <TextInput accessibilityLabel="النقد المستلم من العميل" keyboardType="decimal-pad" value={cashReceived} editable={!isCompletingDelivery} maxLength={16}
+                      onChangeText={v => { setCashReceived(v); setConfirmCash(false); }} style={{ minHeight: 50, borderWidth: 1, borderColor: colors.outlineVariant, borderRadius: 10, color: colors.onSurface, padding: 12, textAlign: 'right', fontFamily: 'Tajawal_500Medium', fontSize: 18 }} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><Switch value={creditChange} onValueChange={v => { setCreditChange(v); setConfirmCash(false); }} disabled={isCompletingDelivery} accessibilityLabel="إضافة الباقي لرصيد العميل" />
+                      <Text style={{ flex: 1, color: colors.onSurface, textAlign: 'right', fontFamily: 'Tajawal_500Medium', fontSize: 16 }}>إضافة الباقي لرصيد العميل</Text></View>
+                    <Text style={{ color: colors.onSurface, textAlign: 'right', fontFamily: 'Tajawal_500Medium', fontSize: 16 }}>الباقي: {Number.isFinite(change) ? Math.max(0, change).toLocaleString() : '—'} ر.ي · {creditChange ? 'يُضاف للمحفظة ويزيد عهدتك بنفس المبلغ' : 'يُعاد للعميل نقداً'}</Text>
+                    <Text style={{ color: colors.onSurfaceVariant, textAlign: 'right', fontFamily: 'Tajawal_400Regular', fontSize: 15 }}>الحد ١٠٠٠ ريال للعملية و٥٠٠٠ يومياً. لا تُعتمد العملية دون اتصال بالخادم.</Text>
+                  </>}
+                  {confirmCash && <View style={{ padding: 14, gap: 12, backgroundColor: colors.surfaceContainerLow, borderRadius: 10 }}>
+                    <Text style={{ color: colors.onSurface, textAlign: 'right', fontFamily: 'Tajawal_700Bold', fontSize: 17 }}>تأكيد التسليم: المستلم {receivedValue.toLocaleString()} ر.ي · للمحفظة {creditChange ? change.toLocaleString() : '٠'} ر.ي · المعاد نقداً {creditChange ? '٠' : Math.max(0, change).toLocaleString()} ر.ي</Text>
+                    <TouchableOpacity disabled={isCompletingDelivery} accessibilityRole="button" onPress={() => void submitDelivery(false)} style={[styles.deliverFinalBtn, { minHeight: 50 }]}><Text style={styles.deliverFinalBtnText}>{isCompletingDelivery ? 'جارٍ الحفظ…' : 'تأكيد التحصيل والتسليم'}</Text></TouchableOpacity>
+                  </View>}
+                </View>}
                 {stop.type === 'DELIVERY_CUSTOMER' && !isCompleted && (
                   <TouchableOpacity
                     style={[styles.deliverFinalBtn, isCompletingDelivery && { opacity: 0.7 }]}

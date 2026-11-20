@@ -341,6 +341,9 @@ export const ProfileScreen: React.FC = () => {
 
         {isAuthenticated && (
           <>
+            <View style={styles.card}>
+              {button('الرصيد وشحن الرصيد', () => navigateTo('wallet'), 'credit-card')}
+            </View>
             {/* Shopping Governorate */}
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>

@@ -25,7 +25,7 @@ interface DriverContextType {
   activeTask: ActiveDeliveryTask | null;
   completeStop: (stopId: string) => void;
   recordStorePurchase: () => Promise<void>;
-  completeDeliveryAndCollect: (cashAdjustmentSettled: boolean) => Promise<void>;
+  completeDeliveryAndCollect: (cashAdjustmentSettled: boolean, cashReceived?: number, creditChangeToWallet?: boolean) => Promise<void>;
   wallet: DriverWalletSummary;
   transactions: DriverTransaction[];
   requestSettlement: (amount: number) => Promise<void>;
@@ -183,6 +183,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       driverProfitSharePercent: Number(order.driverProfitSharePercent ?? 10),
       driverEstimatedEarnings: Number(order.driverEstimatedEarnings ?? 0),
       amountToCollect: Number(order.cashDueAtDelivery ?? order.totalAmount) || 0,
+      walletPaidAmount: Math.max(0, Number(order.walletPaidAmount || 0) - Number(order.walletRefundedAmount || 0)),
       transferredAmount: Number(order.transferredAmount ?? 0) || 0,
       cashRefundAtDelivery: Number(order.cashRefundAtDelivery ?? 0) || 0,
       paymentMethod: order.paymentMethod === 1 || order.paymentMethod === 'ManualTransfer' ? 'MANUAL_TRANSFER' : 'CASH_ON_DELIVERY',
@@ -246,6 +247,9 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const fin = await driverApi.getFinancialSummary();
         setWallet((w) => ({
           ...w,
+          walletChangeCreditedToday: Number(fin.walletChangeCreditedToday) || 0,
+          totalWalletChangeCredited: Number(fin.totalWalletChangeCredited) || 0,
+          totalWalletChangeReversed: Number(fin.totalWalletChangeReversed) || 0,
           currentCashCustody: Number(fin.outstandingCustodyBalance ?? (fin as any).netOutstandingDebt ?? 0),
         }));
       } catch (e) {
@@ -388,11 +392,11 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const completeDeliveryAndCollect = async (cashAdjustmentSettled: boolean) => {
+  const completeDeliveryAndCollect = async (cashAdjustmentSettled: boolean, cashReceived?: number, creditChangeToWallet = false) => {
     if (!activeTask) return;
 
     try {
-      await driverApi.confirmDelivered(activeTask.id, cashAdjustmentSettled);
+      await driverApi.confirmDelivered(activeTask.id, cashAdjustmentSettled, cashReceived, creditChangeToWallet);
       await refreshData(true);
       navigateBack();
     } catch (e) {

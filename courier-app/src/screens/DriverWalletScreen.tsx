@@ -49,6 +49,7 @@ export const DriverWalletScreen: React.FC = () => {
             </View>
           </View>
 
+          <Text style={styles.custodyFormula}>الباقي المضاف للعملاء اليوم: {(wallet.walletChangeCreditedToday || 0).toLocaleString()} من ٥٠٠٠ ر.ي · الإجمالي: {(wallet.totalWalletChangeCredited || 0).toLocaleString()} · المعكوس: {(wallet.totalWalletChangeReversed || 0).toLocaleString()} ر.ي. الباقي المشحون مشمول في العهدة.</Text>
           <Text style={styles.custodyFormula}>
             العهدة = التحصيلات النقدية من العملاء - مشتريات المتاجر الموثقة - ما تم تسليمه للإدارة
           </Text>

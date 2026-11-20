@@ -150,13 +150,13 @@ export const DashboardScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.alertTaskRow}
-              onPress={() => navigateTo('payments')}
+              onPress={() => navigateTo('wallet')}
               activeOpacity={0.8}
             >
               <Text style={[styles.alertActionLink, { color: colors.tertiary }]}>مراجعة ➔</Text>
               <View style={styles.taskLabelRow}>
                 <Text style={styles.taskText}>
-                  {kpi.pendingBankTransfersCount} تحويلات بنكية تتطلب المراجعة والاعتماد
+                  شحن أرصدة العملاء · الطلبات والحركات وطرق الشحن
                 </Text>
                 <View style={[styles.dot, { backgroundColor: colors.tertiary }]} />
               </View>

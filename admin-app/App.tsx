@@ -13,6 +13,7 @@ import {
 import { AdminProvider, useAdmin, type AdminScreenName } from './src/context/AdminContext';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { OrdersScreen } from './src/screens/OrdersScreen';
+import { CustomerWalletScreen } from './src/screens/CustomerWalletScreen';
 import { PaymentsScreen } from './src/screens/PaymentsScreen';
 import { InventoryScreen } from './src/screens/InventoryScreen';
 import { AddEditProductScreen } from './src/screens/AddEditProductScreen';
@@ -34,6 +35,7 @@ const BOOSTHIS_SCREEN_NAMES: Record<AdminScreenName, string> = {
   dashboard: 'Dashboard',
   orders: 'Orders',
   payments: 'Payments',
+  wallet: 'CustomerWallet',
   inventory: 'Inventory',
   add_product: 'ProductEditor',
   categories: 'Categories',
@@ -49,7 +51,7 @@ const AdminNavigator: React.FC = () => {
   const { currentScreen, navigateTo, isSessionRestoring, currentUser, refreshData } = useAdmin();
   const insets = useSafeAreaInsets();
   const onNotificationOpen = useCallback((type: string) => {
-    navigateTo(type === 'new_order' ? 'orders' : 'dashboard');
+    navigateTo(type.startsWith('wallet_') ? 'wallet' : type === 'new_order' ? 'orders' : 'dashboard');
     void refreshData();
   }, [navigateTo, refreshData]);
   usePushNotifications(Boolean(currentUser), 'admin', api, onNotificationOpen);
@@ -88,6 +90,8 @@ const AdminNavigator: React.FC = () => {
         return <DashboardScreen />;
       case 'orders':
         return <OrdersScreen />;
+      case 'wallet':
+        return <CustomerWalletScreen />;
       case 'payments':
         return <PaymentsScreen />;
       case 'inventory':

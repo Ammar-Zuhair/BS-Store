@@ -15,6 +15,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 if (args.Contains("--query-diagnostics")) { await ProductionQueryChecks.RunAsync(); return; }
+if (args.Contains("--wallet-production-backup")) { await WalletDeploymentChecks.BackupAsync(); return; }
+if (args.Contains("--wallet-production-status")) { await WalletDeploymentChecks.StatusAsync(); return; }
 if (args.Contains("--options-production-status")) { await OptionsDeploymentChecks.RunAsync(); return; }
 if (args.Contains("--probe-production-db")) { await ProductionLatency.RunAsync(); return; }
 
@@ -32,6 +34,7 @@ builder.Services.AddSingleton(sp => new BSStore.Infrastructure.Services.R2Settin
 builder.Services.AddSingleton<Amazon.S3.IAmazonS3>(new Amazon.S3.AmazonS3Client(new Amazon.Runtime.AnonymousAWSCredentials(), new Amazon.S3.AmazonS3Config { ServiceURL = "http://127.0.0.1:1", ForcePathStyle = true }));
 builder.Services.AddSingleton<BSStore.Infrastructure.Services.R2ObjectStore>();
 builder.Services.AddScoped<PushNotificationService>();
+if (args.Contains("--wallet")) builder.Services.AddSingleton<BSStore.Application.Common.Interfaces.IStorageService, WalletTestStorage>();
 builder.Services.AddScoped<DriverAssignmentService>();
 builder.Services.AddControllers().AddApplicationPart(typeof(CheckoutController).Assembly);
 builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuthentication>("Test", _ => { });
@@ -115,6 +118,7 @@ Check(!await Assign(single.Id), "assignment is idempotent");
 await app.StartAsync();
 var url = app.Urls.Single();
 using var http = new HttpClient { BaseAddress = new Uri(url), Timeout = TimeSpan.FromSeconds(90) };
+if (args.Contains("--wallet")) { await WalletChecks.RunAsync(app, http, Check); await app.StopAsync(); return; }
 HttpRequestMessage Request(HttpMethod method, string path, Guid user, string role, object? body = null)
 {
     var request = new HttpRequestMessage(method, path); request.Headers.Add("X-Test-User", user.ToString());
