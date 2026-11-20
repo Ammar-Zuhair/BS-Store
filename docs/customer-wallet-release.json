@@ -1,0 +1,178 @@
+{
+  "checkedAt": "2026-11-20T11:44:53.887034+00:00",
+  "sourceCommit": "8731831d9518782ec52b246c143522d3f4029896",
+  "backendCommit": "460f53241507ce4ae0cfa79f0d571fbb73447ce6",
+  "environment": "production",
+  "backupVerified": true,
+  "backendHealthVerified": true,
+  "productionWalletStatus": {
+    "checkedAt": "2026-11-20T11:43:52.2693442Z",
+    "migrationInstalled": true,
+    "methods": 4,
+    "activeMethods": 0,
+    "negativeBalances": 0,
+    "balanceMismatches": 0,
+    "immutableLedger": true
+  },
+  "channels": [
+    {
+      "app": "customer",
+      "channel": "production",
+      "branch": "production",
+      "active": true
+    },
+    {
+      "app": "admin",
+      "channel": "production",
+      "branch": "production",
+      "active": true
+    },
+    {
+      "app": "courier",
+      "channel": "production",
+      "branch": "production",
+      "active": true
+    }
+  ],
+  "releases": [
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.2",
+      "platform": "android",
+      "id": "01a1f8c3-305f-736e-aff4-7aaedec12af9",
+      "group": "d396714e-241f-41e8-afa7-bc2f3ecccb51",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2866580,
+      "sha256": "f614b728b309175a1b5cfdd728e08576e5ac06892b8ab55bb91bc082c3cd77ea"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.2",
+      "platform": "ios",
+      "id": "01a1f8c3-305f-7740-ba62-9a121440d7bf",
+      "group": "d396714e-241f-41e8-afa7-bc2f3ecccb51",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2856560,
+      "sha256": "163a453c6294a264f78278e2533b07ae3f2d842acaeef11ab5d331be65f7ae75"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.1",
+      "platform": "android",
+      "id": "01a1f8c3-e423-7c5c-a241-a12fe26e751f",
+      "group": "68fbd059-4751-4c17-ae4c-e2cb6fb325db",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2866580,
+      "sha256": "f614b728b309175a1b5cfdd728e08576e5ac06892b8ab55bb91bc082c3cd77ea"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.1",
+      "platform": "ios",
+      "id": "01a1f8c3-e423-7c76-916e-bce9653f8939",
+      "group": "68fbd059-4751-4c17-ae4c-e2cb6fb325db",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2856560,
+      "sha256": "163a453c6294a264f78278e2533b07ae3f2d842acaeef11ab5d331be65f7ae75"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.0",
+      "platform": "android",
+      "id": "01a1f8c5-0007-70ca-b5c9-0e0c90722b15",
+      "group": "63e6b0dc-b180-4f3e-bf90-dfeeba894e42",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2866580,
+      "sha256": "f614b728b309175a1b5cfdd728e08576e5ac06892b8ab55bb91bc082c3cd77ea"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.0",
+      "platform": "ios",
+      "id": "01a1f8c5-0007-7838-9c19-def8923adf86",
+      "group": "63e6b0dc-b180-4f3e-bf90-dfeeba894e42",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2856560,
+      "sha256": "163a453c6294a264f78278e2533b07ae3f2d842acaeef11ab5d331be65f7ae75"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.1",
+      "platform": "android",
+      "id": "01a1f8c3-2551-7f1b-8d15-53c716a2f07c",
+      "group": "94ded72f-dce5-45bf-a117-4b8b60cc8771",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2807248,
+      "sha256": "fdba09cac2b6087edb6c83f4ce031a14e8c3540d41072ea9c89954b648c396c6"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.1",
+      "platform": "ios",
+      "id": "01a1f8c3-2551-7153-8ef9-8f55d6e69e72",
+      "group": "94ded72f-dce5-45bf-a117-4b8b60cc8771",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2798096,
+      "sha256": "0cfc937472826afc4283a9ca8248142489b7cf160e72b0b959f31b0b09f5acbd"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.0",
+      "platform": "android",
+      "id": "01a1f8c3-e065-7743-aaae-76225d85505e",
+      "group": "9e620444-08e8-4bc9-b668-1913bb23c605",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2807248,
+      "sha256": "fdba09cac2b6087edb6c83f4ce031a14e8c3540d41072ea9c89954b648c396c6"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.0",
+      "platform": "ios",
+      "id": "01a1f8c3-e065-7bc8-9cb7-796605ea943d",
+      "group": "9e620444-08e8-4bc9-b668-1913bb23c605",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2798096,
+      "sha256": "0cfc937472826afc4283a9ca8248142489b7cf160e72b0b959f31b0b09f5acbd"
+    },
+    {
+      "app": "courier",
+      "runtimeVersion": "1.0.2",
+      "platform": "android",
+      "id": "01a1f8c4-310d-7e4d-ba95-f868148a836f",
+      "group": "8c3a869d-d7b1-435f-857e-b08af0dcf49d",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2849337,
+      "sha256": "8ae55bcfe1e2c30d85c015b57677c2e91c83e9bc82b72e79d5f25a77c85c19a1"
+    },
+    {
+      "app": "courier",
+      "runtimeVersion": "1.0.2",
+      "platform": "ios",
+      "id": "01a1f8c4-310d-7984-909b-4a5b34c55375",
+      "group": "8c3a869d-d7b1-435f-857e-b08af0dcf49d",
+      "gitCommitHash": "8731831d9518782ec52b246c143522d3f4029896",
+      "manifestVerified": true,
+      "bundleBytes": 2839005,
+      "sha256": "af7cd7a8e3a91659b68687cc54891fdfb2fa3d75c093f4146f7aa1b8a81c0aa5"
+    }
+  ],
+  "physicalDeviceInstallationObserved": false,
+  "notes": [
+    "All 12 production platform/runtime manifests matched the published update IDs; launch bundle hashes and wallet feature markers were verified.",
+    "Customer runtimes 1.0.0, 1.0.1, 1.0.2; admin runtimes 1.0.0, 1.0.1; courier runtime 1.0.2. No native modules were added.",
+    "Older courier runtimes were not targeted because the existing application requires the 1.0.2 native GPS modules.",
+    "Receiving methods remain disabled until the manager completes and activates their destination accounts."
+  ]
+}
