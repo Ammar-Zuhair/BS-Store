@@ -1,0 +1,167 @@
+{
+  "verifiedAt": "2026-11-21T17:49:34.400718+00:00",
+  "mobileSourceCommit": "510627ae8bf6d7874980038904328d38f4594e96",
+  "backendSourceCommit": "0c1a6f60c1888a3215edaa571b1de4f624373ea3",
+  "health": {
+    "local": {
+      "status": "healthy",
+      "service": "BS Store API",
+      "timestamp": "2026-11-21T17:49:34.2927452Z"
+    },
+    "public": {
+      "status": "healthy",
+      "service": "BS Store API",
+      "timestamp": "2026-11-21T17:49:34.3762927Z"
+    }
+  },
+  "channels": {
+    "customer": {
+      "name": "production",
+      "branch": "production",
+      "isPaused": false
+    },
+    "admin": {
+      "name": "production",
+      "branch": "production",
+      "isPaused": false
+    }
+  },
+  "changes": {
+    "details": "One account-number field; optional additional details and instructions; logo appears only in the method choice",
+    "paymentLogo": {
+      "displayPixels": 44,
+      "storedMaxSide": 256,
+      "jpegQuality": 80,
+      "compressionTestOriginalBytes": 1006315,
+      "compressionTestStoredBytes": 13237
+    },
+    "adminImageCache": {
+      "native": "Persistent app document files, atomic writes and shared concurrent requests",
+      "web": "IndexedDB with bounded memory fallback",
+      "privateScope": "Authenticated account + API origin + permanent receipt path",
+      "logout": "Erase private images and prevent late downloads from restoring them"
+    },
+    "walletEntry": "الضبط ← أرصدة العملاء"
+  },
+  "validation": [
+    "Customer/admin TypeScript checks",
+    "Customer/admin production Expo exports for Android/iOS/web",
+    "node tests/admin-image-cache.cjs (real cache/API client with simulated persistent filesystem and network boundaries)",
+    "node tests/wallet-ui.cjs (real React components: optional details, choice thumbnail, checkout, settings navigation and wallet/courier regression)",
+    "node tests/admin-payments.cjs",
+    "node tests/receipts/run.cjs (real HTTP/image optimization and receipt access tests)",
+    "node tests/ota-compatibility.cjs"
+  ],
+  "updates": [
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.2",
+      "platform": "android",
+      "id": "01a1ff36-46a8-773c-adbf-581e90ba6542",
+      "group": "d7a921d7-dabf-4cda-b3db-114c0e05226b",
+      "gitCommitHash": "510627ae8bf6d7874980038904328d38f4594e96",
+      "manifestVerified": true,
+      "bundleBytes": 3471133,
+      "sha256": "553304e8324a185182e77a3672d479961327c693ea242c9f2b110ca391ba417e"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.2",
+      "platform": "ios",
+      "id": "01a1ff36-46a8-75df-b6c1-c8c01192025a",
+      "group": "d7a921d7-dabf-4cda-b3db-114c0e05226b",
+      "gitCommitHash": "510627ae8bf6d7874980038904328d38f4594e96",
+      "manifestVerified": true,
+      "bundleBytes": 3459053,
+      "sha256": "a851ca9743f12ae30ea7a5521f40880780e7197d60a8615bc7c3ca1674d0090f"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.1",
+      "platform": "android",
+      "id": "01a1ff37-aa75-774d-9e44-c49eed9ebbf0",
+      "group": "eaa3e998-1e97-4455-a7db-522db70303ca",
+      "gitCommitHash": "510627ae8bf6d7874980038904328d38f4594e96",
+      "manifestVerified": true,
+      "bundleBytes": 3471133,
+      "sha256": "553304e8324a185182e77a3672d479961327c693ea242c9f2b110ca391ba417e"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.1",
+      "platform": "ios",
+      "id": "01a1ff37-aa75-74ee-b791-dc60993ee627",
+      "group": "eaa3e998-1e97-4455-a7db-522db70303ca",
+      "gitCommitHash": "510627ae8bf6d7874980038904328d38f4594e96",
+      "manifestVerified": true,
+      "bundleBytes": 3459053,
+      "sha256": "a851ca9743f12ae30ea7a5521f40880780e7197d60a8615bc7c3ca1674d0090f"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.0",
+      "platform": "android",
+      "id": "01a1ff38-87f8-7365-bebd-175d8739823a",
+      "group": "ddf524bf-17d3-4bc3-a2aa-1904181cf4f8",
+      "gitCommitHash": "510627ae8bf6d7874980038904328d38f4594e96",
+      "manifestVerified": true,
+      "bundleBytes": 3471133,
+      "sha256": "553304e8324a185182e77a3672d479961327c693ea242c9f2b110ca391ba417e"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.0",
+      "platform": "ios",
+      "id": "01a1ff38-87f8-7d33-b48c-e394451f44cb",
+      "group": "ddf524bf-17d3-4bc3-a2aa-1904181cf4f8",
+      "gitCommitHash": "510627ae8bf6d7874980038904328d38f4594e96",
+      "manifestVerified": true,
+      "bundleBytes": 3459053,
+      "sha256": "a851ca9743f12ae30ea7a5521f40880780e7197d60a8615bc7c3ca1674d0090f"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.1",
+      "platform": "android",
+      "id": "01a1ff36-412a-7820-a792-c656e671e58e",
+      "group": "8e1c82d5-d2c8-498a-9837-fe2970002f3f",
+      "gitCommitHash": "510627ae8bf6d7874980038904328d38f4594e96",
+      "manifestVerified": true,
+      "bundleBytes": 3415345,
+      "sha256": "507f81ce95672f9e9ad57ceaadfb127b92eebb3ab4c34ad5af4dc76c638d5354"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.1",
+      "platform": "ios",
+      "id": "01a1ff36-412a-78a5-a131-35fbd418b26a",
+      "group": "8e1c82d5-d2c8-498a-9837-fe2970002f3f",
+      "gitCommitHash": "510627ae8bf6d7874980038904328d38f4594e96",
+      "manifestVerified": true,
+      "bundleBytes": 3404429,
+      "sha256": "74cde3500a661f542e3ff89cc5ed48f62f17ad430177f7e6f9f43cce2e60c0a6"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.0",
+      "platform": "android",
+      "id": "01a1ff37-a97c-7c86-9563-7fc5c39418a3",
+      "group": "397464b5-5e9a-4276-9514-fddc83e696df",
+      "gitCommitHash": "510627ae8bf6d7874980038904328d38f4594e96",
+      "manifestVerified": true,
+      "bundleBytes": 3415345,
+      "sha256": "507f81ce95672f9e9ad57ceaadfb127b92eebb3ab4c34ad5af4dc76c638d5354"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.0",
+      "platform": "ios",
+      "id": "01a1ff37-a97c-7a29-8ecb-acc91668d20e",
+      "group": "397464b5-5e9a-4276-9514-fddc83e696df",
+      "gitCommitHash": "510627ae8bf6d7874980038904328d38f4594e96",
+      "manifestVerified": true,
+      "bundleBytes": 3404429,
+      "sha256": "74cde3500a661f542e3ff89cc5ed48f62f17ad430177f7e6f9f43cce2e60c0a6"
+    }
+  ]
+}

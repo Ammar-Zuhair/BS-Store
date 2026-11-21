@@ -75,3 +75,5 @@ DOTNET_ROOT=/workspace/.tools/dotnet /workspace/.tools/dotnet/dotnet run -c Rele
 من تبويب «الضبط» يوجد زر «أرصدة العملاء» في الأعلى للوصول إلى طلبات الشحن والأرصدة وسجل الحركات.
 
 التحقق: `node tests/admin-image-cache.cjs` و`node tests/wallet-ui.cjs` و`node tests/admin-payments.cjs` و`node tests/receipts/run.cjs`، إضافة إلى TypeScript وتصدير العميل والمدير.
+
+نُشر إصلاح البطاقات وحفظ الصور للعميل 1.0.0/1.0.1/1.0.2 وللمدير 1.0.0/1.0.1، وتحققت الحزم العشر وبصماتها على Android/iOS. سجل النشر في [payment-card-cache-release.json](payment-card-cache-release.json).
