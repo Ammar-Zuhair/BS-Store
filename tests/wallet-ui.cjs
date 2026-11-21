@@ -38,7 +38,9 @@ function load(file) {
     if (spec === 'react' || spec === 'react/jsx-runtime') return require(path.join(base, 'customer-app/node_modules', spec));
     if (spec === 'react-native') return native;
     if (spec.endsWith('/context/AppContext')) return { useApp: () => ({ colors: load(path.join(base, 'customer-app/src/theme/index.ts'))[dark ? 'darkColors' : 'lightColors'], user: { name: 'عميل', phone: '777' }, navigateTo() {}, ...appOverrides }) };
+    if (spec.endsWith('/context/AdminContext')) return { useAdmin: () => ({ driverCustodies: [], pendingDrivers: [], driverProfitSharePercent: 10, navigateTo: screen => calls.push(['navigate', screen]) }) };
     if (spec.endsWith('/context/DriverContext')) return { useDriver: () => driver };
+    if (spec.endsWith('/CachedImage')) return { CachedImage: props => React.createElement('Image', props) };
     if (spec.endsWith('/services/imageStorage')) return { pickImageFromGallery: async () => ({ uri: 'file:///method.png' }), stageCatalogueImage: image => image.uri, saveCatalogueForm: async (payload, _folder, save) => save(payload) };
     if (spec === '../api') return { api, walletApi, governorateApi: { mine: async () => ({ governorateId: 'governorate' }) } };
     if (spec.endsWith('/transferReceipt')) return { chooseTransferReceipt: async () => ({ uri: 'file:///receipt.png', fileName: 'receipt.png', mimeType: 'image/png' }) };
@@ -52,10 +54,19 @@ const text = n => typeof n === 'string' ? n : (n?.children || []).map(text).join
 const press = async (view, label) => { const button = view.root.findAllByType('TouchableOpacity').find(n => text(n).includes(label)); assert.ok(button, label); await act(async () => { button.props.onPress(); }); };
 const input = async (view, label, value) => { await act(async () => view.root.findByProps({ accessibilityLabel: label }).props.onChangeText(value)); };
 (async () => {
+  const { PaymentMethodDetails } = load(path.join(base, 'customer-app/src/components/PaymentMethodDetails.tsx'));
+  let details; await act(async () => { details = create(React.createElement(PaymentMethodDetails, { method: { ...method, accountDetails: '   ', instructions: '' }, color: '#fff' })); });
+  assert.doesNotMatch(text(details.toJSON()), /تفاصيل إضافية|تعليمات التحويل/);
+  assert.equal(details.root.findAllByType('Image').length, 0, 'account details never repeat the method logo');
+  assert.equal((text(details.toJSON()).match(/رقم الحساب:/g) || []).length, 1);
+  await act(async () => details.unmount());
   const { WalletScreen } = load(path.join(base, 'customer-app/src/screens/WalletScreen.tsx'));
   let screen; await act(async () => { screen = create(React.createElement(WalletScreen)); });
   assert.match(text(screen.toJSON()), /الحوالة غير مستلمة/);
-  await press(screen, 'شحن الرصيد'); await input(screen, 'مبلغ الشحن بالريال', '٢٠٠'); await input(screen, 'رقم الحوالة / العملية', 'REF');
+  await press(screen, 'شحن الرصيد');
+  const choice = screen.root.findAllByType('TouchableOpacity').find(n => n.props.accessibilityRole === 'radio');
+  const logo = choice.findByType('Image'); assert.equal(logo.props.style.width, 44); assert.equal(logo.props.source.uri, method.imageUrl);
+  await input(screen, 'مبلغ الشحن بالريال', '٢٠٠'); await input(screen, 'رقم الحوالة / العملية', 'REF');
   await press(screen, 'إرفاق صورة التحويل'); await act(async () => screen.root.findByType('Switch').props.onValueChange(true));
   await press(screen, 'إرسال طلب الشحن'); assert.match(text(screen.toJSON()), /فشل الاتصال/);
   assert.equal(calls[0][1].amount, '200');
@@ -71,7 +82,7 @@ const input = async (view, label, value) => { await act(async () => view.root.fi
   const { CheckoutScreen } = load(path.join(base, 'customer-app/src/screens/CheckoutScreen.tsx'));
   await act(async () => { screen = create(React.createElement(CheckoutScreen)); });
   await press(screen, 'تحويل بنكي / إشعار سداد'); await press(screen, 'كريمي');
-  assert.match(text(screen.toJSON()), /حساب مشترك/); assert.match(text(screen.toJSON()), /نقطة مشتريات تجريبية/);
+  assert.match(text(screen.toJSON()), /تفاصيل إضافية: نقطة مشتريات تجريبية/); assert.match(text(screen.toJSON()), /حساب مشترك/); assert.match(text(screen.toJSON()), /نقطة مشتريات تجريبية/);
   assert.doesNotMatch(text(screen.toJSON()), /1888356|783053937/);
   await input(screen, 'اسم مرسل التحويل', 'مرسل الطلب'); await input(screen, 'هاتف مرسل التحويل', '777000002'); await input(screen, 'رقم الحوالة أو العملية', 'ORDER-TRANSFER');
   await press(screen, 'إرفاق صورة إيصال التحويل'); await press(screen, 'تأكيد الطلب');
@@ -90,7 +101,7 @@ const input = async (view, label, value) => { await act(async () => view.root.fi
   await act(async () => { screen = create(React.createElement(CustomerWalletScreen, { methodsOnly: true })); });
   assert.match(text(screen.toJSON()), /تسديد الطلب إلكترونياً/);
   await press(screen, 'إضافة طريقة دفع'); await input(screen, 'اسم الطريقة', 'جيب'); await input(screen, 'اسم المستفيد', 'شركة التجربة');
-  await input(screen, 'نوع الحساب / وصف آخر', 'حساب مشترك'); await input(screen, 'تفاصيل إضافية للحساب', 'نقطة مشتريات'); await input(screen, 'رقم الحساب / المحفظة', '123');
+  await input(screen, 'نوع الحساب / وصف آخر', 'حساب مشترك'); await input(screen, 'تفاصيل إضافية', 'نقطة مشتريات'); await input(screen, 'رقم الحساب / المحفظة', '123');
   await press(screen, 'اختيار صورة الطريقة'); await press(screen, 'حفظ الطريقة');
   const savedMethod = calls.find(call => call[0] === '/admin/wallet/methods');
   assert.equal(savedMethod[1].imageUrl, 'file:///method.png'); assert.equal(savedMethod[1].accountType, 'حساب مشترك'); assert.equal(savedMethod[1].accountDetails, 'نقطة مشتريات');
@@ -100,6 +111,10 @@ const input = async (view, label, value) => { await act(async () => view.root.fi
   assert.equal(paymentLabel({ ...driver.activeTask, walletPaidAmount: 800, amountToCollect: 1000 }), 'المحفظة + المتبقي نقداً');
   assert.match(paymentLabel({ ...driver.activeTask, paymentMethod: 'MANUAL_TRANSFER', transferMethodName: 'جيب' }), /دفع إلكتروني · جيب/);
   assert.equal(paymentLabel(driver.activeTask), 'نقداً عند الاستلام');
+  const { FinancialsScreen } = load(path.join(base, 'admin-app/src/screens/FinancialsScreen.tsx'));
+  await act(async () => { screen = create(React.createElement(FinancialsScreen)); });
+  await press(screen, 'أرصدة العملاء'); assert.equal(calls.find(call => call[0] === 'navigate')[1], 'wallet');
+  await act(async () => screen.unmount());
   const { ActiveTaskRouteScreen } = load(path.join(base, 'courier-app/src/screens/ActiveTaskRouteScreen.tsx'));
   await act(async () => { screen = create(React.createElement(ActiveTaskRouteScreen)); });
   await input(screen, 'النقد المستلم من العميل', '٢٠٠٠'); await act(async () => screen.root.findByType('Switch').props.onValueChange(true));

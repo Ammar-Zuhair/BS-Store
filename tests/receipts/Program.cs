@@ -118,7 +118,9 @@ app.MapGet("/test/receipt-png-source", () => Results.File(TestCatalogueStorage.R
 app.MapGet("/test/catalogue-upload", () =>
 {
     var catalogue = objectClient.Objects.Where(x => x.Key.StartsWith("catalogue/")).ToList();
-    return Results.Json(new { UploadCount = catalogue.Count, Size = catalogue.LastOrDefault().Value?.Length, LastMime = "image/jpeg" });
+    var last = catalogue.LastOrDefault().Value;
+    var info = last == null ? null : Image.Identify(last);
+    return Results.Json(new { UploadCount = catalogue.Count, Size = last?.Length, LastMime = "image/jpeg", LastWidth = info?.Width, LastHeight = info?.Height });
 });
 app.MapGet("/test/r2-object/{**key}", (string key, HttpContext context) =>
 {

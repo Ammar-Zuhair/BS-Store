@@ -1,3 +1,4 @@
+import { clearPrivateImageCache, getCachedImage, imageResponseData } from '../services/imageCache';
 import { fetchWithTimeout } from '../utils/requests';
 import Constants from 'expo-constants';
 import { tokenStorage } from './tokenStorage';
@@ -42,19 +43,30 @@ const REFRESH_TOKEN_KEY = '@bs_admin_refresh_token';
 
 class ApiClient {
   private token: string | null = null;
+  private readonly opaqueSessionOwner = `session-${Date.now()}-${Math.random()}`;
+  private imageOwner(): string {
+    try {
+      const encoded = this.token!.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const claims = JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, '=')));
+      return String(claims.userId || claims.sub || this.opaqueSessionOwner);
+    } catch { return this.opaqueSessionOwner; }
+  }
   private pendingGets = new Map<string, Promise<unknown>>();
   private refreshToken: string | null = null;
   private refreshInProgress: Promise<boolean> | null = null;
   private sessionReady: Promise<void> | null = null;
+  private sessionVersion = 0;
 
   async initSession(): Promise<string | null> {
     if (!this.sessionReady) {
       this.sessionReady = (async () => {
         try {
-          [this.token, this.refreshToken] = await Promise.all([
+          const version = this.sessionVersion;
+          const [token, refreshToken] = await Promise.all([
             tokenStorage.get(ACCESS_TOKEN_KEY),
             tokenStorage.get(REFRESH_TOKEN_KEY),
           ]);
+          if (version === this.sessionVersion) { this.token = token; this.refreshToken = refreshToken; }
         } catch (error) {
           this.token = null;
           this.refreshToken = null;
@@ -67,7 +79,10 @@ class ApiClient {
   }
 
   async setToken(token: string | null): Promise<void> {
+    await this.initSession();
+    const previousOwner = this.token ? this.imageOwner() : null;
     this.token = token;
+    if (!token || (previousOwner && this.imageOwner() !== previousOwner)) await clearPrivateImageCache();
     await tokenStorage.set(ACCESS_TOKEN_KEY, token);
   }
 
@@ -77,9 +92,11 @@ class ApiClient {
   }
 
   async clearSession() {
+    this.sessionVersion++;
     this.token = null;
     this.refreshToken = null;
     this.sessionReady = Promise.resolve();
+    await clearPrivateImageCache();
     try { await tokenStorage.remove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]); }
     catch (error) { console.warn('تعذر حذف رموز جلسة المدير من الجهاز:', error); }
   }
@@ -146,41 +163,42 @@ class ApiClient {
     return data?.data !== undefined ? data.data : data;
   }
 
-  async getReceiptImage(url: string): Promise<string> {
+  async getReceiptImage(url: string, forceRefresh = false): Promise<string> {
     const base = new URL(API_BASE_URL);
     const resolved = new URL(url, `${API_BASE_URL}/`);
     if (resolved.origin !== base.origin || (!resolved.pathname.startsWith(`${base.pathname}/payments/receipts/`) && !resolved.pathname.startsWith(`${base.pathname}/wallet/receipts/`))) {
       throw new Error('رابط الإيصال غير صالح. حدّث قائمة الحوالات.');
     }
+    await this.initSession();
+    if (!this.token) throw new Error('سجّل الدخول لعرض صور الإيصالات.');
+    const owner = this.imageOwner();
     const endpoint = resolved.pathname.slice(base.pathname.length);
-    const link = await this.request<{ url: string | null; mimeType: string }>(`${endpoint}/download-link`, { method: 'GET' });
-    let response: Response;
-    if (link.url) {
-      const direct = new URL(link.url);
-      if (direct.protocol !== 'https:' || direct.username || direct.password ||
-          !direct.hostname.endsWith('.r2.cloudflarestorage.com') ||
-          direct.searchParams.get('X-Amz-Algorithm') !== 'AWS4-HMAC-SHA256') {
-        throw new Error('رابط تحميل الإيصال غير صالح.');
+    const cached = await getCachedImage(`private:${base.origin}:${owner}`, endpoint, async () => {
+      const link = await this.request<{ url: string | null; mimeType: string }>(`${endpoint}/download-link`, { method: 'GET' });
+      let response: Response;
+      if (link.url) {
+        const direct = new URL(link.url);
+        if (direct.protocol !== 'https:' || direct.username || direct.password ||
+            !direct.hostname.endsWith('.r2.cloudflarestorage.com') ||
+            direct.searchParams.get('X-Amz-Algorithm') !== 'AWS4-HMAC-SHA256') {
+          throw new Error('رابط تحميل الإيصال غير صالح.');
+        }
+        // The R2 URL has its own short-lived signature. Never forward the admin
+        // session token, ngrok headers or cookies to the storage service.
+        response = await fetchWithTimeout(link.url, { headers: { Accept: 'image/*' }, credentials: 'omit' });
+        if (!response.ok) throw new Error('انتهت صلاحية رابط الإيصال أو تعذر تحميله. أعد المحاولة.');
+      } else {
+        response = await this.send(endpoint, { method: 'GET', headers: { Accept: 'image/*' } });
       }
-      // The R2 URL has its own short-lived signature. Never forward the admin
-      // session token, ngrok headers or cookies to the storage service.
-      response = await fetchWithTimeout(link.url, { headers: { Accept: 'image/*' }, credentials: 'omit' });
-      if (!response.ok) throw new Error('انتهت صلاحية رابط الإيصال أو تعذر تحميله. أعد المحاولة.');
-    } else {
-      response = await this.send(endpoint, { method: 'GET', headers: { Accept: 'image/*' } });
-    }
-    if (!response.headers.get('content-type')?.startsWith('image/')) {
-      throw new Error('الإيصال ليس صورة قابلة للعرض.');
-    }
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => typeof reader.result === 'string'
-        ? resolve(reader.result)
-        : reject(new Error('تعذر قراءة صورة الإيصال.'));
-      reader.onerror = () => reject(new Error('تعذر قراءة صورة الإيصال.'));
-      reader.readAsDataURL(blob);
-    });
+      if (!response.headers.get('content-type')?.startsWith('image/')) {
+        throw new Error('الإيصال ليس صورة قابلة للعرض.');
+      }
+      const data = await imageResponseData(response);
+      if (!this.token || this.imageOwner() !== owner) throw new Error('تغيرت جلسة المدير. أعد فتح الإيصال.');
+      return data;
+    }, forceRefresh);
+    if (!this.token || this.imageOwner() !== owner) throw new Error('تغيرت جلسة المدير. أعد فتح الإيصال.');
+    return cached;
   }
 
   private async refreshSession(): Promise<boolean> {

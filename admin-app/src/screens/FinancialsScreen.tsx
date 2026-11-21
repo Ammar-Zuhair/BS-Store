@@ -229,6 +229,13 @@ export const FinancialsScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.systemShortcuts}>
+          <TouchableOpacity style={styles.systemShortcut} onPress={() => navigateTo('wallet')} activeOpacity={0.82} accessibilityRole="button" accessibilityLabel="أرصدة العملاء">
+            <View style={styles.systemShortcutCopy}>
+              <Text style={styles.systemShortcutTitle}>أرصدة العملاء</Text>
+              <Text style={styles.systemShortcutHint}>مراجعة طلبات الشحن والأرصدة وسجل الحركات</Text>
+            </View>
+            <Text style={styles.systemShortcutArrow}>‹</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.systemShortcut} onPress={() => navigateTo('system_management')} activeOpacity={0.82}>
             <Text style={styles.systemShortcutIcon}>⚙️</Text>
             <View style={styles.systemShortcutCopy}>

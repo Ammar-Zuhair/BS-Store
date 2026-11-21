@@ -1,4 +1,5 @@
 import { WalletMethod } from '../types/wallet';
+import { PaymentMethodChoice } from '../components/PaymentMethodChoice';
 import { PaymentMethodDetails } from '../components/PaymentMethodDetails';
 import { optionsLabel } from '../options/model';
 import React, { useState, useMemo, useEffect } from 'react';
@@ -380,8 +381,7 @@ export const CheckoutScreen: React.FC = () => {
               <TouchableOpacity accessibilityRole="button" onPress={() => setMethodsRefresh(v => v + 1)} disabled={methodsLoading}><CheckoutText style={styles.inputLabel}>تحديث طرق الدفع</CheckoutText></TouchableOpacity>
               {methods.map(method => <TouchableOpacity key={method.id} style={[styles.transferProviderOption, transferProvider === method.code && styles.transferProviderOptionActive]}
                 onPress={() => setTransferProvider(method.code)} disabled={methodsLoading || isSubmitting} accessibilityRole="radio" accessibilityState={{ checked: transferProvider === method.code }}>
-                {!!method.imageUrl && <Image source={{ uri: method.imageUrl }} style={{ width: 44, height: 44 }} resizeMode="contain" />}
-                <CheckoutText style={styles.transferProviderTitle}>{method.name}{transferProvider === method.code ? ' ✓' : ''}</CheckoutText>
+                <PaymentMethodChoice method={method} selected={transferProvider === method.code} color={themeColors.onSurface} />
               </TouchableOpacity>)}
               {selectedMethod && <View style={styles.bankAccountsCard}>
                 <CheckoutText style={styles.bankTitle}>حوّل إجمالي الفاتورة إلى:</CheckoutText>

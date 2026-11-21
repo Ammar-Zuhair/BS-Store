@@ -1,5 +1,6 @@
+import { CachedImage } from '../components/CachedImage';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Image, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, AppState, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api } from '../api';
 import { pickImageFromGallery, saveCatalogueForm, stageCatalogueImage } from '../services/imageStorage';
 import { AdminHeader } from '../components/AdminHeader';
@@ -106,16 +107,16 @@ export const CustomerWalletScreen: React.FC<{ methodsOnly?: boolean }> = ({ meth
         {button('إضافة طريقة دفع', () => setEditing({ ...emptyMethod }))}
         {editing && <View style={s.card}><Text style={s.title}>{editing.id ? 'تعديل طريقة الدفع' : 'طريقة دفع جديدة'}</Text>
           {field('اسم الطريقة', editing.name, v => setEditing({ ...editing, name: v }))}{field('اسم المستفيد', editing.accountName, v => setEditing({ ...editing, accountName: v }))}
-          {!!editing.imageUrl && <Image source={{ uri: editing.imageUrl }} style={{ width: 100, height: 100, alignSelf: 'center' }} resizeMode="contain" accessibilityLabel="صورة طريقة الدفع" />}
+          {!!editing.imageUrl && <CachedImage source={{ uri: editing.imageUrl }} style={{ width: 100, height: 100, alignSelf: 'center' }} resizeMode="contain" accessibilityLabel="صورة طريقة الدفع" />}
           {button(editing.imageUrl ? 'تغيير صورة الطريقة' : 'اختيار صورة الطريقة', () => { void pickImageFromGallery().then(image => { if (image) setEditing(current => current ? { ...current, imageUrl: stageCatalogueImage(image) } : current); }).catch(e => setError(e.message || 'تعذر اختيار الصورة')); }, true)}
           {!!editing.imageUrl && button('إزالة الصورة', () => setEditing({ ...editing, imageUrl: '' }), true)}
           <Text style={s.label}>نوع الحساب</Text><View style={s.row}>{['حساب مشترك', 'نقطة مشتريات', 'محفظة إلكترونية'].map(type => <View key={type}>{button(type, () => setEditing({ ...editing, accountType: type }), editing.accountType !== type)}</View>)}</View>
           {field('نوع الحساب / وصف آخر', editing.accountType, v => setEditing({ ...editing, accountType: v }))}
-          {field('تفاصيل إضافية للحساب', editing.accountDetails, v => setEditing({ ...editing, accountDetails: v }), true)}
+          {field('تفاصيل إضافية', editing.accountDetails, v => setEditing({ ...editing, accountDetails: v }), true)}
           {field('رقم الحساب / المحفظة', editing.accountNumber, v => setEditing({ ...editing, accountNumber: v }))}{field('تعليمات التحويل', editing.instructions, v => setEditing({ ...editing, instructions: v }), true)}
           <View style={s.row}><Switch value={editing.isActive} onValueChange={v => setEditing({ ...editing, isActive: v })} accessibilityLabel="تفعيل طريقة الدفع" disabled={busy} /><Text style={s.text}>متاحة للعملاء</Text></View>
           {button('حفظ الطريقة', () => void run(() => saveCatalogueForm(editing, 'payment-methods', prepared => prepared.id ? api.put(`/admin/wallet/methods/${prepared.id}`, prepared) : api.post('/admin/wallet/methods', prepared)), 'حُفظت طريقة الدفع'))}{button('إلغاء', () => setEditing(null), true)}</View>}
-        {methods.map(m => <View key={m.id} style={s.card}><Text style={s.title}>{m.name} · {m.isActive ? 'مفعلة' : 'معطلة'}</Text><Text style={s.hint}>{m.accountType}{m.accountDetails ? ` · ${m.accountDetails}` : ""}</Text>{!!m.imageUrl && <Image source={{ uri: m.imageUrl }} style={{ width: 72, height: 72 }} resizeMode="contain" accessibilityLabel={m.name} />}<Text selectable style={s.text}>{m.accountName || 'المستفيد غير محدد'}\n{m.accountNumber || 'رقم الحساب غير محدد'}</Text>{button('تعديل', () => setEditing({ ...m }), true)}</View>)}
+        {methods.map(m => <View key={m.id} style={s.card}><Text style={s.title}>{m.name} · {m.isActive ? 'مفعلة' : 'معطلة'}</Text><Text style={s.hint}>{m.accountType}{m.accountDetails ? ` · ${m.accountDetails}` : ""}</Text>{!!m.imageUrl && <CachedImage source={{ uri: m.imageUrl }} style={{ width: 72, height: 72 }} resizeMode="contain" accessibilityLabel={m.name} />}<Text selectable style={s.text}>{m.accountName || 'المستفيد غير محدد'}\n{m.accountNumber || 'رقم الحساب غير محدد'}</Text>{button('تعديل', () => setEditing({ ...m }), true)}</View>)}
       </>}
       {tab === 'report' && report && <>
         <View style={s.card}><Text style={s.title}>مطابقة الرصيد والتتبع</Text><Text style={report.mismatches ? s.error : s.text}>حسابات غير متطابقة مع السجل: {report.mismatches}</Text>

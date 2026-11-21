@@ -1,3 +1,4 @@
+import { CachedImage } from '../components/CachedImage';
 import * as Crypto from 'expo-crypto';
 import { ProductOptionsEditor } from '../components/ProductOptionsEditor';
 import { OptionsDefinition, emptyOptions, optionsInput } from '../options/model';
@@ -24,7 +25,6 @@ import {
   Alert,
   Modal,
   Switch,
-  Image,
   ActivityIndicator,
 } from 'react-native';
 import { colors, spacing, borderRadius, shadows } from '../theme';
@@ -1076,7 +1076,7 @@ export const InventoryScreen: React.FC = () => {
                     {/* Thumb */}
                     <View style={s.thumbWrap}>
                       {prod.imageUrl
-                        ? <Image source={{ uri: prod.imageUrl }} style={s.thumbImg} />
+                        ? <CachedImage source={{ uri: prod.imageUrl }} style={s.thumbImg} />
                         : <View style={s.thumbEmpty}><Text style={s.thumbEmptyIcon}>📦</Text></View>
                       }
                     </View>
@@ -1266,7 +1266,7 @@ export const InventoryScreen: React.FC = () => {
               <Text style={s.formLabel}>صورة المتجر</Text>
               {storeImageUrl ? (
                 <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 12, marginBottom: 12, backgroundColor: colors.surfaceContainerLow, padding: 8, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.outlineVariant + '40' }}>
-                  <Image source={{ uri: storeImageUrl }} style={{ width: 64, height: 64, borderRadius: borderRadius.sm }} resizeMode="cover" />
+                  <CachedImage source={{ uri: storeImageUrl }} style={{ width: 64, height: 64, borderRadius: borderRadius.sm }} resizeMode="cover" />
                   <View style={{ flex: 1 }}>
                     <Text numberOfLines={1} style={{ fontSize: 11, color: colors.outline, textAlign: 'right' }}>{storeImageUrl}</Text>
                     <View style={{ flexDirection: 'row-reverse', gap: 8, marginTop: 4 }}>
@@ -1462,7 +1462,7 @@ export const InventoryScreen: React.FC = () => {
               <TouchableOpacity style={s.pickerTrigger} onPress={() => setShowDealImagePicker(true)}>
                 <Text style={s.pickerValue}>{dealImageUrl ? 'تغيير الصورة' : 'اختيار صورة العرض'}</Text>
               </TouchableOpacity>
-              {!!dealImageUrl && <Image source={{ uri: dealImageUrl }} style={{ width: '100%', height: 130, borderRadius: 10, marginTop: 8 }} resizeMode="cover" />}
+              {!!dealImageUrl && <CachedImage source={{ uri: dealImageUrl }} style={{ width: '100%', height: 130, borderRadius: 10, marginTop: 8 }} resizeMode="cover" />}
 
               {dealType === 'bundle' && <>
               <Text style={s.formLabel}>المتجر المرتبط بالباقة *</Text>

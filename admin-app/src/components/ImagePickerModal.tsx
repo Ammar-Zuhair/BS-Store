@@ -1,3 +1,4 @@
+import { CachedImage } from './CachedImage';
 import React, { useState } from 'react';
 import {
   View,
@@ -6,7 +7,6 @@ import {
   Modal,
   TouchableOpacity,
   TextInput,
-  Image,
   ActivityIndicator,
   Alert,
   ScrollView,
@@ -154,7 +154,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
               {customUrl.trim().length > 0 && (
                 <View style={styles.previewBox}>
                   <Text style={styles.previewLabel}>معاينة:</Text>
-                  <Image source={{ uri: customUrl.trim() }} style={styles.previewImg} />
+                  <CachedImage source={{ uri: customUrl.trim() }} style={styles.previewImg} />
                 </View>
               )}
 
@@ -181,7 +181,7 @@ export const ImagePickerModal: React.FC<ImagePickerModalProps> = ({
                     disabled={isPicking}
                     onPress={() => void handleApplyUrl(sample.url)}
                   >
-                    <Image source={{ uri: sample.url }} style={styles.sampleImg} />
+                    <CachedImage source={{ uri: sample.url }} style={styles.sampleImg} />
                     <Text style={styles.sampleText}>{sample.label}</Text>
                   </TouchableOpacity>
                 ))}

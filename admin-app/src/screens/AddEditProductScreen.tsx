@@ -1,3 +1,4 @@
+import { CachedImage } from '../components/CachedImage';
 import { adminApi } from '../api';
 import { ProductOptionsEditor } from '../components/ProductOptionsEditor';
 import { emptyOptions, optionsInput, OptionsDefinition } from '../options/model';
@@ -9,7 +10,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Image,
   Alert,
   Modal,
   Switch,
@@ -680,7 +680,7 @@ export const AddEditProductScreen: React.FC = () => {
             <View style={styles.galleryGrid}>
               {images.map((imgUri, index) => (
                 <View key={index} style={styles.imageSlot}>
-                  <Image source={{ uri: imgUri }} style={styles.slotImg} />
+                  <CachedImage source={{ uri: imgUri }} style={styles.slotImg} />
                   {index === 0 && (
                     <View style={styles.primaryImgBadge}>
                       <Text style={styles.primaryImgBadgeText}>★ رئيسية</Text>

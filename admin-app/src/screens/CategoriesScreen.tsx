@@ -1,3 +1,4 @@
+import { CachedImage } from '../components/CachedImage';
 import React, { useState } from 'react';
 import {
   View,
@@ -8,7 +9,6 @@ import {
   TextInput,
   Alert,
   Modal,
-  Image,
   ActivityIndicator,
 } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
@@ -1125,7 +1125,7 @@ export const CategoriesScreen: React.FC = () => {
               <Text style={styles.inputLabel}>صورة المتجر</Text>
               {storeImageUrl ? (
                 <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 12, backgroundColor: colors.surfaceContainerLow, padding: 8, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.outlineVariant + '40' }}>
-                  <Image source={{ uri: storeImageUrl }} style={{ width: 60, height: 60, borderRadius: borderRadius.sm }} resizeMode="cover" />
+                  <CachedImage source={{ uri: storeImageUrl }} style={{ width: 60, height: 60, borderRadius: borderRadius.sm }} resizeMode="cover" />
                   <View style={{ flex: 1 }}>
                     <Text numberOfLines={1} style={{ fontSize: 11, color: colors.outline, textAlign: 'right' }}>{storeImageUrl}</Text>
                     <View style={{ flexDirection: 'row-reverse', gap: 8, marginTop: 4 }}>

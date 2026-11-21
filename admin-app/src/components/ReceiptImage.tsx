@@ -13,7 +13,7 @@ export const ReceiptImage: React.FC<{ url: string }> = ({ url }) => {
   useEffect(() => {
     let active = true;
     setUri(null); setError(''); setLoading(true); setViewerOpen(false);
-    api.getReceiptImage(url)
+    api.getReceiptImage(url, retry > 0)
       .then(value => { if (active) setUri(value); })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'تعذر تحميل صورة الإيصال.'); })
       .finally(() => { if (active) setLoading(false); });

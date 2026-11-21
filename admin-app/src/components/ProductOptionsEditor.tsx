@@ -1,5 +1,6 @@
+import { CachedImage } from './CachedImage';
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, Switch, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { ImagePickerModal } from './ImagePickerModal';
 import { OptionsDefinition, OptionGroup, combinations, combinationKey } from '../options/model';
@@ -43,7 +44,7 @@ export function ProductOptionsEditor({ value, onChange, price, cost }: {
       </View>
       {group.values.map((option, vi) => <View key={option.id} style={s.row}>
         <TextInput accessibilityLabel={`قيمة ${group.name} ${vi + 1}`} placeholder="القيمة، مثال: أسود" style={s.input} value={option.name} onChangeText={name => updateValue(group.id, option.id, { name })} />
-        {option.imageUrl ? <Image source={{ uri: option.imageUrl }} style={s.image} /> : null}
+        {option.imageUrl ? <CachedImage source={{ uri: option.imageUrl }} style={s.image} /> : null}
         <TouchableOpacity onPress={() => setImageTarget({ group: group.id, value: option.id })}><Text style={s.link}>{option.imageUrl ? 'تغيير الصورة' : 'صورة'}</Text></TouchableOpacity>
         {option.imageUrl && <TouchableOpacity onPress={() => updateValue(group.id, option.id, { imageUrl: null })}><Text style={s.remove}>إزالة الصورة</Text></TouchableOpacity>}
         <TouchableOpacity onPress={() => changeGroups(value.groups.map(g => g.id === group.id ? { ...g, values: g.values.filter(v => v.id !== option.id) } : g))}><Text style={s.remove}>×</Text></TouchableOpacity>

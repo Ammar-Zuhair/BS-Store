@@ -32,6 +32,7 @@ function load(file) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, esModuleInterop: true, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const localRequire = specifier => {
+    if (specifier === 'expo-crypto') return { CryptoDigestAlgorithm: { SHA256: 'sha256' }, digestStringAsync: async (_, value) => require('node:crypto').createHash('sha256').update(value).digest('hex') };
     if (specifier === 'expo-file-system/legacy') return fileSystem;
     if (specifier === 'expo-image-picker') return {};
     if (specifier === 'react-native') return { Platform: platform };
@@ -164,7 +165,8 @@ async function main() {
       'backend display controllers sign URLs without fetching object bodies');
     const stored = await (await nativeFetch(`${server.url}/test/catalogue-upload`)).json();
     assert.equal(stored.uploadCount, 4); assert.equal(stored.lastMime, 'image/jpeg');
-    assert.ok(stored.size < source.length / 2, 'large originals are reduced before remote storage');
+    assert.ok(stored.size < source.length / 10, 'payment logos are reduced before storage rather than retaining the full original');
+    assert.ok(stored.lastWidth <= 256 && stored.lastHeight <= 256, 'payment logos are stored as thumbnails with a maximum side of 256px');
     const invalidImage = await nativeFetch(`${server.url}/api/admin/images?folder=products`, { method: 'POST', headers: { Authorization: 'Bearer test-admin', 'Content-Type': 'application/octet-stream' }, body: 'not an image' });
     assert.equal(invalidImage.status, 400);
     assert.equal((await nativeFetch(`${server.url}/api/admin/images`, { method: 'POST', headers: { Authorization: 'Bearer test-customer' }, body: source })).status, 403);
