@@ -1,0 +1,197 @@
+{
+  "verifiedAt": "2026-11-21T17:12:00.127226+00:00",
+  "mobileSourceCommit": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+  "backendSourceCommit": "9498aad9a625174a298ee048b23543ee26b401c1",
+  "migration": "20261121170057_SharedPaymentMethods",
+  "databaseBackupCreated": true,
+  "productionStatus": {
+    "checkedAt": "2026-11-21T17:07:11.1921816Z",
+    "migrationInstalled": true,
+    "sharedPaymentMethodsInstalled": true,
+    "methods": 4,
+    "activeMethods": 0,
+    "negativeBalances": 0,
+    "balanceMismatches": 0,
+    "immutableLedger": true
+  },
+  "health": {
+    "local": {
+      "status": "healthy",
+      "service": "BS Store API",
+      "timestamp": "2026-11-21T17:12:00.0068458Z"
+    },
+    "public": {
+      "status": "healthy",
+      "service": "BS Store API",
+      "timestamp": "2026-11-21T17:12:00.1030558Z"
+    }
+  },
+  "channels": {
+    "customer": {
+      "name": "production",
+      "isPaused": false,
+      "branch": "production"
+    },
+    "admin": {
+      "name": "production",
+      "isPaused": false,
+      "branch": "production"
+    },
+    "courier": {
+      "name": "production",
+      "isPaused": false,
+      "branch": "production"
+    }
+  },
+  "adminEntry": "التحويلات ← طرق الدفع · إضافة وتعديل الحسابات والصور",
+  "validation": {
+    "postgresqlWalletAndPaymentChecks": 61,
+    "typescript": [
+      "customer",
+      "admin",
+      "courier"
+    ],
+    "expoExports": [
+      "customer",
+      "admin",
+      "courier"
+    ],
+    "ui": "Shared catalogue, method details, sender/reference/receipt checkout payload, empty catalogue, wallet approval/rejection and courier payment labels",
+    "receipts": "Authenticated receipts, payment logo upload/compression, R2 access, cleanup and customer sender data erasure",
+    "compatibility": "OTA targeting and native build guards"
+  },
+  "updates": [
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.2",
+      "platform": "android",
+      "id": "01a1ff14-e045-703b-9427-2178ed4a363d",
+      "group": "4f265826-a5a1-4af6-81e0-b32234fb0943",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 3470235,
+      "sha256": "faa501356a3683b414c3e805a429d5d89c7a8f689274cb702d4137115c633d37"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.2",
+      "platform": "ios",
+      "id": "01a1ff14-e045-75ab-9c67-071de2414761",
+      "group": "4f265826-a5a1-4af6-81e0-b32234fb0943",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 3458161,
+      "sha256": "f6a8b0c8b6aa41e4ee025ab5427a43d5e3fa72b445e4a32897999b9bc47b88cc"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.1",
+      "platform": "android",
+      "id": "01a1ff15-8460-7461-b262-008b9ae05222",
+      "group": "04f71dce-4b86-4615-ad41-7d2c0024aee7",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 3470235,
+      "sha256": "faa501356a3683b414c3e805a429d5d89c7a8f689274cb702d4137115c633d37"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.1",
+      "platform": "ios",
+      "id": "01a1ff15-8460-7c74-a153-aa026bb95e4c",
+      "group": "04f71dce-4b86-4615-ad41-7d2c0024aee7",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 3458161,
+      "sha256": "f6a8b0c8b6aa41e4ee025ab5427a43d5e3fa72b445e4a32897999b9bc47b88cc"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.0",
+      "platform": "android",
+      "id": "01a1ff16-8482-799e-86a1-53337ca0d9d3",
+      "group": "529c3b52-88a2-46ca-badb-52a1836194c8",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 3470235,
+      "sha256": "faa501356a3683b414c3e805a429d5d89c7a8f689274cb702d4137115c633d37"
+    },
+    {
+      "app": "customer",
+      "runtimeVersion": "1.0.0",
+      "platform": "ios",
+      "id": "01a1ff16-8482-7b98-9dd0-810f23cab7a9",
+      "group": "529c3b52-88a2-46ca-badb-52a1836194c8",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 3458161,
+      "sha256": "f6a8b0c8b6aa41e4ee025ab5427a43d5e3fa72b445e4a32897999b9bc47b88cc"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.1",
+      "platform": "android",
+      "id": "01a1ff14-d783-77b9-8909-5ee340800b08",
+      "group": "8067933a-aee3-4883-a966-87918c7099ac",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 3395290,
+      "sha256": "53c3b545c93139d221b5ad1532f2dbf88f8e0287c1b4d677aed771368a45ade9"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.1",
+      "platform": "ios",
+      "id": "01a1ff14-d783-74ea-b623-aae8e6490d72",
+      "group": "8067933a-aee3-4883-a966-87918c7099ac",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 3384470,
+      "sha256": "22b665d77c18211fbf09dcefe8466dae7ab017d28170db89c3dadba8c8d61583"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.0",
+      "platform": "android",
+      "id": "01a1ff15-80ac-7adf-a2c9-93718e0a34d0",
+      "group": "95052f56-d7bf-4a8d-95ca-bd45b86100bd",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 3395290,
+      "sha256": "53c3b545c93139d221b5ad1532f2dbf88f8e0287c1b4d677aed771368a45ade9"
+    },
+    {
+      "app": "admin",
+      "runtimeVersion": "1.0.0",
+      "platform": "ios",
+      "id": "01a1ff15-80ac-7d40-99d7-5ef5f8d46e69",
+      "group": "95052f56-d7bf-4a8d-95ca-bd45b86100bd",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 3384470,
+      "sha256": "22b665d77c18211fbf09dcefe8466dae7ab017d28170db89c3dadba8c8d61583"
+    },
+    {
+      "app": "courier",
+      "runtimeVersion": "1.0.2",
+      "platform": "android",
+      "id": "01a1ff14-d620-70b0-b45d-fd0c3f5ba180",
+      "group": "4c579631-8307-4c6b-b62b-12a016d3ceb9",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 2850828,
+      "sha256": "aa3ee9ac27b1b0b50f57d03b33bc213b74c4ecae54802199bba459ba3ff200b3"
+    },
+    {
+      "app": "courier",
+      "runtimeVersion": "1.0.2",
+      "platform": "ios",
+      "id": "01a1ff14-d620-7a88-a780-244603cc95f8",
+      "group": "4c579631-8307-4c6b-b62b-12a016d3ceb9",
+      "gitCommitHash": "14f11f84fcada858ec3e47cde884bc6bb21e6c13",
+      "manifestVerified": true,
+      "bundleBytes": 2840337,
+      "sha256": "15b63e318bebfac5e89a2bc2a2120adb506a43cfe61e04eecce188c058962ee7"
+    }
+  ]
+}

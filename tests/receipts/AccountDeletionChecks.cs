@@ -20,7 +20,7 @@ static class AccountDeletionChecks
         var customer = new Customer { User = user, FullName = "اسم خاص" };
         var address = new Address { Customer = customer, City = "مدينة خاصة", Street = "شارع خاص", Latitude = 15, Longitude = 44, IsDefault = true };
         var order = new Order { Customer = customer, Address = address, Status = OrderStatus.OutForDelivery, Notes = "ملاحظات خاصة", CustomerReview = "تعليق خاص", TotalAmount = 5000 };
-        var payment = new Payment { Order = order, Amount = 5000, TransferReference = "private-reference", RejectionReason = "private-reason" };
+        var payment = new Payment { Order = order, Amount = 5000, TransferReference = "private-reference", TransferSenderName = "Private sender", TransferSenderPhone = "777000003", RejectionReason = "private-reason" };
         var key = $"r2:private/receipts/{Guid.NewGuid():N}.jpg";
         var receipt = new PaymentReceipt { Payment = payment, StorageKey = key };
         var cart = new Cart { Customer = customer };
@@ -59,7 +59,7 @@ static class AccountDeletionChecks
         Check(!erased.IsActive && erased.Phone != "770000001" && erased.FullName == null && erased.Email == null && erased.FcmToken == null && !BCrypt.Net.BCrypt.Verify("DeletePass123", erased.PasswordHash), "Identity, password and device token must be erased");
         Check(erasedCustomer.FullName == "حساب محذوف" && erasedCustomer.GovernorateId == null && erasedCustomer.ProfileImageKey == null, "Customer profile must be cleared");
         Check(erasedAddress.IsDeleted && erasedAddress.City == "" && erasedAddress.Street == "" && erasedAddress.Latitude == 0 && erasedAddress.Longitude == 0, "Historical address must be scrubbed");
-        Check(keptOrder.TotalAmount == 5000 && keptOrder.Notes == null && keptOrder.CustomerReview == null && keptPayment.Amount == 5000 && keptPayment.TransferReference == null && keptPayment.RejectionReason == null, "Keep accounting amounts without customer notes/transfer data");
+        Check(keptOrder.TotalAmount == 5000 && keptOrder.Notes == null && keptOrder.CustomerReview == null && keptPayment.Amount == 5000 && keptPayment.TransferReference == null && keptPayment.TransferSenderName == null && keptPayment.TransferSenderPhone == null && keptPayment.RejectionReason == null, "Keep accounting amounts without customer notes/transfer data");
         Check(!await db.RefreshTokens.AnyAsync() && !await db.Carts.AnyAsync() && !await db.PushDevices.AnyAsync() && !await db.Notifications.AnyAsync() && !await db.PushDeliveryJobs.AnyAsync() && !await db.PaymentReceipts.AnyAsync() && !await db.FlaggedUsers.AnyAsync() && !await db.AuditLogs.AnyAsync(), "Sessions, cart, push, notifications, receipts and copies of PII must be erased");
         Check((await db.Users.FindAsync(other.Id))!.IsActive, "Another customer's account must remain available");
         var auth = new AuthService(db, new NoJwt());
