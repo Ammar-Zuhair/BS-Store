@@ -16,6 +16,7 @@ import {
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
 import { DriverHeader } from '../components/DriverHeader';
 import { useDriver } from '../context/DriverContext';
+import { paymentLabel } from '../utils/paymentSummary';
 import { driverApi } from '../api';
 
 export const DriverDashboardScreen: React.FC = () => {
@@ -265,13 +266,13 @@ export const DriverDashboardScreen: React.FC = () => {
                           : styles.textTransfer,
                       ]}
                     >
-                      {activeTask.paymentMethod === 'CASH_ON_DELIVERY'
-                        ? '💵 دفع عند الاستلام كاش'
-                        : '✓ تحويل بنكي مسبق'}
+                      {paymentLabel(activeTask)}
                     </Text>
                   </View>
                 </View>
               </View>
+              {!!activeTask.walletPaidAmount && <Text style={styles.modalPaymentType}>مدفوع من المحفظة: {activeTask.walletPaidAmount.toLocaleString()} ر.ي</Text>}
+              {activeTask.paymentMethod === 'MANUAL_TRANSFER' && <Text style={styles.modalPaymentType}>المبلغ الإلكتروني المؤكد: {activeTask.transferredAmount.toLocaleString()} ر.ي</Text>}
             </View>
 
             {/* Action Buttons */}
@@ -436,10 +437,9 @@ export const DriverDashboardScreen: React.FC = () => {
                     <View style={styles.modalTotalLabelWrap}>
                       <Text style={styles.modalTotalLabel}>المطلوب تحصيله:</Text>
                       <Text style={styles.modalPaymentType}>
-                        {activeTask.paymentMethod === 'CASH_ON_DELIVERY'
-                          ? '💵 دفع عند الاستلام نقداً'
-                          : `✓ تحويل بنكي مسبق ${activeTask.transferredAmount.toLocaleString()} ر.ي`}
+                        {paymentLabel(activeTask)}
                       </Text>
+                      {!!activeTask.walletPaidAmount && <Text style={styles.modalPaymentType}>مدفوع من المحفظة: {activeTask.walletPaidAmount.toLocaleString()} ر.ي</Text>}
                       {activeTask.paymentMethod === 'MANUAL_TRANSFER' && activeTask.amountToCollect > 0 && <Text style={styles.modalPaymentType}>المتبقي نقداً عند التسليم: {activeTask.amountToCollect.toLocaleString()} ر.ي</Text>}
                       {activeTask.paymentMethod === 'MANUAL_TRANSFER' && activeTask.cashRefundAtDelivery > 0 && <Text style={styles.modalPaymentType}>أعد للعميل نقداً: {activeTask.cashRefundAtDelivery.toLocaleString()} ر.ي</Text>}
                     </View>

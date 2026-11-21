@@ -43,7 +43,7 @@ public static class WalletChecks
         async Task<decimal> Balance() => (await Send(HttpMethod.Get, "/api/wallet/balance", customer.UserId, "Customer")).Data.GetProperty("balance").GetDecimal();
         var methods = await Send(HttpMethod.Get, "/api/wallet/methods", customer.UserId, "Customer");
         check(methods.Data.GetArrayLength() == 0, "new transfer destinations remain hidden until configured");
-        var saved = await Send(HttpMethod.Put, $"/api/admin/wallet/methods/{methodId}", admin.Id, "Admin", new { name = "كريمي", accountName = "Test company", accountNumber = "TEST-ACCOUNT", instructions = "Test only", isActive = true });
+        var saved = await Send(HttpMethod.Put, $"/api/admin/wallet/methods/{methodId}", admin.Id, "Admin", new { name = "كريمي", accountName = "Test company", accountNumber = "TEST-ACCOUNT", instructions = "Test only", accountType = "نقطة مشتريات", accountDetails = "حساب الشركة", imageUrl = "https://example.test/api/images/payment-methods/01234567890123456789012345678901.png", isActive = true });
         methodVersion = saved.Data.GetProperty("updatedAt").GetString()!;
         check(saved.Status == HttpStatusCode.OK, "admin configures a complete transfer destination");
         check((await Send(HttpMethod.Put, $"/api/admin/wallet/methods/{methodId}", customer.UserId, "Customer", new { })).Status == HttpStatusCode.Forbidden, "customer cannot configure receiving accounts");
@@ -70,7 +70,7 @@ public static class WalletChecks
         var approvals = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Admin($"/api/admin/wallet/topups/{topUpId}/approve")));
         check(approvals.All(x => x.Status == HttpStatusCode.OK) && await Balance() == 5000, "eight simultaneous approvals credit exactly once");
         var duplicateOrderTransfer = await Send(HttpMethod.Post, "/api/checkout/place-order", customer.UserId, "Customer", new {
-            addressId = address.Id, paymentMethod = 1, transferProvider = "ALKURAIMI", transferReference = "wallet-transfer-1",
+            addressId = address.Id, paymentMethod = 1, transferProvider = "ALKURAIMI", transferMethodId = methodId, transferMethodUpdatedAt = methodVersion, transferSenderName = "Test sender", transferSenderPhone = "777", transferReference = "wallet-transfer-1",
             items = new[] { new { productId, quantity = 1 } }, idempotencyKey = "duplicate-bank-reference"
         });
         check(duplicateOrderTransfer.Status == HttpStatusCode.BadRequest, "a credited wallet transfer cannot also pay an order");
@@ -81,6 +81,38 @@ public static class WalletChecks
         check(summary.Status == HttpStatusCode.OK && summary.Data.GetProperty("topUps").EnumerateArray().Any(t => t.GetProperty("rejectionReason").GetString() == "الحوالة غير مستلمة"), "customer wallet exposes approval state and rejection reason");
         var requests = await Send(HttpMethod.Get, "/api/admin/wallet/topups?status=Approved&query=Wallet", admin.Id, "Admin");
         check(requests.Status == HttpStatusCode.OK && requests.Data.GetArrayLength() == 1, "admin request filters translate on PostgreSQL");
+
+        check(requests.Data[0].GetProperty("accountType").GetString() == "نقطة مشتريات" && requests.Data[0].GetProperty("accountDetails").GetString() == "حساب الشركة", "top-up review preserves receiving account details");
+        var custom = await Send(HttpMethod.Post, "/api/admin/wallet/methods", admin.Id, "Admin", new {
+            name = "جيب تجربة", accountName = "اسم الشركة", accountNumber = "CUSTOM-ACCOUNT", accountType = "حساب مشترك", accountDetails = "نقطة مشتريات - تفاصيل مخصصة", instructions = "استخدم رقم التحويل", isActive = true
+        });
+        var customId = custom.Data.GetProperty("id").GetGuid();
+        var customCode = custom.Data.GetProperty("code").GetString();
+        var customVersion = custom.Data.GetProperty("updatedAt").GetString();
+        check(custom.Status == HttpStatusCode.OK && customCode!.StartsWith("CUSTOM_"), "admin creates a dynamic electronic payment method");
+        methods = await Send(HttpMethod.Get, "/api/wallet/methods", customer.UserId, "Customer");
+        check(methods.Data.EnumerateArray().Any(m => m.GetProperty("id").GetGuid() == customId && m.GetProperty("accountType").GetString() == "حساب مشترك"), "one customer catalogue exposes configured payment details");
+        object TransferCheckout(string key, string? version = null) => new { addressId = address.Id, paymentMethod = 1, transferProvider = customCode, transferMethodId = customId, transferMethodUpdatedAt = version ?? customVersion, transferSenderName = "مرسل آخر", transferSenderPhone = "777000001", transferReference = key, idempotencyKey = key, items = new[] { new { productId, quantity = 1 } } };
+        check((await Send(HttpMethod.Post, "/api/checkout/place-order", customer.UserId, "Customer", TransferCheckout("stale-destination", "2020-01-01T00:00:00Z"))).Status == HttpStatusCode.BadRequest, "checkout rejects stale receiving account details before creating an order");
+        check((await Send(HttpMethod.Post, "/api/checkout/place-order", customer.UserId, "Customer", new { addressId = address.Id, paymentMethod = 1, transferProvider = "ALKURAIMI", transferReference = "legacy-unversioned-transfer", items = new[] { new { productId, quantity = 1 } } })).Status == HttpStatusCode.BadRequest, "legacy clients with hardcoded destination data must update before starting a new transfer order");
+        var electronic = await Send(HttpMethod.Post, "/api/checkout/place-order", customer.UserId, "Customer", TransferCheckout("custom-transfer-order"));
+        check(electronic.Status == HttpStatusCode.OK && electronic.Data.GetProperty("transferMethodName").GetString() == "جيب تجربة", "dynamic payment method can pay an order and exposes its name to the courier");
+        var electronicId = electronic.Data.GetProperty("id").GetGuid();
+        using (var scope = app.Services.CreateScope()) {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var transferredOrder = await db.Orders.Include(o => o.Payment).SingleAsync(o => o.Id == electronicId);
+            transferredOrder.DriverId = driver.Id; transferredOrder.Status = OrderStatus.OutForDelivery;
+            transferredOrder.Payment!.AmountReceived = transferredOrder.TotalAmount - 200; transferredOrder.Payment.Status = PaymentStatus.Verified;
+            await db.SaveChangesAsync();
+        }
+        var driverPayment = await Send(HttpMethod.Get, "/api/driver/current-order", driver.UserId, "Driver");
+        check(driverPayment.Data.GetProperty("transferMethodName").GetString() == "جيب تجربة" && driverPayment.Data.GetProperty("cashDueAtDelivery").GetDecimal() == 200 && driverPayment.Data.GetProperty("transferAmountConfirmed").GetBoolean(), "courier receives the electronic method name and exact remaining cash after a partial transfer");
+        await Send(HttpMethod.Put, $"/api/admin/wallet/methods/{customId}", admin.Id, "Admin", new { name = "جيب محدث", accountName = "مستفيد جديد", accountNumber = "CHANGED", accountType = "آخر", accountDetails = "بيانات جديدة", isActive = false });
+        var historical = await Send(HttpMethod.Get, $"/api/payments/{electronicId}/transfer-info", customer.UserId, "Customer");
+        check(historical.Data.GetProperty("accountNumber").GetString() == "CUSTOM-ACCOUNT" && historical.Data.GetProperty("accountType").GetString() == "حساب مشترك" && historical.Data.GetProperty("senderName").GetString() == "مرسل آخر", "editing or disabling a method does not change the order's receiving account or sender snapshot");
+        check((await Send(HttpMethod.Post, "/api/checkout/place-order", customer.UserId, "Customer", TransferCheckout("disabled-destination"))).Status == HttpStatusCode.BadRequest, "disabled payment destinations cannot receive new orders");
+        check((await Send(HttpMethod.Post, "/api/checkout/place-order", customer.UserId, "Customer", TransferCheckout("custom-transfer-order"))).Data.GetProperty("id").GetGuid() == electronicId, "completed checkout retry survives later method edits without duplicating the order");
+        check(BSStore.Infrastructure.Services.R2ObjectStore.ValidKey("catalogue/payment-methods/01234567890123456789012345678901.png") && !BSStore.Infrastructure.Services.R2ObjectStore.ValidKey("catalogue/payment-methods/../receipt.png"), "payment logos use constrained public object keys");
 
         object Checkout(string key) => new { addressId = address.Id, paymentMethod = 0, useWallet = true, idempotencyKey = key, items = new[] { new { productId, quantity = 30 } } };
         var orders = await Task.WhenAll(new[] { "wallet-order-a", "wallet-order-b" }.Select(key => Send(HttpMethod.Post, "/api/checkout/place-order", customer.UserId, "Customer", Checkout(key))));

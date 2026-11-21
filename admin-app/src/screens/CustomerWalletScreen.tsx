@@ -1,24 +1,25 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, AppState, Image, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api } from '../api';
+import { pickImageFromGallery, saveCatalogueForm, stageCatalogueImage } from '../services/imageStorage';
 import { AdminHeader } from '../components/AdminHeader';
 import { ReceiptImage } from '../components/ReceiptImage';
 import { colors as c } from '../theme';
 
-type Method = { id: string; name: string; accountName: string; accountNumber: string; instructions: string; isActive: boolean };
-type TopUp = { id: string; customerName: string; customerPhone: string; amount: number; methodName: string; accountName: string; accountNumber: string;
+type Method = { id: string; name: string; accountName: string; accountNumber: string; instructions: string; imageUrl: string; accountType: string; accountDetails: string; isActive: boolean };
+type TopUp = { accountType?: string; accountDetails?: string; instructions?: string; id: string; customerName: string; customerPhone: string; amount: number; methodName: string; accountName: string; accountNumber: string;
   senderName: string; senderPhone: string; transferReference: string; status: string; rejectionReason?: string; receiptUrl: string; similarReceipt: boolean; createdAt: string; reviewedAt?: string; reviewerName?: string };
 type Entry = { id: string; customerId: string; customerName: string; driverName?: string; amount: number; balanceAfter: number; type: string; description: string;
   isReversed: boolean; createdAt: string; orderNumber?: string; cashReceived?: number; cashDue?: number };
 type Report = { transactions: Entry[]; customers: { id: string; fullName: string; phone: string; balance: number; ledgerBalance: number }[];
   deniedAttempts: { driverName: string; count: number }[];
   changesToday: { driverId: string; driverName: string; amount: number; count: number; reversedCount: number; outstanding: number; settlements: number }[]; mismatches: number; changeLimit: number; dailyLimit: number };
-const emptyMethod = { name: '', accountName: '', accountNumber: '', instructions: '', isActive: false };
+const emptyMethod = { name: '', accountName: '', accountNumber: '', instructions: '', imageUrl: '', accountType: '', accountDetails: '', isActive: false };
 const statusText: Record<string, string> = { Pending: 'بانتظار المراجعة', Approved: 'معتمد', Rejected: 'مرفوض' };
 const date = (value: string) => new Date(value).toLocaleString('ar', { timeZone: 'Asia/Aden' });
 
-export const CustomerWalletScreen: React.FC = () => {
-  const [tab, setTab] = useState<'requests' | 'report' | 'methods'>('requests');
+export const CustomerWalletScreen: React.FC<{ methodsOnly?: boolean }> = ({ methodsOnly = false }) => {
+  const [tab, setTab] = useState<'requests' | 'report' | 'methods'>(methodsOnly ? 'methods' : 'requests');
   const [status, setStatus] = useState('Pending');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('');
@@ -72,9 +73,9 @@ export const CustomerWalletScreen: React.FC = () => {
     const endpoint = action.kind === 'reverse' ? `/admin/wallet/transactions/${action.id}/reverse` : `/admin/wallet/topups/${action.id}/${action.kind}`;
     void run(() => api.post(endpoint, { reason: reason.trim(), cashReconciled: cashConfirmed }), action.kind === 'approve' ? 'تم اعتماد الشحن وإضافة الرصيد' : action.kind === 'reject' ? 'تم الرفض وإرسال السبب للعميل' : 'تم عكس الرصيد وتخفيض عهدة الموصل');
   };
-  return <View style={{ flex: 1 }}><AdminHeader title="أرصدة العملاء" showBack />
+  return <View style={{ flex: 1 }}><AdminHeader title={methodsOnly ? "طرق الدفع" : "أرصدة العملاء"} showBack />
     <ScrollView ref={scroll} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-      <View style={s.row}>{(['requests', 'report', 'methods'] as const).map(t => <View key={t} style={{ flexGrow: 1 }}>{button(t === 'requests' ? 'طلبات الشحن' : t === 'report' ? 'الأرصدة والتتبع' : 'طرق الشحن', () => { setTab(t); setPage(0); setAction(null); setEditing(null); setSelected(''); }, tab !== t)}</View>)}</View>
+      {!methodsOnly && <View style={s.row}>{(['requests', 'report', 'methods'] as const).map(t => <View key={t} style={{ flexGrow: 1 }}>{button(t === 'requests' ? 'طلبات الشحن' : t === 'report' ? 'الأرصدة والتتبع' : 'طرق الدفع', () => { setTab(t); setPage(0); setAction(null); setEditing(null); setSelected(''); }, tab !== t)}</View>)}</View>}
       {button('تحديث', () => void load(), true, loading)}
       {loading && <ActivityIndicator color={c.primary} />}{!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}{!!notice && <Text accessibilityRole="alert" style={s.notice}>{notice}</Text>}
       {action && <View style={s.card}><Text style={s.title}>{action.kind === 'approve' ? 'تأكيد اعتماد الشحن' : action.kind === 'reject' ? 'سبب رفض الشحن' : 'عكس باقي الموصل'}</Text>
@@ -93,6 +94,7 @@ export const CustomerWalletScreen: React.FC = () => {
           {!!t.rejectionReason && <Text style={s.error}>سبب الرفض: {t.rejectionReason}</Text>}
           {button(selected === t.id ? 'إغلاق التفاصيل' : 'مراجعة بيانات التحويل والصورة', () => { setSelected(selected === t.id ? '' : t.id); setAction(null); }, true)}
           {selected === t.id && <><Text selectable style={s.text}>حساب العميل: {t.customerPhone}\nالمرسل: {t.senderName}\nهاتف المرسل: {t.senderPhone}\nرقم التحويل: {t.transferReference}\nالمستفيد: {t.accountName}\nالحساب: {t.accountNumber}</Text>
+            <Text style={s.text}>{t.accountType}{t.accountDetails ? ` · ${t.accountDetails}` : ""}{t.instructions ? `\n${t.instructions}` : ""}</Text>
             {t.similarReceipt && <Text style={s.error}>تنبيه: صورة مطابقة مرفقة بطلب شحن آخر. راجع الحوالة قبل الاعتماد.</Text>}
             <ReceiptImage url={t.receiptUrl} />
             {t.status === 'Pending' && <View style={s.row}>{button('اعتماد', () => chooseAction(t.id, 'approve', t.amount))}{button('رفض مع السبب', () => chooseAction(t.id, 'reject', t.amount), true)}</View>}
@@ -100,14 +102,20 @@ export const CustomerWalletScreen: React.FC = () => {
         </View>)}
       </>}
       {tab === 'methods' && <>
-        <Text style={s.text}>لا تظهر للعميل إلا الطرق المفعلة والمكتملة. تعديل الحساب لا يغير بيانات الطلبات السابقة.</Text>
-        {button('إضافة طريقة شحن', () => setEditing({ ...emptyMethod }))}
-        {editing && <View style={s.card}><Text style={s.title}>{editing.id ? 'تعديل طريقة الشحن' : 'طريقة شحن جديدة'}</Text>
+        <Text style={s.text}>تظهر الطرق المفعلة والمكتملة للعملاء عند شحن الرصيد وعند تسديد الطلب إلكترونياً. تعديل الحساب لا يغير بيانات التحويلات السابقة.</Text>
+        {button('إضافة طريقة دفع', () => setEditing({ ...emptyMethod }))}
+        {editing && <View style={s.card}><Text style={s.title}>{editing.id ? 'تعديل طريقة الدفع' : 'طريقة دفع جديدة'}</Text>
           {field('اسم الطريقة', editing.name, v => setEditing({ ...editing, name: v }))}{field('اسم المستفيد', editing.accountName, v => setEditing({ ...editing, accountName: v }))}
+          {!!editing.imageUrl && <Image source={{ uri: editing.imageUrl }} style={{ width: 100, height: 100, alignSelf: 'center' }} resizeMode="contain" accessibilityLabel="صورة طريقة الدفع" />}
+          {button(editing.imageUrl ? 'تغيير صورة الطريقة' : 'اختيار صورة الطريقة', () => { void pickImageFromGallery().then(image => { if (image) setEditing(current => current ? { ...current, imageUrl: stageCatalogueImage(image) } : current); }).catch(e => setError(e.message || 'تعذر اختيار الصورة')); }, true)}
+          {!!editing.imageUrl && button('إزالة الصورة', () => setEditing({ ...editing, imageUrl: '' }), true)}
+          <Text style={s.label}>نوع الحساب</Text><View style={s.row}>{['حساب مشترك', 'نقطة مشتريات', 'محفظة إلكترونية'].map(type => <View key={type}>{button(type, () => setEditing({ ...editing, accountType: type }), editing.accountType !== type)}</View>)}</View>
+          {field('نوع الحساب / وصف آخر', editing.accountType, v => setEditing({ ...editing, accountType: v }))}
+          {field('تفاصيل إضافية للحساب', editing.accountDetails, v => setEditing({ ...editing, accountDetails: v }), true)}
           {field('رقم الحساب / المحفظة', editing.accountNumber, v => setEditing({ ...editing, accountNumber: v }))}{field('تعليمات التحويل', editing.instructions, v => setEditing({ ...editing, instructions: v }), true)}
-          <View style={s.row}><Switch value={editing.isActive} onValueChange={v => setEditing({ ...editing, isActive: v })} accessibilityLabel="تفعيل طريقة الشحن" disabled={busy} /><Text style={s.text}>متاحة للعملاء</Text></View>
-          {button('حفظ الطريقة', () => void run(() => editing.id ? api.put(`/admin/wallet/methods/${editing.id}`, editing) : api.post('/admin/wallet/methods', editing), 'حُفظت طريقة الشحن'))}{button('إلغاء', () => setEditing(null), true)}</View>}
-        {methods.map(m => <View key={m.id} style={s.card}><Text style={s.title}>{m.name} · {m.isActive ? 'مفعلة' : 'معطلة'}</Text><Text selectable style={s.text}>{m.accountName || 'المستفيد غير محدد'}\n{m.accountNumber || 'رقم الحساب غير محدد'}</Text>{button('تعديل', () => setEditing({ ...m }), true)}</View>)}
+          <View style={s.row}><Switch value={editing.isActive} onValueChange={v => setEditing({ ...editing, isActive: v })} accessibilityLabel="تفعيل طريقة الدفع" disabled={busy} /><Text style={s.text}>متاحة للعملاء</Text></View>
+          {button('حفظ الطريقة', () => void run(() => saveCatalogueForm(editing, 'payment-methods', prepared => prepared.id ? api.put(`/admin/wallet/methods/${prepared.id}`, prepared) : api.post('/admin/wallet/methods', prepared)), 'حُفظت طريقة الدفع'))}{button('إلغاء', () => setEditing(null), true)}</View>}
+        {methods.map(m => <View key={m.id} style={s.card}><Text style={s.title}>{m.name} · {m.isActive ? 'مفعلة' : 'معطلة'}</Text><Text style={s.hint}>{m.accountType}{m.accountDetails ? ` · ${m.accountDetails}` : ""}</Text>{!!m.imageUrl && <Image source={{ uri: m.imageUrl }} style={{ width: 72, height: 72 }} resizeMode="contain" accessibilityLabel={m.name} />}<Text selectable style={s.text}>{m.accountName || 'المستفيد غير محدد'}\n{m.accountNumber || 'رقم الحساب غير محدد'}</Text>{button('تعديل', () => setEditing({ ...m }), true)}</View>)}
       </>}
       {tab === 'report' && report && <>
         <View style={s.card}><Text style={s.title}>مطابقة الرصيد والتتبع</Text><Text style={report.mismatches ? s.error : s.text}>حسابات غير متطابقة مع السجل: {report.mismatches}</Text>

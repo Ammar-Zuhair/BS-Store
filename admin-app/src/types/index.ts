@@ -103,7 +103,8 @@ export interface BankTransferRequest {
   amountReceived?: number | null;
   amountReceivedAt?: string | null;
   amountReceivedBy?: string | null;
-  transferProvider?: 'ALKURAIMI' | 'WALLET' | null;
+  transferProvider?: string | null;
+  transferMethodName?: string; transferAccountName?: string; transferAccountNumber?: string; transferAccountType?: string; transferAccountDetails?: string; transferSenderName?: string; transferSenderPhone?: string;
   transferReference: string;
   receiptImageUrl: string;
   uploadedAt: string;

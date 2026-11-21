@@ -45,6 +45,7 @@ export interface TaskPurchasedItem {
 
 export interface ActiveDeliveryTask {
   walletPaidAmount?: number;
+  transferMethodName?: string;
   id: string;
   orderNumber: string;
   customerName: string;

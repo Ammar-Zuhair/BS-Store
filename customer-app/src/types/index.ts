@@ -7,7 +7,7 @@ import type { OptionsDefinition, VariantChoice, BundleSelection } from '../optio
 export type SourceType = 'IN_STOCK' | 'EXTERNAL_STORE';
 
 export type PaymentMethodType = 'CASH_ON_DELIVERY' | 'MANUAL_TRANSFER';
-export type TransferProviderType = 'ALKURAIMI' | 'WALLET';
+export type TransferProviderType = string;
 
 export type PaymentStatusType = 'PENDING' | 'PENDING_VERIFICATION' | 'PAID' | 'REJECTED' | 'VERIFIED';
 

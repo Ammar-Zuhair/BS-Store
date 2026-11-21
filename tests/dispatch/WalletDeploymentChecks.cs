@@ -33,6 +33,7 @@ static class WalletDeploymentChecks
         var result = new {
             checkedAt = DateTime.UtcNow,
             migrationInstalled = await Count("SELECT count(*) FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\" LIKE '%_AddCustomerWallet'") == 1,
+            sharedPaymentMethodsInstalled = await Count("SELECT count(*) FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\" LIKE '%_SharedPaymentMethods'") == 1,
             methods = await Count("SELECT count(*) FROM \"WalletMethods\""),
             activeMethods = await Count("SELECT count(*) FROM \"WalletMethods\" WHERE \"IsActive\""),
             negativeBalances = await Count("SELECT count(*) FROM \"Customers\" WHERE \"WalletBalance\" < 0"),

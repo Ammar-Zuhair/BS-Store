@@ -36,6 +36,7 @@ export const PaymentsScreen: React.FC = () => {
     <View style={styles.container}>
       <BoosthisScreenTracker key={tab} screen={tab === 'transfers' ? 'BankTransfers' : 'DriverCustody'} />
       <AdminHeader title="التحويلات والمدفوعات" showBack onBack={() => navigateTo('dashboard')} />
+      <TouchableOpacity accessibilityRole="button" onPress={() => navigateTo('payment_methods')} style={{ padding: 14, backgroundColor: colors.primaryFixed }}><Text style={{ color: colors.onSurface, textAlign: 'center', fontFamily: typography.fontFamily.bold }}>طرق الدفع · إضافة وتعديل الحسابات والصور</Text></TouchableOpacity>
       <View style={styles.tabs}>
         <TouchableOpacity style={[styles.tab, tab === 'transfers' && styles.tabActive]} onPress={() => setTab('transfers')}>
           <Text style={[styles.tabText, tab === 'transfers' && styles.tabTextActive]}>حوالات العملاء</Text>
@@ -72,7 +73,10 @@ export const PaymentsScreen: React.FC = () => {
                   </Text>
                 </View>
                 <Text style={styles.info}>{item.customerName} · {item.customerPhone}</Text>
-                <Text style={styles.info}>طريقة التحويل: {item.transferProvider === 'ALKURAIMI' ? 'بنك الكريمي' : item.transferProvider === 'WALLET' ? 'محفظة إلكترونية' : 'غير محددة'}</Text>
+                <Text style={styles.info}>طريقة التحويل: {item.transferMethodName || (item.transferProvider === 'ALKURAIMI' ? 'بنك الكريمي' : item.transferProvider === 'WALLET' ? 'محفظة إلكترونية' : 'غير محددة')}</Text>
+                {!!item.transferAccountNumber && <Text selectable style={styles.info}>حساب الاستقبال: {item.transferAccountName} · {item.transferAccountNumber}
+{item.transferAccountType} {item.transferAccountDetails}</Text>}
+                {!!item.transferSenderName && <Text style={styles.info}>المرسل: {item.transferSenderName} · {item.transferSenderPhone}</Text>}
                 <Text style={styles.info}>قيمة الفاتورة: {item.amount.toLocaleString()} ر.ي · رقم العملية: {item.transferReference || 'غير مسجل'}</Text>
                 {needsAmountEntry ? <>
                   <Text style={styles.info}>راجع الإيصال وسجل المبلغ الذي وصل فعلياً إلى الحساب البنكي.</Text>

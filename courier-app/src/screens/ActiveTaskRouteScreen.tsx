@@ -1,3 +1,4 @@
+import { paymentLabel } from '../utils/paymentSummary';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, Platform, RefreshControl, ActivityIndicator, TextInput, Switch } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
@@ -235,6 +236,7 @@ export const ActiveTaskRouteScreen: React.FC = () => {
 
               <Text style={styles.stopAddress}>📍 {stop.address}</Text>
 
+              {stop.type === 'DELIVERY_CUSTOMER' && <View style={{ gap: 6, paddingVertical: 12 }}><Text style={{ color: colors.onSurface, fontFamily: 'Tajawal_700Bold', textAlign: 'right' }}>طريقة الدفع: {paymentLabel(activeTask)}</Text><Text style={{ color: colors.onSurface, fontFamily: 'Tajawal_500Medium', textAlign: 'right' }}>المتبقي على العميل نقداً: {activeTask.amountToCollect.toLocaleString()} ر.ي</Text></View>}
               {stop.type === 'DELIVERY_CUSTOMER' && activeTask.paymentMethod === 'MANUAL_TRANSFER' && (
                 <View style={styles.cashAdjustmentBox}>
                   {!activeTask.isTransferAmountConfirmed && <Text style={styles.cashRefundText}>لم تسجل الإدارة المبلغ المستلم من الحوالة بعد. لا يتم إتمام التسليم حتى تأكيده.</Text>}
@@ -320,7 +322,7 @@ export const ActiveTaskRouteScreen: React.FC = () => {
                       {!canCompleteDelivery
                         ? 'أكمل مشتريات المتاجر أولاً'
                         : activeTask.paymentMethod === 'CASH_ON_DELIVERY'
-                        ? `إتمام التسليم وتحصيل ${activeTask.amountToCollect.toLocaleString()} ر.ي ✓`
+                        ? activeTask.amountToCollect === 0 ? 'إتمام التسليم · مدفوع بالكامل ✓' : `إتمام التسليم وتحصيل ${activeTask.amountToCollect.toLocaleString()} ر.ي ✓`
                         : activeTask.amountToCollect > 0
                           ? `إتمام التسليم بعد تحصيل ${activeTask.amountToCollect.toLocaleString()} ر.ي ✓`
                           : activeTask.cashRefundAtDelivery > 0

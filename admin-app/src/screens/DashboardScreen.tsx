@@ -253,6 +253,9 @@ export const DashboardScreen: React.FC = () => {
         {/* Quick Admin Actions Grid (4 Buttons matching Stitch) */}
         <View style={styles.quickActionsSection}>
           <Text style={styles.quickActionsTitle}>إجراءات الإدارة السريعة</Text>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="طرق الدفع" onPress={() => navigateTo('payment_methods')} style={[styles.quickActionCard, { width: '100%', marginBottom: 12 }]}>
+            <Text style={styles.quickActionText}>طرق الدفع</Text><Text style={{ color: colors.onSurfaceVariant, textAlign: 'center', fontFamily: typography.fontFamily.regular }}>تسجيل الحسابات والصور وتفاصيل التحويل للشحن وتسديد الطلبات</Text>
+          </TouchableOpacity>
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity
               style={styles.quickActionCard}

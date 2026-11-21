@@ -26,6 +26,7 @@ export type AdminScreenName =
   | 'orders'
   | 'payments'
   | 'wallet'
+  | 'payment_methods'
   | 'inventory'
   | 'add_product'
   | 'categories'
@@ -329,6 +330,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           amountReceivedAt: p.amountReceivedAt || null,
           amountReceivedBy: p.amountReceivedBy || null,
           transferProvider: p.transferProvider || null,
+          transferMethodName: p.transferMethodName, transferAccountName: p.transferAccountName, transferAccountNumber: p.transferAccountNumber, transferAccountType: p.transferAccountType, transferAccountDetails: p.transferAccountDetails, transferSenderName: p.transferSenderName, transferSenderPhone: p.transferSenderPhone,
           transferReference: p.transferReference || '',
           receiptImageUrl: receiptUrl || '',
           uploadedAt: p.createdAt || receipt?.uploadedAt || new Date().toISOString(),

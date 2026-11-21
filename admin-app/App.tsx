@@ -36,6 +36,7 @@ const BOOSTHIS_SCREEN_NAMES: Record<AdminScreenName, string> = {
   orders: 'Orders',
   payments: 'Payments',
   wallet: 'CustomerWallet',
+  payment_methods: 'PaymentMethods',
   inventory: 'Inventory',
   add_product: 'ProductEditor',
   categories: 'Categories',
@@ -90,6 +91,8 @@ const AdminNavigator: React.FC = () => {
         return <DashboardScreen />;
       case 'orders':
         return <OrdersScreen />;
+      case 'payment_methods':
+        return <CustomerWalletScreen key="payment-methods" methodsOnly />;
       case 'wallet':
         return <CustomerWalletScreen />;
       case 'payments':

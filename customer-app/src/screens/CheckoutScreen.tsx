@@ -1,3 +1,5 @@
+import { WalletMethod } from '../types/wallet';
+import { PaymentMethodDetails } from '../components/PaymentMethodDetails';
 import { optionsLabel } from '../options/model';
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Switch } from 'react-native';
@@ -68,7 +70,19 @@ export const CheckoutScreen: React.FC = () => {
   useEffect(() => { let active = true; walletApi.balance().then(v => { if (active) setWalletBalance(Number(v.balance)); }).catch(() => { if (active) setWalletBalance(null); }); return () => { active = false; }; }, []);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('CASH_ON_DELIVERY');
   const [transferProvider, setTransferProvider] = useState<TransferProviderType | null>(null);
+  const [methods, setMethods] = useState<WalletMethod[]>([]);
+  const [methodsLoading, setMethodsLoading] = useState(false);
+  const [methodsError, setMethodsError] = useState('');
+  const [methodsRefresh, setMethodsRefresh] = useState(0);
+  const selectedMethod = methods.find(m => m.code === transferProvider);
+  useEffect(() => { if (paymentMethod !== 'MANUAL_TRANSFER') return; let active = true; setMethodsLoading(true); setMethodsError('');
+    walletApi.methods().then(list => { if (active) { setMethods(list); setTransferProvider(code => list.some(m => m.code === code) ? code : null); } })
+      .catch(e => { if (active) { setMethods([]); setMethodsError(e.message || 'تعذر تحميل طرق الدفع'); } }).finally(() => { if (active) setMethodsLoading(false); });
+    return () => { active = false; };
+  }, [paymentMethod, methodsRefresh]);
   const [transferReceipt, setTransferReceipt] = useState<TransferReceiptImage | null>(null);
+  const [senderName, setSenderName] = useState('');
+  const [senderPhone, setSenderPhone] = useState('');
   const [transferRef, setTransferRef] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -161,12 +175,13 @@ export const CheckoutScreen: React.FC = () => {
       return;
     }
 
+    if (paymentMethod === 'MANUAL_TRANSFER' && (!senderName.trim() || !senderPhone.trim())) { Alert.alert('بيانات المرسل مطلوبة', 'أدخل اسم مرسل التحويل ورقم هاتفه.'); return; }
     if (paymentMethod === 'MANUAL_TRANSFER' && !transferRef.trim()) {
       Alert.alert('رقم العملية مطلوب', 'أدخل رقم الحوالة أو العملية الظاهر في الإيصال.');
       return;
     }
-    if (paymentMethod === 'MANUAL_TRANSFER' && !transferProvider) {
-      Alert.alert('اختر طريقة التحويل', 'حدد بنك الكريمي أو التحويل من المحفظة لعرض بيانات الحساب.');
+    if (paymentMethod === 'MANUAL_TRANSFER' && (!selectedMethod || methodsLoading)) {
+      Alert.alert('اختر طريقة التحويل', 'اختر إحدى طرق الدفع المسجلة وراجع بيانات الحساب.');
       return;
     }
     if (paymentMethod === 'MANUAL_TRANSFER' && !transferReceipt) {
@@ -183,7 +198,11 @@ export const CheckoutScreen: React.FC = () => {
           receiptUri: transferReceipt?.uri,
           receiptFileName: transferReceipt?.fileName,
           receiptMimeType: transferReceipt?.mimeType,
-          transferProvider: paymentMethod === 'MANUAL_TRANSFER' ? transferProvider ?? undefined : undefined,
+          transferProvider: paymentMethod === 'MANUAL_TRANSFER' ? selectedMethod?.code : undefined,
+          transferMethodId: paymentMethod === 'MANUAL_TRANSFER' ? selectedMethod?.id : undefined,
+          transferMethodUpdatedAt: paymentMethod === 'MANUAL_TRANSFER' ? selectedMethod?.updatedAt : undefined,
+          transferSenderName: paymentMethod === 'MANUAL_TRANSFER' ? senderName.trim() : undefined,
+          transferSenderPhone: paymentMethod === 'MANUAL_TRANSFER' ? senderPhone.trim() : undefined,
           transferReference: paymentMethod === 'MANUAL_TRANSFER' ? transferRef.trim() : undefined,
           notes: [notes, paymentMethod === 'MANUAL_TRANSFER' ? `رقم الحوالة: ${transferRef.trim()}` : '']
             .filter(Boolean)
@@ -346,7 +365,7 @@ export const CheckoutScreen: React.FC = () => {
                 <AppIcon name="bank" size={18} color={themeColors.primary} />
               </View>
               <CheckoutText style={styles.methodDesc}>
-                اختر بنك الكريمي أو التحويل من المحفظة، ثم أرفق صورة الإيصال
+                اختر طريقة الدفع، راجع بيانات الحساب ثم أرفق صورة الإيصال ورقم التحويل
               </CheckoutText>
             </View>
           </TouchableOpacity>
@@ -355,44 +374,25 @@ export const CheckoutScreen: React.FC = () => {
           {paymentMethod === 'MANUAL_TRANSFER' && (
             <View style={styles.transferDetailsWrap}>
               <CheckoutText style={styles.inputLabel}>اختر طريقة التحويل:</CheckoutText>
-              <TouchableOpacity
-                style={[styles.transferProviderOption, transferProvider === 'ALKURAIMI' && styles.transferProviderOptionActive]}
-                onPress={() => setTransferProvider('ALKURAIMI')}
-                activeOpacity={0.85}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: transferProvider === 'ALKURAIMI' }}
-              >
-                <View style={styles.radio}>
-                  {transferProvider === 'ALKURAIMI' && <View style={styles.radioInner} />}
-                </View>
-                <CheckoutText style={styles.transferProviderTitle}>بنك الكريمي</CheckoutText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.transferProviderOption, transferProvider === 'WALLET' && styles.transferProviderOptionActive]}
-                onPress={() => setTransferProvider('WALLET')}
-                activeOpacity={0.85}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: transferProvider === 'WALLET' }}
-              >
-                <View style={styles.radio}>
-                  {transferProvider === 'WALLET' && <View style={styles.radioInner} />}
-                </View>
-                <CheckoutText style={styles.transferProviderTitle}>محفظة إلكترونية</CheckoutText>
-              </TouchableOpacity>
-
-              <View style={styles.bankAccountsCard}>
+              {methodsLoading && <ActivityIndicator color={themeColors.primary} />}
+              {!!methodsError && <CheckoutText accessibilityRole="alert" style={styles.bankItem}>{methodsError}</CheckoutText>}
+              {!methodsLoading && !methods.length && <CheckoutText style={styles.bankItem}>لا توجد طرق دفع مفعلة حالياً. اختر النقد أو المحفظة، أو تواصل مع الدعم.</CheckoutText>}
+              <TouchableOpacity accessibilityRole="button" onPress={() => setMethodsRefresh(v => v + 1)} disabled={methodsLoading}><CheckoutText style={styles.inputLabel}>تحديث طرق الدفع</CheckoutText></TouchableOpacity>
+              {methods.map(method => <TouchableOpacity key={method.id} style={[styles.transferProviderOption, transferProvider === method.code && styles.transferProviderOptionActive]}
+                onPress={() => setTransferProvider(method.code)} disabled={methodsLoading || isSubmitting} accessibilityRole="radio" accessibilityState={{ checked: transferProvider === method.code }}>
+                {!!method.imageUrl && <Image source={{ uri: method.imageUrl }} style={{ width: 44, height: 44 }} resizeMode="contain" />}
+                <CheckoutText style={styles.transferProviderTitle}>{method.name}{transferProvider === method.code ? ' ✓' : ''}</CheckoutText>
+              </TouchableOpacity>)}
+              {selectedMethod && <View style={styles.bankAccountsCard}>
                 <CheckoutText style={styles.bankTitle}>حوّل إجمالي الفاتورة إلى:</CheckoutText>
-                <CheckoutText style={styles.bankItem}>المبلغ المطلوب: <CheckoutText style={styles.bankBold}>{cartTotal.toLocaleString()} ر.ي</CheckoutText></CheckoutText>
-                {transferProvider === 'ALKURAIMI' ? <>
-                  <CheckoutText style={styles.bankItem}>الجهة: <CheckoutText style={styles.bankBold}>نقطة حاسب التابعة لبنك الكريمي</CheckoutText></CheckoutText>
-                  <CheckoutText style={styles.bankItem}>رقم نقطة حاسب: <CheckoutText style={styles.bankBold}>1888356</CheckoutText></CheckoutText>
-                  <CheckoutText style={styles.bankItem}>باسم: <CheckoutText style={styles.bankBold}>متجر بي اس</CheckoutText></CheckoutText>
-                </> : transferProvider === 'WALLET' ? <>
-                  <CheckoutText style={styles.bankItem}>رقم المحفظة: <CheckoutText style={styles.bankBold}>783053937</CheckoutText></CheckoutText>
-                  <CheckoutText style={styles.bankItem}>اسم صاحب الحساب: <CheckoutText style={styles.bankBold}>بلال سعيد المقطري</CheckoutText></CheckoutText>
-                </> : <CheckoutText style={styles.bankItem}>اختر طريقة التحويل لعرض بيانات المستلم.</CheckoutText>}
-              </View>
+                <CheckoutText style={styles.bankItem}>المبلغ المطلوب: {cartTotal.toLocaleString()} ر.ي</CheckoutText>
+                <PaymentMethodDetails method={selectedMethod} color={themeColors.onSurface} />
+              </View>}
 
+              <CheckoutText style={styles.inputLabel}>اسم مرسل التحويل:</CheckoutText>
+              <TextInput accessibilityLabel="اسم مرسل التحويل" value={senderName} onChangeText={setSenderName} maxLength={200} style={styles.textInput} textAlign="right" />
+              <CheckoutText style={styles.inputLabel}>هاتف مرسل التحويل:</CheckoutText>
+              <TextInput accessibilityLabel="هاتف مرسل التحويل" value={senderPhone} onChangeText={setSenderPhone} maxLength={30} keyboardType="phone-pad" style={styles.textInput} textAlign="right" />
               <CheckoutText style={styles.inputLabel}>رقم الحوالة أو العملية:</CheckoutText>
               <TextInput
                 style={styles.textInput}

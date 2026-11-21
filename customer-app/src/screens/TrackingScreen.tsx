@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
+  Image,
   Text,
   StyleSheet,
   ScrollView,
@@ -557,10 +558,15 @@ export const TrackingScreen: React.FC = () => {
               <Text style={styles.transferTitle}>تفاصيل التحويل</Text>
               {isLoadingTransferInfo && <ActivityIndicator size="small" color={themeColors.primary} />}
               {transferInfo ? <>
-                <Text style={styles.transferInfoText}>طريقة التحويل: {transferInfo.transferProvider === 'ALKURAIMI' ? 'بنك الكريمي' : transferInfo.transferProvider === 'WALLET' ? 'محفظة إلكترونية' : 'تحويل بنكي'}</Text>
+                <Text style={styles.transferInfoText}>طريقة التحويل: {transferInfo.bankName || 'دفع إلكتروني'}</Text>
                 {!!transferInfo.bankName && <Text style={styles.transferInfoText}>الجهة: {transferInfo.bankName}</Text>}
                 {!!transferInfo.accountNumber && <Text style={styles.transferInfoText}>رقم الحساب: {transferInfo.accountNumber}</Text>}
                 {!!transferInfo.accountName && <Text style={styles.transferInfoText}>اسم المستلم: {transferInfo.accountName}</Text>}
+                {!!transferInfo.senderName && <Text style={styles.transferInfoText}>المرسل: {transferInfo.senderName} · {transferInfo.senderPhone}</Text>}
+                {!!transferInfo.accountType && <Text selectable style={styles.transferInfoText}>نوع الحساب: {transferInfo.accountType}</Text>}
+                {!!transferInfo.accountDetails && <Text selectable style={styles.transferInfoText}>{transferInfo.accountDetails}</Text>}
+                {!!transferInfo.instructions && <Text selectable style={styles.transferInfoText}>{transferInfo.instructions}</Text>}
+                {!!transferInfo.imageUrl && <Image source={{ uri: transferInfo.imageUrl }} style={{ width: 100, height: 80, alignSelf: 'center' }} resizeMode="contain" />}
                 {!!transferInfo.transferReference && <Text style={styles.transferInfoText}>رقم العملية: {transferInfo.transferReference}</Text>}
                 {!!transferInfo.rejectionReason && <Text style={styles.transferRejection}>سبب الرفض: {transferInfo.rejectionReason}</Text>}
               </> : !isLoadingTransferInfo && <Text style={styles.transferInfoText}>تعذر تحميل تفاصيل التحويل. حدّث الطلب للمحاولة مجدداً.</Text>}

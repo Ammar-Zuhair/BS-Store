@@ -83,6 +83,9 @@ interface AppContextType {
     receiptFileName?: string;
     receiptMimeType?: string;
     transferProvider?: TransferProviderType;
+      transferMethodId?: string;
+      transferMethodUpdatedAt?: string;
+      transferSenderName?: string; transferSenderPhone?: string;
     transferReference?: string;
     notes?: string;
   }) => Promise<Order>;
@@ -888,6 +891,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       receiptFileName?: string;
       receiptMimeType?: string;
       transferProvider?: TransferProviderType;
+      transferMethodId?: string;
+      transferMethodUpdatedAt?: string;
+      transferSenderName?: string; transferSenderPhone?: string;
       transferReference?: string;
       notes?: string;
     }
@@ -932,6 +938,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         couponCode: promoCode || undefined,
         productDiscountDealId: productDiscountDealId || undefined,
         transferProvider: isManual ? options?.transferProvider : undefined,
+        transferMethodId: isManual ? options?.transferMethodId : undefined,
+        transferMethodUpdatedAt: isManual ? options?.transferMethodUpdatedAt : undefined,
+        transferSenderName: isManual ? options?.transferSenderName : undefined,
+        transferSenderPhone: isManual ? options?.transferSenderPhone : undefined,
         transferReference: isManual ? options?.transferReference?.trim() || undefined : undefined,
         idempotencyKey: orderAttempt.current.key,
         items: cart.map((c) => ({

@@ -239,7 +239,10 @@ export const ordersApi = {
     deliveryDealId?: string;
     couponCode?: string;
     productDiscountDealId?: string;
-    transferProvider?: 'ALKURAIMI' | 'WALLET';
+    transferProvider?: string;
+    transferMethodId?: string;
+    transferMethodUpdatedAt?: string;
+    transferSenderName?: string; transferSenderPhone?: string;
     transferReference?: string;
     items?: { productId?: string; dealId?: string; dealProductId?: string; quantity: number; variantId?: string; imageValueId?: string; bundleSelections?: BundleSelection[] }[];
   }) => api.post<any>('/checkout/place-order', req),
@@ -269,7 +272,8 @@ export const paymentsApi = {
     accountName: string;
     status: number | string;
     rejectionReason?: string | null;
-    transferProvider?: 'ALKURAIMI' | 'WALLET' | null;
+    transferProvider?: string | null;
+    accountType?: string; accountDetails?: string; instructions?: string; imageUrl?: string; senderName?: string; senderPhone?: string;
     transferReference?: string | null;
     receiptUrl?: string | null;
   }>(`/payments/${orderId}/transfer-info`),

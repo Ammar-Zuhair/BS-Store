@@ -1,3 +1,4 @@
+import { PaymentMethodDetails } from '../components/PaymentMethodDetails';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Image, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
@@ -84,8 +85,7 @@ export const WalletScreen: React.FC = () => {
         {methods.map(m => <TouchableOpacity key={m.id} disabled={saving} onPress={() => { setMethodId(m.id); setConfirmed(false); }} style={[styles.choice, m.id === methodId && { borderColor: colors.primary, borderWidth: 2 }]}
           accessibilityRole="radio" accessibilityState={{ checked: m.id === methodId }}><Text style={styles.label}>{m.name}{m.id === methodId ? '  ✓' : ''}</Text></TouchableOpacity>)}
         {method && <View style={styles.details}><Text style={styles.label}>معلومات الإرسال</Text>
-          <Text selectable style={styles.text}>المستفيد: {method.accountName}</Text><Text selectable style={styles.text}>رقم الحساب: {method.accountNumber}</Text>
-          {!!method.instructions && <Text selectable style={styles.text}>{method.instructions}</Text>}<Text style={styles.hint}>اضغط مطولاً على البيانات لنسخها.</Text></View>}
+          <PaymentMethodDetails method={method} color={colors.onSurface} /></View>}
         {field('مبلغ الشحن بالريال', amount, setAmount, true)}{field('اسم المرسل', sender, setSender)}{field('رقم هاتف المرسل', phone, setPhone, true)}{field('رقم الحوالة / العملية', reference, setReference)}
         {button(receipt ? 'تغيير صورة التحويل' : 'إرفاق صورة التحويل', () => { void chooseTransferReceipt().then(r => { if (r) { setReceipt(r); setConfirmed(false); } }).catch(e => setError(e.message)); }, true, saving)}
         {receipt && <Image source={{ uri: receipt.uri }} style={styles.image} resizeMode="contain" accessibilityLabel="صورة التحويل المختارة" />}

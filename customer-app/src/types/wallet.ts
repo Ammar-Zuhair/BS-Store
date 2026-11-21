@@ -1,5 +1,5 @@
 export interface WalletMethod {
-  id: string; name: string; code: string; accountName: string; accountNumber: string; instructions: string; updatedAt: string;
+  id: string; name: string; code: string; accountName: string; accountNumber: string; instructions: string; updatedAt: string; imageUrl?: string; accountType?: string; accountDetails?: string;
 }
 export interface WalletEntry {
   id: string; amount: number; balanceAfter: number; type: string; description: string; createdAt: string;

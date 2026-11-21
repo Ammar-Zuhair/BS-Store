@@ -89,7 +89,7 @@ export const pickImageFromGallery = async (): Promise<PickedImage | null> => {
  */
 export const uploadCatalogueImage = async (
   imageInput: string | PickedImage,
-  folder: 'stores' | 'products' | 'offers' = 'products'
+  folder: 'stores' | 'products' | 'offers' | 'payment-methods' = 'products'
 ): Promise<string> => {
   try {
     const localUri = typeof imageInput === 'string' ? imageInput : imageInput.uri;
@@ -129,11 +129,11 @@ export const stageCatalogueImage = (image: PickedImage): string => {
   return image.uri;
 };
 
-export async function saveCatalogueForm<T, R>(payload: T, folder: 'stores' | 'products' | 'offers', save: (prepared: T) => Promise<R>): Promise<R> {
+export async function saveCatalogueForm<T, R>(payload: T, folder: 'stores' | 'products' | 'offers' | 'payment-methods', save: (prepared: T) => Promise<R>): Promise<R> {
   const uploaded: string[] = [];
   const converted = new Map<string, string>();
   const prepareImage = async (value: string): Promise<string> => {
-    if (!value || /\/api\/images\/(stores|products|offers)\/[a-f0-9]{32}\.(jpg|jpeg|png|webp)(?:$|[?#])/i.test(value)) return value;
+    if (!value || /\/api\/images\/(stores|products|offers|payment-methods)\/[a-f0-9]{32}\.(jpg|jpeg|png|webp)(?:$|[?#])/i.test(value)) return value;
     if (converted.has(value)) return converted.get(value)!;
     const url = await uploadCatalogueImage(drafts.get(value) || value, folder);
     uploaded.push(url); converted.set(value, url); return url;

@@ -184,13 +184,14 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       driverEstimatedEarnings: Number(order.driverEstimatedEarnings ?? 0),
       amountToCollect: Number(order.cashDueAtDelivery ?? order.totalAmount) || 0,
       walletPaidAmount: Math.max(0, Number(order.walletPaidAmount || 0) - Number(order.walletRefundedAmount || 0)),
+      transferMethodName: order.transferMethodName || undefined,
       transferredAmount: Number(order.transferredAmount ?? 0) || 0,
       cashRefundAtDelivery: Number(order.cashRefundAtDelivery ?? 0) || 0,
       paymentMethod: order.paymentMethod === 1 || order.paymentMethod === 'ManualTransfer' ? 'MANUAL_TRANSFER' : 'CASH_ON_DELIVERY',
       isTransferAmountConfirmed: order.paymentMethod === 1 || order.paymentMethod === 'ManualTransfer'
         ? order.transferAmountConfirmed === true
         : true,
-      isPaymentVerified: order.paymentStatus === 1 || order.paymentStatus === 'Verified',
+      isPaymentVerified: order.paymentStatus === 2 || order.paymentStatus === 'Verified',
       deliveryNotes: order.notes,
       totalDistanceKm: 4.8,
       estimatedMinutes: 25,

@@ -143,7 +143,7 @@ async function main() {
 
     const { uploadCatalogueImage } = load(path.join(root, 'admin-app/src/services/imageStorage.ts'));
     const source = Buffer.from(await (await nativeFetch(`${server.url}/test/catalogue-source`)).arrayBuffer());
-    for (const folder of ['stores', 'products', 'offers']) {
+    for (const folder of ['stores', 'products', 'offers', 'payment-methods']) {
       const savedUrl = await uploadCatalogueImage({ uri: 'file:///catalogue.png', base64: source.toString('base64'), mimeType: 'image/png' }, folder);
       assert.match(savedUrl, new RegExp(`/api/images/${folder}/[a-f0-9]{32}\\.jpg$`));
       {
@@ -163,12 +163,12 @@ async function main() {
     assert.equal((await (await nativeFetch(`${server.url}/test/r2-read-count`)).json()).getCount, 0,
       'backend display controllers sign URLs without fetching object bodies');
     const stored = await (await nativeFetch(`${server.url}/test/catalogue-upload`)).json();
-    assert.equal(stored.uploadCount, 3); assert.equal(stored.lastMime, 'image/jpeg');
+    assert.equal(stored.uploadCount, 4); assert.equal(stored.lastMime, 'image/jpeg');
     assert.ok(stored.size < source.length / 2, 'large originals are reduced before remote storage');
     const invalidImage = await nativeFetch(`${server.url}/api/admin/images?folder=products`, { method: 'POST', headers: { Authorization: 'Bearer test-admin', 'Content-Type': 'application/octet-stream' }, body: 'not an image' });
     assert.equal(invalidImage.status, 400);
     assert.equal((await nativeFetch(`${server.url}/api/admin/images`, { method: 'POST', headers: { Authorization: 'Bearer test-customer' }, body: source })).status, 403);
-    console.log(`PASS authenticated receipt display/refresh, same-origin protection, stores/products/offers compression (${source.length} to ${stored.size} bytes), invalid images and upload authorization`);
+    console.log(`PASS authenticated receipt display/refresh, same-origin protection, stores/products/offers/payment-methods compression (${source.length} to ${stored.size} bytes), invalid images and upload authorization`);
 
     await call(`/admin/payments/${server.paymentId}/reject`, 'test-admin', { reason: 'Test rejection' });
     const rejected = await paymentsApi.getTransferInfo(server.orderId);
